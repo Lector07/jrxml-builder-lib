@@ -59,7 +59,7 @@ public class ReportBuilder {
         appendTitle(xml, columnWidth);
         appendColumnHeader(xml);
         appendDetailBand(xml);
-        appendColumnFooter(xml); // Dodano brakujące wywołanie
+        appendColumnFooter(xml);
         appendSummary(xml);
 
         appendReportFooter(xml);
@@ -67,7 +67,6 @@ public class ReportBuilder {
         return xml.toString();
     }
 
-    // --- Metody Pomocnicze ---
 
     private void appendReportDefinition(StringBuilder xml, int columnWidth) {
         xml.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
@@ -149,9 +148,11 @@ public class ReportBuilder {
         for (Column column : columns) {
             String patternAttribute = column.hasPattern() ? " pattern=\"" + column.getPattern() + "\"" : "";
             xml.append("\t\t\t<textField").append(patternAttribute).append(" isStretchWithOverflow=\"true\">\n");
-            xml.append("\t\t\t\t<reportElement").append(styleAttribute).append(" x=\"").append(currentX)
+
+            xml.append("\t\t\t\t<reportElement").append(styleAttribute).append(" mode=\"Opaque\"").append(" x=\"").append(currentX)
                     .append("\" y=\"0\" width=\"").append(column.getWidth()).append("\" height=\"20\"/>\n");
             xml.append("\t\t\t\t<box padding=\"2\"><pen lineWidth=\"0.5\"/></box>\n");
+
             if (column.getType() == DataType.INTEGER || column.getType() == DataType.BIG_DECIMAL) {
                 xml.append("\t\t\t\t<textElement textAlignment=\"Right\"/>\n");
             }
