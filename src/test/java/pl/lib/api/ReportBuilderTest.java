@@ -40,4 +40,28 @@ public class ReportBuilderTest {
 
         System.out.println(jrxml);
     }
+
+    @Test
+    void testBuildsReportWithSummaries() {
+        // Arrange
+        ReportBuilder builder = new ReportBuilder();
+
+        // Act
+        String jrxml = builder
+                .withTitle("Podsumowanie Sprzedaży")
+                .addColumn("productName", "Produkt", 255, DataType.STRING, null, false)
+                .addColumn("quantity", "Ilość", 150, DataType.INTEGER, "#,##0", true)
+                .addColumn("totalValue", "Wartość", 150, DataType.BIG_DECIMAL, "#,##0.00 zł", true)
+                .build();
+
+        // Assert
+        assertNotNull(jrxml);
+        assertTrue(jrxml.contains("<variable name=\"quantity_SUM\" class=\"java.lang.Integer\" calculation=\"Sum\">"));
+        assertTrue(jrxml.contains("<variable name=\"totalValue_SUM\" class=\"java.math.BigDecimal\" calculation=\"Sum\">"));
+        assertTrue(jrxml.contains("<summary>"));
+        assertTrue(jrxml.contains("<textFieldExpression><![CDATA[$V{quantity_SUM}]]></textFieldExpression>"));
+        assertTrue(jrxml.contains("<textFieldExpression><![CDATA[$V{totalValue_SUM}]]></textFieldExpression>"));
+
+        System.out.println(jrxml);
+    }
 }

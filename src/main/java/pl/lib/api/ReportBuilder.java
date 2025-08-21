@@ -11,6 +11,7 @@ public class ReportBuilder {
     private String reportTitle = "Default Report Title";
     private int pageWidth = 842;
     private int pageHeight = 595;
+    private String summaryExpression = "";
 
     public ReportBuilder withTitle(String title) {
         this.reportTitle = title;
@@ -23,13 +24,27 @@ public class ReportBuilder {
         return this;
     }
 
+    public ReportBuilder withSummaryExpression(String expression) {
+        this.summaryExpression = expression;
+        return this;
+    }
+
+
     public ReportBuilder addColumn(String fieldName, String title, int width, DataType type) {
-        this.columns.add(new Column(fieldName, title, width, type, null));
+        this.columns.add(new Column(fieldName, title, width, type, null, false));
         return this;
     }
 
     public ReportBuilder addColumn(String fieldName, String title, int width, DataType type, String pattern) {
-        this.columns.add(new Column(fieldName, title, width, type, pattern));
+        this.columns.add(new Column(fieldName, title, width, type, pattern, false));
+        return this;
+    }
+
+    public ReportBuilder addColumn(String fieldName, String title, int width, DataType type, String pattern, boolean summed) {
+        if (summed && (type != DataType.BIG_DECIMAL && type != DataType.DOUBLE && type != DataType.FLOAT && type != DataType.INTEGER)) {
+            throw new IllegalArgumentException("Summation is only supported for numeric types (BIG_DECIMAL, DOUBLE, FLOAT, INTEGER).");
+        }
+        this.columns.add(new Column(fieldName, title, width, type, pattern, summed));
         return this;
     }
 
@@ -42,16 +57,17 @@ public class ReportBuilder {
         appendParameters(xml);
         appendQueryString(xml);
         appendFields(xml);
+        appendVariables(xml);
 
         appendTitle(xml, columnWidth);
         appendColumnHeader(xml);
         appendDetailBand(xml);
+        appendSummary(xml);
 
         appendReportFooter(xml);
 
         return xml.toString();
     }
-
 
 
     private void appendReportDefinition(StringBuilder xml, int columnWidth) {
@@ -75,6 +91,17 @@ public class ReportBuilder {
         for (Column column : this.columns) {
             xml.append("\t<field name=\"").append(column.getFieldName()).append("\" class=\"")
                     .append(column.getType().getJavaClass()).append("\"/>\n");
+        }
+    }
+
+    private void appendVariables(StringBuilder xml) {
+        for (Column column : this.columns) {
+            if (column.isSummed()) {
+                String variableName = column.getFieldName() + "_SUM";
+                xml.append("\t<variable name=\"").append(variableName).append("\" class=\"").append(column.getType().getJavaClass()).append("\" calculation=\"Sum\">\n");
+                xml.append("\t\t<variableExpression><![CDATA[$F{").append(column.getFieldName()).append("}]]></variableExpression>\n");
+                xml.append("\t</variable>\n");
+            }
         }
     }
 
@@ -115,7 +142,7 @@ public class ReportBuilder {
             xml.append("\t\t\t\t<reportElement x=\"").append(currentX)
                     .append("\" y=\"0\" width=\"").append(column.getWidth()).append("\" height=\"20\"/>\n");
             xml.append("\t\t\t\t<box padding=\"2\"><pen lineWidth=\"0.5\"/></box>\n");
-            if(column.getType() == DataType.INTEGER || column.getType() == DataType.BIG_DECIMAL) {
+            if (column.getType() == DataType.INTEGER || column.getType() == DataType.BIG_DECIMAL) {
                 xml.append("\t\t\t\t<textElement textAlignment=\"Right\"/>\n");
             }
             xml.append("\t\t\t\t<textFieldExpression><![CDATA[$F{").append(column.getFieldName()).append("}]]></textFieldExpression>\n");
@@ -129,6 +156,36 @@ public class ReportBuilder {
         xml.append("</jasperReport>");
     }
 
+    private void appendSummary(StringBuilder xml) {
+        xml.append("\t<summary>\n\t\t<band height=\"30\">\n");
+
+        xml.append("\t\t\t<staticText>\n");
+        xml.append("\t\t\t\t<reportElement x=\"0\" y=\"0\" width=\"100\" height=\"30\"/>\n");
+        xml.append("\t\t\t\t<textElement textAlignment=\"Right\" verticalAlignment=\"Middle\">\n");
+        xml.append("\t\t\t\t<font isBold=\"true\"/></textElement>\n");
+        xml.append("\t\t\t\t<text><![CDATA[").append(this.summaryExpression).append(":]]></text>\n");
+        xml.append("\t\t\t</staticText>\n");
+
+        int currentX = 0;
+        for (Column column : this.columns) {
+            if (column.isSummed()) {
+                String variableName = column.getFieldName() + "_SUM";
+                String patternAtribute = column.hasPattern() ? " pattern=\"" + column.getPattern() + "\"" : "";
+
+                xml.append("\t\t\t<textField").append(patternAtribute).append(">\n");
+                xml.append("\t\t\t\t<reportElement mode=\"Opaque\" backcolor=\"#DEDEDE\" x=\"").append(currentX).append("\" y=\"5\" width=\"").append(column.getWidth()).append("\" height=\"20\"/>\n");
+                xml.append("\t\t\t\t<box padding=\"2\"><pen lineWidth=\"0.5\"/></box>\n");
+                xml.append("\t\t\t\t<textElement textAlignment=\"Right\" verticalAlignment=\"Middle\">\n");
+                xml.append("\t\t\t\t\t<font isBold=\"true\"/>\n");
+                xml.append("\t\t\t\t</textElement>\n");
+                xml.append("\t\t\t\t<textFieldExpression><![CDATA[$V{").append(variableName).append("}]]></textFieldExpression>\n");
+                xml.append("\t\t\t</textField>\n");
+
+            }
+            currentX += column.getWidth();
+        }
+        xml.append("\t\t</band>\n\t</summary>\n");
+    }
 
 
 }
