@@ -1,29 +1,42 @@
+// src/test/java/pl/lib/api/ReportBuilderTest.java
 package pl.lib.api;
 
 import org.junit.jupiter.api.Test;
+import pl.lib.model.DataType; // Import enuma
+
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ReportBuilderTest {
 
     @Test
-    void testBuildsReportWithDynamicColumns() {
-
+    void testBuildsReportWithDataTypesAndPatterns() {
+        // Arrange
         ReportBuilder builder = new ReportBuilder();
 
+        // Act
         String jrxml = builder
-                .withTitle("Lista Pracowników")
-                .addColumn("firstName", "Imię", 150)
-                .addColumn("lastName", "Nazwisko", 25)
-                .addColumn("position", "Stanowisko", 20)
+                .withTitle("Sprawozdanie Finansowe")
+                .addColumn("productName", "Nazwa Produktu", 255, DataType.STRING)
+                .addColumn("quantity", "Ilość", 100, DataType.INTEGER)
+                .addColumn("price", "Cena", 100, DataType.BIG_DECIMAL, "#,##0.00 zł")
+                .addColumn("purchaseDate", "Data Zakupu", 100, DataType.DATE, "dd.MM.yyyy")
                 .build();
 
+        // Assert
         assertNotNull(jrxml);
 
-        assertTrue(jrxml.contains("<field name=\"firstName\" class=\"java.lang.String\"/>"));
+        // Sprawdź definicje pól z poprawnymi typami
+        assertTrue(jrxml.contains("<field name=\"productName\" class=\"java.lang.String\"/>"));
+        assertTrue(jrxml.contains("<field name=\"quantity\" class=\"java.lang.Integer\"/>"));
+        assertTrue(jrxml.contains("<field name=\"price\" class=\"java.math.BigDecimal\"/>"));
+        assertTrue(jrxml.contains("<field name=\"purchaseDate\" class=\"java.util.Date\"/>"));
 
-        assertTrue(jrxml.contains("<text><![CDATA[Imię]]></text>"));
+        // Sprawdź, czy wzorce formatowania zostały dodane do textField
+        assertTrue(jrxml.contains("<textField pattern=\"#,##0.00 zł\""));
+        assertTrue(jrxml.contains("<textField pattern=\"dd.MM.yyyy\""));
 
-        assertTrue(jrxml.contains("<textFieldExpression><![CDATA[$F{firstName}]]></textFieldExpression>"));
+        // Sprawdź wyrównanie do prawej dla liczb
+        assertTrue(jrxml.contains("<textElement textAlignment=\"Right\"/>"));
 
         System.out.println(jrxml);
     }

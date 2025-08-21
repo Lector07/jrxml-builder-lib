@@ -1,6 +1,7 @@
 package pl.lib.api;
 
 import pl.lib.model.Column;
+import pl.lib.model.DataType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,8 +23,13 @@ public class ReportBuilder {
         return this;
     }
 
-    public ReportBuilder addColumn(String fieldName, String title, int width) {
-        this.columns.add(new Column(fieldName, title, width));
+    public ReportBuilder addColumn(String fieldName, String title, int width, DataType type) {
+        this.columns.add(new Column(fieldName, title, width, type, null));
+        return this;
+    }
+
+    public ReportBuilder addColumn(String fieldName, String title, int width, DataType type, String pattern) {
+        this.columns.add(new Column(fieldName, title, width, type, pattern));
         return this;
     }
 
@@ -67,7 +73,8 @@ public class ReportBuilder {
 
     private void appendFields(StringBuilder xml) {
         for (Column column : this.columns) {
-            xml.append("\t<field name=\"").append(column.getFieldName()).append("\" class=\"java.lang.String\"/>\n");
+            xml.append("\t<field name=\"").append(column.getFieldName()).append("\" class=\"")
+                    .append(column.getType().getJavaClass()).append("\"/>\n");
         }
     }
 
@@ -101,10 +108,16 @@ public class ReportBuilder {
         xml.append("\t<detail>\n\t\t<band height=\"20\" splitType=\"Stretch\">\n");
         int currentX = 0;
         for (Column column : this.columns) {
-            xml.append("\t\t\t<textField isStretchWithOverflow=\"true\">\n");
+            String patternAttribute = column.hasPattern() ? " pattern=\"" + column.getPattern() + "\"" : "";
+
+            xml.append("\t\t\t<textField").append(patternAttribute).append(" isStretchWithOverflow=\"true\">\n");
+
             xml.append("\t\t\t\t<reportElement x=\"").append(currentX)
                     .append("\" y=\"0\" width=\"").append(column.getWidth()).append("\" height=\"20\"/>\n");
             xml.append("\t\t\t\t<box padding=\"2\"><pen lineWidth=\"0.5\"/></box>\n");
+            if(column.getType() == DataType.INTEGER || column.getType() == DataType.BIG_DECIMAL) {
+                xml.append("\t\t\t\t<textElement textAlignment=\"Right\"/>\n");
+            }
             xml.append("\t\t\t\t<textFieldExpression><![CDATA[$F{").append(column.getFieldName()).append("}]]></textFieldExpression>\n");
             xml.append("\t\t\t</textField>\n");
             currentX += column.getWidth();
