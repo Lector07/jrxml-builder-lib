@@ -64,4 +64,29 @@ public class ReportBuilderTest {
 
         System.out.println(jrxml);
     }
+
+    @Test
+    void testBuildsReportWithZebraStriping() {
+        // Arrange
+        ReportBuilder builder = new ReportBuilder();
+
+        // Act
+        String jrxml = builder
+                .withTitle("Raport z Paskami Zebry")
+                .addColumn("name", "Nazwa", 400, DataType.STRING)
+                .withZebraStriping() // <<< WŁĄCZAMY NOWĄ FUNKCJĘ
+                .build();
+
+        // Assert
+        assertNotNull(jrxml);
+
+        // 1. Sprawdź, czy definicja stylu została wygenerowana
+        assertTrue(jrxml.contains("<style name=\"ZebraStripeStyle\" mode=\"Opaque\" backcolor=\"#F0F0F0\">"));
+        assertTrue(jrxml.contains("<conditionExpression><![CDATA[$V{REPORT_COUNT} % 2 == 0]]></conditionExpression>"));
+
+        // 2. Sprawdź, czy styl został zastosowany do elementu w bandzie <detail>
+        assertTrue(jrxml.contains("<reportElement style=\"ZebraStripeStyle\""));
+
+        System.out.println(jrxml);
+    }
 }
