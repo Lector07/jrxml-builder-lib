@@ -15,14 +15,6 @@ public class Column {
         return fieldName;
     }
 
-    /**
-     * @deprecated Literówka w poprzedniej wersji. Użyj {@link #getFieldName()}.
-     */
-    @Deprecated
-    public String getFielsdName() {
-        return fieldName;
-    }
-
     public String getTitle() {
         return title;
     }
