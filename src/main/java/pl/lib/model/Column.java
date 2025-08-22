@@ -7,14 +7,16 @@ public class Column {
     private final DataType type;
     private final String pattern;
     private final Boolean summed;
+    private final Boolean summedInGroup;
 
-    public Column(String fieldName, String title, int width, DataType type, String pattern, Boolean summed) {
+    public Column(String fieldName, String title, int width, DataType type, String pattern, Boolean summed, Boolean summedInGroup) {
         this.fieldName = fieldName;
         this.title = title;
         this.width = width;
         this.type = type;
         this.pattern = pattern;
         this.summed = summed;
+        this.summedInGroup = summedInGroup;
 
     }
 
@@ -38,10 +40,16 @@ public class Column {
         return pattern;
     }
 
-    public boolean hasPattern() { return pattern != null && !pattern.isEmpty(); }
+    public boolean hasPattern() {
+        return pattern != null && !pattern.isEmpty();
+    }
 
     public Boolean isSummed() {
         return summed;
+    }
+
+    public Boolean isSummedInGroup() {
+        return summedInGroup;
     }
 
 }
