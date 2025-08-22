@@ -118,7 +118,7 @@ public class ReportBuilder {
         xml.append("\t<style name=\"ZebraStripeStyle\" mode=\"Opaque\" backcolor=\"#F0F0F0\">\n")
                 .append("\t\t<conditionalStyle>\n")
                 .append("\t\t\t<conditionExpression><![CDATA[$V{REPORT_COUNT} % 2 == 0]]></conditionExpression>\n")
-                .append("\t\t\t<style/>\n")
+                .append("\t\t\t<style mode=\"Opaque\" backcolor=\"#FFFFFF\"/>\n")
                 .append("\t\t</conditionalStyle>\n")
                 .append("\t</style>\n");
     }
@@ -249,7 +249,7 @@ public class ReportBuilder {
             xml.append("\t\t\t<textField").append(patternAttribute).append(" isStretchWithOverflow=\"true\">\n");
             xml.append("\t\t\t\t<reportElement")
                     .append(styleAttribute)
-                    .append(" positionType=\"Float\" stretchType=\"RelativeToTallestObject\" mode=\"Opaque\"")
+                    .append(" positionType=\"Float\" stretchType=\"RelativeToTallestObject\"")
                     .append(" x=\"").append(currentX).append("\" y=\"0\" width=\"").append(column.getWidth()).append("\" height=\"25\"/>\n");
             xml.append("\t\t\t\t<box padding=\"4\"><pen lineWidth=\"0.5\"/></box>\n");
 
@@ -286,17 +286,23 @@ public class ReportBuilder {
         xml.append("\t\t\t<line>\n");
         xml.append("\t\t\t\t<reportElement x=\"0\" y=\"2\" width=\"555\" height=\"1\"/>\n");
         xml.append("\t\t\t</line>\n");
-
-        // Tekst statyczny z dokładnym formatem oczekiwanym przez test (\\n)
+        
         xml.append("\t\t\t<staticText>\n");
-        xml.append("\t\t\t\t<reportElement x=\"0\" y=\"2\" width=\"200\" height=\"25\"/>\n");
+        xml.append("\t\t\t\t<reportElement x=\"0\" y=\"2\" width=\"200\" height=\"12\"/>\n");
         xml.append("\t\t\t\t<textElement verticalAlignment=\"Bottom\">\n");
         xml.append("\t\t\t\t\t<font fontName=\"DejaVu Sans Condensed\" size=\"8\"/>\n");
         xml.append("\t\t\t\t</textElement>\n");
-        xml.append("\t\t\t\t<text><![CDATA[").append(this.footerLeftText).append("\n").append(this.footerRightText).append("]]></text>\n");
+        xml.append("\t\t\t\t<text><![CDATA[").append(this.footerLeftText).append("]]></text>\n");
         xml.append("\t\t\t</staticText>\n");
 
-        // Numeracja stron: "Strona X z"
+        xml.append("\t\t\t<staticText>\n");
+        xml.append("\t\t\t\t<reportElement x=\"0\" y=\"14\" width=\"200\" height=\"12\"/>\n");
+        xml.append("\t\t\t\t<textElement verticalAlignment=\"Top\">\n");
+        xml.append("\t\t\t\t\t<font fontName=\"DejaVu Sans Condensed\" size=\"8\"/>\n");
+        xml.append("\t\t\t\t</textElement>\n");
+        xml.append("\t\t\t\t<text><![CDATA[").append(this.footerRightText).append("]]></text>\n");
+        xml.append("\t\t\t</staticText>\n");
+
         xml.append("\t\t\t<textField>\n");
         xml.append("\t\t\t\t<reportElement x=\"455\" y=\"7\" width=\"50\" height=\"20\"/>\n");
         xml.append("\t\t\t\t<textElement textAlignment=\"Right\" verticalAlignment=\"Middle\">\n");
@@ -305,7 +311,6 @@ public class ReportBuilder {
         xml.append("\t\t\t\t<textFieldExpression><![CDATA[\"Strona \" + $V{PAGE_NUMBER} + \" z \"]]></textFieldExpression>\n");
         xml.append("\t\t\t</textField>\n");
 
-        // Druga część numeracji (całkowita liczba stron)
         xml.append("\t\t\t<textField evaluationTime=\"Report\">\n");
         xml.append("\t\t\t\t<reportElement x=\"510\" y=\"7\" width=\"50\" height=\"20\"/>\n");
         xml.append("\t\t\t\t<textElement verticalAlignment=\"Middle\">\n");
