@@ -1,241 +1,200 @@
 package pl.lib.api;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import pl.lib.model.DataType;
+import pl.lib.api.ReportBuilder;
+import pl.lib.model.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class ReportBuilderTest {
+class ReportBuilderTest {
+
+    private ReportBuilder reportBuilder;
+
+    @BeforeEach
+    void setUp() {
+        reportBuilder = new ReportBuilder();
+    }
 
     @Test
-    void testBuildsReportWithDataTypesAndPatterns() {
-        ReportBuilder builder = new ReportBuilder();
-
-        String jrxml = builder
-                .withTitle("Sprawozdanie Finansowe")
-                .addColumn("productName", "Nazwa Produktu", 255, DataType.STRING)
-                .addColumn("quantity", "Ilość", 100, DataType.INTEGER)
-                .addColumn("price", "Cena", 100, DataType.BIG_DECIMAL, "#,##0.00 zł")
-                .addColumn("purchaseDate", "Data Zakupu", 100, DataType.DATE, "dd.MM.yyyy")
+    void testBasicReportGeneration() {
+        String jrxml = reportBuilder
+                .withTitle("Testowy Raport")
+                .withPageSize(842, 595) // A4 Poziomo
                 .build();
 
         assertNotNull(jrxml);
-
-        assertTrue(jrxml.contains("<field name=\"productName\" class=\"java.lang.String\"/>"));
-        assertTrue(jrxml.contains("<field name=\"quantity\" class=\"java.lang.Integer\"/>"));
-        assertTrue(jrxml.contains("<field name=\"price\" class=\"java.math.BigDecimal\"/>"));
-        assertTrue(jrxml.contains("<field name=\"purchaseDate\" class=\"java.util.Date\"/>"));
-
-        assertTrue(jrxml.contains("<textField pattern=\"#,##0.00 zł\""));
-        assertTrue(jrxml.contains("<textField pattern=\"dd.MM.yyyy\""));
-
-        assertTrue(jrxml.contains("<textElement textAlignment=\"Right\"/>"));
+        assertTrue(jrxml.startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
+        assertTrue(jrxml.contains("<jasperReport"));
+        assertTrue(jrxml.contains("name=\"Testowy_Raport\""));
+        assertTrue(jrxml.contains("pageWidth=\"842\""));
+        assertTrue(jrxml.contains("pageHeight=\"595\""));
+        assertTrue(jrxml.contains("<textFieldExpression><![CDATA[$P{ReportTitle}]]></textFieldExpression>"));
+        assertTrue(jrxml.endsWith("</jasperReport>"));
 
         System.out.println(jrxml);
     }
 
     @Test
-    void testBuildsReportWithSummaries() {
-        ReportBuilder builder = new ReportBuilder();
-
-        String jrxml = builder
-                .withTitle("Podsumowanie Sprzedaży")
-                .addColumn("productName", "Produkt", 255, DataType.STRING, null, false, false)
-                .addColumn("quantity", "Ilość", 150, DataType.INTEGER, "#,##0.00 zł", true, false)
-                .addColumn("totalValue", "Wartość", 150, DataType.BIG_DECIMAL, "#,##0.00 zł", true, true)
+    void testHorizontalLayout() {
+        String jrxml = reportBuilder
+                .withPageSize(595, 842) // A4 Portret
+                .withHorizontalLayout()
                 .build();
 
-        // Assert
-        assertNotNull(jrxml);
-        assertTrue(jrxml.contains("<variable name=\"quantity_SUM\" class=\"java.lang.Integer\" calculation=\"Sum\">"));
-        assertTrue(jrxml.contains("<variable name=\"totalValue_SUM\" class=\"java.math.BigDecimal\" calculation=\"Sum\">"));
-        assertTrue(jrxml.contains("<summary>"));
-        assertTrue(jrxml.contains("<textFieldExpression><![CDATA[$V{quantity_SUM}]]></textFieldExpression>"));
-        assertTrue(jrxml.contains("<textFieldExpression><![CDATA[$V{totalValue_SUM}]]></textFieldExpression>"));
-
+        // Sprawdza, czy wymiary zostały zamienione
+        assertTrue(jrxml.contains("pageWidth=\"842\""));
+        assertTrue(jrxml.contains("pageHeight=\"595\""));
         System.out.println(jrxml);
+
     }
 
     @Test
-    void testBuildsReportWithZebraStriping() {
-        ReportBuilder builder = new ReportBuilder();
+    void testColumnAdditionAndFieldGeneration() {
+        String jrxml = reportBuilder
+                .addColumn(new Column("USER_NAME", "Nazwa użytkownika", 150, DataType.STRING, null, Calculation.NONE, Calculation.NONE))
+                .addColumn(new Column("ORDER_COUNT", "Liczba zamówień", 100, DataType.INTEGER, null, Calculation.NONE, Calculation.NONE))
+                .build();
 
-        String jrxml = builder
-                .withTitle("Raport z Paskami Zebry")
-                .addColumn("name", "Nazwa", 400, DataType.STRING)
+        // Sprawdzenie definicji pól
+        assertTrue(jrxml.contains("<field name=\"USER_NAME\" class=\"java.lang.String\"/>"));
+        assertTrue(jrxml.contains("<field name=\"ORDER_COUNT\" class=\"java.lang.Integer\"/>"));
+
+        // Sprawdzenie nagłówków kolumn
+        assertTrue(jrxml.contains("<text><![CDATA[Nazwa użytkownika]]></text>"));
+        assertTrue(jrxml.contains("<reportElement mode=\"Opaque\" backcolor=\"#DEDEDE\" x=\"0\" y=\"0\" width=\"150\" height=\"25\"/>"));
+        assertTrue(jrxml.contains("<text><![CDATA[Liczba zamówień]]></text>"));
+        assertTrue(jrxml.contains("<reportElement mode=\"Opaque\" backcolor=\"#DEDEDE\" x=\"150\" y=\"0\" width=\"100\" height=\"25\"/>"));
+
+        // Sprawdzenie pól w sekcji detail
+        assertTrue(jrxml.contains("<textFieldExpression><![CDATA[$F{USER_NAME}]]></textFieldExpression>"));
+        assertTrue(jrxml.contains("<textFieldExpression><![CDATA[$F{ORDER_COUNT}]]></textFieldExpression>"));
+        System.out.println(jrxml);
+
+    }
+
+    @Test
+    void testAutoWidthColumnCalculation() {
+        // Szerokość strony: 595, marginesy: 20 + 20 = 40. Dostępna szerokość: 555.
+        // Kolumna stała: 155. Zostaje: 400. Dwie kolumny auto => 200px na każdą.
+        String jrxml = reportBuilder
+                .addColumn(new Column("ID", "ID", -1, DataType.INTEGER, null, Calculation.NONE, Calculation.NONE))
+                .addColumn(new Column("FIXED_COL", "Stała", 155, DataType.STRING, null, Calculation.NONE, Calculation.NONE))
+                .addColumn(new Column("DESC", "Opis", 0, DataType.STRING, null, Calculation.NONE, Calculation.NONE))
+                .build();
+
+        assertTrue(jrxml.contains("<reportElement mode=\"Opaque\" backcolor=\"#DEDEDE\" x=\"0\" y=\"0\" width=\"200\" height=\"25\"/>"));
+        assertTrue(jrxml.contains("<reportElement mode=\"Opaque\" backcolor=\"#DEDEDE\" x=\"200\" y=\"0\" width=\"155\" height=\"25\"/>"));
+        assertTrue(jrxml.contains("<reportElement mode=\"Opaque\" backcolor=\"#DEDEDE\" x=\"355\" y=\"0\" width=\"200\" height=\"25\"/>"));
+
+        System.out.println(jrxml);
+
+    }
+
+    @Test
+    void testZebraStriping() {
+        String jrxml = reportBuilder
                 .withZebraStriping()
+                .addColumn(new Column("TEST", "Test", 100, DataType.STRING, null, Calculation.NONE, Calculation.NONE))
                 .build();
 
-        assertNotNull(jrxml);
-
-        assertTrue(jrxml.contains("<style name=\"ZebraStripeStyle\" mode=\"Opaque\" backcolor=\"#F0F0F0\">"));
-        assertTrue(jrxml.contains("<conditionExpression><![CDATA[$V{REPORT_COUNT} % 2 == 0]]></conditionExpression>"));
-
-        assertTrue(jrxml.contains("<reportElement style=\"ZebraStripeStyle\""));
-
-        System.out.println(jrxml);
-    }
-
-    @Test
-    void testBuildsReportWithCustomGroupHeader() {
-        // Arrange
-        ReportBuilder builder = new ReportBuilder();
-        String customHeaderExpression = "\"Dział: \" + $F{department}";
-
-        // Act
-        String jrxml = builder
-                .withTitle("Lista Pracowników wg Działów")
-                .addColumn("department", "Dział", 150, DataType.STRING)
-                .addColumn("fullName", "Imię i Nazwisko", 405, DataType.STRING)
-                // Używamy nowej metody addGroup z dwoma argumentami
-                .addGroup("department", customHeaderExpression)
-                .build();
-
-        // Assert
-        assertNotNull(jrxml);
-
-        // Sprawdź, czy definicja grupy istnieje
-        assertTrue(jrxml.contains("<group name=\"departmentGroup\">"));
-
-        // Sprawdź, czy nagłówek grupy zawiera nasze niestandardowe wyrażenie
-        assertTrue(jrxml.contains("<textFieldExpression><![CDATA[" + customHeaderExpression + "]]></textFieldExpression>"));
-
-        System.out.println(jrxml);
-    }
-
-    @Test
-    void testBuildsReportWithGroupSummaries() {
-        // Arrange
-        ReportBuilder builder = new ReportBuilder();
-
-        // Act
-        String jrxml = builder
-                .withTitle("Raport z Podsumowaniem Grup")
-                .addColumn("department", "Dział", 150, DataType.STRING)
-                .addColumn("salary", "Pensja", 150, DataType.BIG_DECIMAL, "#,##0.00", false, true)
-                .addGroup("department", "\"Dział: \" + $F{department}")
-                .build();
-
-        // Assert
-        assertNotNull(jrxml);
-
-        // Sprawdź, czy zmienna dla sumy w grupie została zdefiniowana
-        assertTrue(jrxml.contains("<variable name=\"salary_GROUP_SUM\" class=\"java.math.BigDecimal\" resetType=\"Group\" resetGroup=\"departmentGroup\" calculation=\"Sum\">"));
-
-        // Sprawdź, czy stopka grupy istnieje i używa tej zmiennej
-        assertTrue(jrxml.contains("<groupFooter>"));
-        assertTrue(jrxml.contains("<textFieldExpression><![CDATA[$V{salary_GROUP_SUM}]]></textFieldExpression>"));
-
-        System.out.println(jrxml);
-    }
-
-    @Test
-    void testBuildsReportWithStandardFooter() {
-        // Arrange
-        ReportBuilder builder = new ReportBuilder();
-        String left = "eBudżet - ZSI \"Sprawny Urząd\"";
-        String right = "BUK Softre - ww.softres.pl";
-
-        // Act
-        String jrxml = builder
-                .withTitle("Raport ze Stopką")
-                .addColumn("name", "Nazwa", 400, DataType.STRING)
-                .withStandardFooter(left, right) // <<< WŁĄCZAMY I KONFIGURUJEMY STOPKĘ
-                .build();
-
-        // Assert
-        assertNotNull(jrxml);
-
-        // 1. Sprawdź, czy sekcja <pageFooter> została wygenerowana
-        assertTrue(jrxml.contains("<pageFooter>"));
-
-        // 2. Sprawdź, czy zawiera teksty
-        assertTrue(jrxml.contains("<text><![CDATA[" + left + "\n" + right + "]]></text>"));
-
-        // 3. Sprawdź, czy zawiera numerację stron
-        assertTrue(jrxml.contains("<textFieldExpression><![CDATA[\"Strona \" + $V{PAGE_NUMBER} + \" z \"]]></textFieldExpression>"));
-        assertTrue(jrxml.contains("<textField evaluationTime=\"Report\">"));
-
-        System.out.println(jrxml);
-    }
-
-    @Test
-    void testBuildsComplexReportWithAllFeatures() {
-        // Arrange
-        ReportBuilder builder = new ReportBuilder();
-
-        // Act
-        String jrxml = builder
-                .withTitle("Kompleksowe Zestawienie Sprzedaży")
-                .withPageSize(842, 595)
-                .withZebraStriping()
-                .withStandardFooter("System Raportowy v1.0", "Poufne")
-
-                // Definicja kolumn
-                .addColumn("region", "Region", 20, DataType.STRING, null, false, false)
-                .addColumn("product", "Produkt", 25, DataType.STRING, null, false, false)
-                .addColumn("quantity", "Sprzedana Ilość", 10, DataType.INTEGER, "#,##0 szt.", true, true) // Sumuj globalnie i w grupie
-                .addColumn("totalValue", "Wartość Sprzedaży", 15, DataType.BIG_DECIMAL, "#,##0.00 zł", true, true) // Sumuj globalnie i w grupie
-                .addColumn("saleDate", "Data", 10, DataType.DATE, "yyyy-MM-dd", false, false)
-
-                // Definicja grupowania
-                .addGroup("region", "\"Region: \" + $F{region}")
-                .build();
-
-        // Assert
-        assertNotNull(jrxml);
-
-        // Sprawdź, czy wszystkie kluczowe sekcje istnieją
         assertTrue(jrxml.contains("<style name=\"ZebraStripeStyle\""));
-        assertTrue(jrxml.contains("<group name=\"regionGroup\">"));
-        assertTrue(jrxml.contains("<variable name=\"quantity_SUM\""));
-        assertTrue(jrxml.contains("<variable name=\"quantity_GROUP_SUM\""));
-        assertTrue(jrxml.contains("<variable name=\"totalValue_SUM\""));
-        assertTrue(jrxml.contains("<variable name=\"totalValue_GROUP_SUM\""));
-        assertTrue(jrxml.contains("<groupFooter>"));
-        assertTrue(jrxml.contains("<pageFooter>"));
-        assertTrue(jrxml.contains("<summary>"));
-
-        // Sprawdź, czy styl zebry jest stosowany
+        assertTrue(jrxml.contains("<conditionalStyle>"));
+        assertTrue(jrxml.contains("<conditionExpression><![CDATA[$V{REPORT_COUNT} % 2 == 0]]></conditionExpression>"));
         assertTrue(jrxml.contains("<reportElement style=\"ZebraStripeStyle\""));
 
-        // Sprawdź, czy stopka grupy zawiera poprawną zmienną
-        assertTrue(jrxml.contains("<textFieldExpression><![CDATA[$V{quantity_GROUP_SUM}]]></textFieldExpression>"));
-
-        // (Opcjonalnie) Wyświetl finalny, kompleksowy XML
-        System.out.println("--- Kompleksowy JRXML ---");
         System.out.println(jrxml);
-        System.out.println("-------------------------");
+
     }
 
     @Test
-    void testAutoColumnWidthDistribution() {
-        // Arrange
-        ReportBuilder builder = new ReportBuilder();
+    void testCustomStyle() {
+        Style customStyle = new Style("Highlight")
+                .withColors("#FF0000", "#FFFF00")
+                .withFontName("Arial", 12, true);
 
-        // Act
-        String jrxml = builder
-                .withTitle("Test Szerokości Automatycznych")
-                .withPageSize(892, 595)
-                .addColumn("name", "Nazwa", DataType.STRING)
-                .addColumn("price", "Cena", 100, DataType.BIG_DECIMAL)
-                .addColumn("quantity", "Ilość", DataType.INTEGER)
+        String jrxml = reportBuilder
+                .addStyle(customStyle)
+                .addColumn(new Column("STYLED_COL", "Styl", 100, DataType.STRING, null, Calculation.NONE, Calculation.NONE, "Highlight"))
                 .build();
 
-        // Assert
-        assertNotNull(jrxml);
-        assertTrue(jrxml.contains("<field name=\"name\" class=\"java.lang.String\"/>"));
-        assertTrue(jrxml.contains("<field name=\"price\" class=\"java.math.BigDecimal\"/>"));
-        assertTrue(jrxml.contains("<field name=\"quantity\" class=\"java.lang.Integer\"/>"));
+        assertTrue(jrxml.contains("<style name=\"Highlight\" fontName=\"Arial\" fontSize=\"12\" isBold=\"true\" forecolor=\"#FF0000\" mode=\"Opaque\" backcolor=\"#FFFF00\">"));
+        assertTrue(jrxml.contains("<reportElement style=\"Highlight\""));
 
-        // Sprawdź, czy kolumny mają obliczoną szerokość > 0
-        assertTrue(jrxml.contains("width=\"100\"")); // sprawdzamy kolumnę z ustaloną szerokością
+        System.out.println(jrxml);
 
-// Teraz znajdź jakąkolwiek kolumnę z automatycznie wyliczoną szerokością (nie 100)
-        assertTrue(jrxml.contains("width=\"200\"") || jrxml.contains("width=\"150\"") || jrxml.contains("width=\""));
+    }
+
+    @Test
+    void testGroupingAndGroupCalculations() {
+        String jrxml = reportBuilder
+                .addGroup(new Group("CATEGORY", "\"Kategoria: \" + $F{CATEGORY}"))
+                .addColumn(new Column("PRODUCT", "Produkt", 200, DataType.STRING, null, Calculation.NONE, Calculation.NONE))
+                .addColumn(new Column("PRICE", "Cena", 100, DataType.BIG_DECIMAL, "#,##0.00", Calculation.SUM, Calculation.AVERAGE))
+                .build();
+
+        // Sprawdzenie grupy
+        assertTrue(jrxml.contains("<group name=\"CATEGORYGroup\">"));
+        assertTrue(jrxml.contains("<groupExpression><![CDATA[$F{CATEGORY}]]></groupExpression>"));
+        assertTrue(jrxml.contains("<textFieldExpression><![CDATA[\"Kategoria: \" + $F{CATEGORY}]]></textFieldExpression>"));
+
+        // Sprawdzenie zmiennej dla obliczeń w grupie
+        assertTrue(jrxml.contains("<variable name=\"PRICE_GROUP_AVERAGE\" class=\"java.math.BigDecimal\" resetType=\"Group\" resetGroup=\"CATEGORYGroup\" calculation=\"Average\">"));
+
+        // Sprawdzenie stopki grupy
+        assertTrue(jrxml.contains("<groupFooter>"));
+        assertTrue(jrxml.contains("<textFieldExpression><![CDATA[$V{PRICE_GROUP_AVERAGE}]]></textFieldExpression>"));
+
+        System.out.println(jrxml);
+
+    }
+
+    @Test
+    void testReportCalculations() {
+        String jrxml = reportBuilder
+                .addColumn(new Column("AMOUNT", "Wartość", 100, DataType.INTEGER, null, Calculation.SUM, Calculation.NONE))
+                .build();
+
+        // Sprawdzenie zmiennej dla obliczeń raportu
+        assertTrue(jrxml.contains("<variable name=\"AMOUNT_REPORT_SUM\" class=\"java.lang.Integer\" calculation=\"Sum\">"));
+
+        // Sprawdzenie sekcji summary
+        assertTrue(jrxml.contains("<summary>"));
+        assertTrue(jrxml.contains("<textFieldExpression><![CDATA[$V{AMOUNT_REPORT_SUM}]]></textFieldExpression>"));
+
+        System.out.println(jrxml);
+
+    }
+
+    @Test
+    void testStandardFooter() {
+        String jrxml = reportBuilder
+                .withStandardFooter("Lewa stopka", "Prawa stopka")
+                .build();
+
+        assertTrue(jrxml.contains("<pageFooter>"));
+        assertTrue(jrxml.contains("<text><![CDATA[Lewa stopka]]></text>"));
+        assertTrue(jrxml.contains("<text><![CDATA[Prawa stopka]]></text>"));
+        // Sprawdzenie paginacji
+        assertTrue(jrxml.contains("<textFieldExpression><![CDATA[\"Strona \" + $V{PAGE_NUMBER} + \" z \"]]></textFieldExpression>"));
+
+        System.out.println(jrxml);
+
+    }
+
+    @Test
+    void testImageInTitle() {
+        String jrxml = reportBuilder
+                .addImageInTitle(new Image("\"logo.png\"", 10, 10, 100, 40))
+                .build();
+
+        assertTrue(jrxml.contains("<title>"));
+        assertTrue(jrxml.contains("<image>"));
+        assertTrue(jrxml.contains("<reportElement x=\"10\" y=\"10\" width=\"100\" height=\"40\"/>"));
+        assertTrue(jrxml.contains("<imageExpression><![CDATA[\"logo.png\"]]></imageExpression>"));
 
 
         System.out.println(jrxml);
-// przynajmniej jedna auto kolumna
+
     }
 }
