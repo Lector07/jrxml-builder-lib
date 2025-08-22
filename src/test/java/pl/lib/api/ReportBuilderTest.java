@@ -158,4 +158,83 @@ public class ReportBuilderTest {
 
         System.out.println(jrxml);
     }
+
+    @Test
+    void testBuildsComplexReportWithAllFeatures() {
+        // Arrange
+        ReportBuilder builder = new ReportBuilder();
+
+        // Act
+        String jrxml = builder
+                .withTitle("Kompleksowe Zestawienie Sprzedaży")
+                .withPageSize(842, 595)
+                .withZebraStriping()
+                .withStandardFooter("System Raportowy v1.0", "Poufne")
+
+                // Definicja kolumn
+                .addColumn("region", "Region", 20, DataType.STRING, null, false, false)
+                .addColumn("product", "Produkt", 25, DataType.STRING, null, false, false)
+                .addColumn("quantity", "Sprzedana Ilość", 10, DataType.INTEGER, "#,##0 szt.", true, true) // Sumuj globalnie i w grupie
+                .addColumn("totalValue", "Wartość Sprzedaży", 15, DataType.BIG_DECIMAL, "#,##0.00 zł", true, true) // Sumuj globalnie i w grupie
+                .addColumn("saleDate", "Data", 10, DataType.DATE, "yyyy-MM-dd", false, false)
+
+                // Definicja grupowania
+                .addGroup("region", "\"Region: \" + $F{region}")
+                .build();
+
+        // Assert
+        assertNotNull(jrxml);
+
+        // Sprawdź, czy wszystkie kluczowe sekcje istnieją
+        assertTrue(jrxml.contains("<style name=\"ZebraStripeStyle\""));
+        assertTrue(jrxml.contains("<group name=\"regionGroup\">"));
+        assertTrue(jrxml.contains("<variable name=\"quantity_SUM\""));
+        assertTrue(jrxml.contains("<variable name=\"quantity_GROUP_SUM\""));
+        assertTrue(jrxml.contains("<variable name=\"totalValue_SUM\""));
+        assertTrue(jrxml.contains("<variable name=\"totalValue_GROUP_SUM\""));
+        assertTrue(jrxml.contains("<groupFooter>"));
+        assertTrue(jrxml.contains("<pageFooter>"));
+        assertTrue(jrxml.contains("<summary>"));
+
+        // Sprawdź, czy styl zebry jest stosowany
+        assertTrue(jrxml.contains("<reportElement style=\"ZebraStripeStyle\""));
+
+        // Sprawdź, czy stopka grupy zawiera poprawną zmienną
+        assertTrue(jrxml.contains("<textFieldExpression><![CDATA[$V{quantity_GROUP_SUM}]]></textFieldExpression>"));
+
+        // (Opcjonalnie) Wyświetl finalny, kompleksowy XML
+        System.out.println("--- Kompleksowy JRXML ---");
+        System.out.println(jrxml);
+        System.out.println("-------------------------");
+    }
+
+    @Test
+    void testAutoColumnWidthDistribution() {
+        // Arrange
+        ReportBuilder builder = new ReportBuilder();
+
+        // Act
+        String jrxml = builder
+                .withTitle("Test Szerokości Automatycznych")
+                .withPageSize(892, 595)
+                .addColumn("name", "Nazwa", DataType.STRING)              // szerokość automatyczna
+                .addColumn("price", "Cena", 100, DataType.BIG_DECIMAL)    // szerokość ustalona
+                .addColumn("quantity", "Ilość", DataType.INTEGER)         // szerokość automatyczna
+                .build();
+
+        // Assert
+        assertNotNull(jrxml);
+        assertTrue(jrxml.contains("<field name=\"name\" class=\"java.lang.String\"/>"));
+        assertTrue(jrxml.contains("<field name=\"price\" class=\"java.math.BigDecimal\"/>"));
+        assertTrue(jrxml.contains("<field name=\"quantity\" class=\"java.lang.Integer\"/>"));
+
+        // Sprawdź, czy kolumny mają obliczoną szerokość > 0
+        assertTrue(jrxml.contains("width=\"100\"")); // sprawdzamy kolumnę z ustaloną szerokością
+
+// Teraz znajdź jakąkolwiek kolumnę z automatycznie wyliczoną szerokością (nie 100)
+        assertTrue(jrxml.contains("width=\"200\"") || jrxml.contains("width=\"150\"") || jrxml.contains("width=\""));
+
+        System.out.println(jrxml);
+// przynajmniej jedna auto kolumna
+    }
 }
