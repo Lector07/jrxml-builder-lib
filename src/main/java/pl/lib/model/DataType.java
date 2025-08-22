@@ -11,7 +11,9 @@ public enum DataType {
     SHORT("java.lang.Short"),
     TIME("java.sql.Time"),
     TIMESTAMP("java.sql.Timestamp"),
-    FLOAT("java.lang.Float");
+    FLOAT("java.lang.Float"),
+    IMAGE("java.awt.Image");
+
     private final String javaClass;
 
     DataType(String javaClass) {
@@ -21,5 +23,4 @@ public enum DataType {
     public String getJavaClass() {
         return javaClass;
     }
-
 }

@@ -6,18 +6,26 @@ public class Column {
     private final int width;
     private final DataType type;
     private final String pattern;
-    private final Boolean summed;
-    private final Boolean summedInGroup;
+    private final Calculation reportCalculation;
+    private final Calculation groupCalculation;
+    private String styleName;
 
-    public Column(String fieldName, String title, int width, DataType type, String pattern, Boolean summed, Boolean summedInGroup) {
+    public Column(String fieldName, String title, int width, DataType type, String pattern,
+                  Calculation reportCalculation, Calculation groupCalculation) {
         this.fieldName = fieldName;
         this.title = title;
         this.width = width;
         this.type = type;
         this.pattern = pattern;
-        this.summed = summed;
-        this.summedInGroup = summedInGroup;
+        this.reportCalculation = reportCalculation;
+        this.groupCalculation = groupCalculation;
+        this.styleName = null;
+    }
 
+    public Column(String fieldName, String title, int width, DataType type, String pattern,
+                  Calculation reportCalculation, Calculation groupCalculation, String styleName) {
+        this(fieldName, title, width, type, pattern, reportCalculation, groupCalculation);
+        this.styleName = styleName;
     }
 
     public String getFieldName() {
@@ -44,12 +52,31 @@ public class Column {
         return pattern != null && !pattern.isEmpty();
     }
 
-    public Boolean isSummed() {
-        return summed;
+    public Calculation getReportCalculation() {
+        return reportCalculation;
     }
 
-    public Boolean isSummedInGroup() {
-        return summedInGroup;
+    public Calculation getGroupCalculation() {
+        return groupCalculation;
     }
 
+    public String getStyleName() {
+        return styleName;
+    }
+
+    public void setStyleName(String styleName) {
+        this.styleName = styleName;
+    }
+
+    public boolean hasStyle() {
+        return styleName != null && !styleName.isEmpty();
+    }
+
+    public boolean hasReportCalculation() {
+        return reportCalculation != null;
+    }
+
+    public boolean hasGroupCalculation() {
+        return groupCalculation != null;
+    }
 }
