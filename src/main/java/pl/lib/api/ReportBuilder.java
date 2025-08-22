@@ -1,6 +1,7 @@
 package pl.lib.api;
 
 import pl.lib.model.DataType;
+import pl.lib.model.Style;
 
 public class ReportBuilder {
     private StringBuilder xml = new StringBuilder();
@@ -14,6 +15,7 @@ public class ReportBuilder {
     private String groupHeaderExpression = null;
     private boolean horizontalLayout = false;
     private boolean useHorizontalLayout = false;
+
 
     private static class Column {
         private final String fieldName;

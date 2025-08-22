@@ -217,9 +217,9 @@ public class ReportBuilderTest {
         String jrxml = builder
                 .withTitle("Test Szerokości Automatycznych")
                 .withPageSize(892, 595)
-                .addColumn("name", "Nazwa", DataType.STRING)              // szerokość automatyczna
-                .addColumn("price", "Cena", 100, DataType.BIG_DECIMAL)    // szerokość ustalona
-                .addColumn("quantity", "Ilość", DataType.INTEGER)         // szerokość automatyczna
+                .addColumn("name", "Nazwa", DataType.STRING)
+                .addColumn("price", "Cena", 100, DataType.BIG_DECIMAL)
+                .addColumn("quantity", "Ilość", DataType.INTEGER)
                 .build();
 
         // Assert
@@ -233,6 +233,7 @@ public class ReportBuilderTest {
 
 // Teraz znajdź jakąkolwiek kolumnę z automatycznie wyliczoną szerokością (nie 100)
         assertTrue(jrxml.contains("width=\"200\"") || jrxml.contains("width=\"150\"") || jrxml.contains("width=\""));
+
 
         System.out.println(jrxml);
 // przynajmniej jedna auto kolumna
