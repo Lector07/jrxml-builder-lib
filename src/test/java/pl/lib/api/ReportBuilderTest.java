@@ -197,4 +197,113 @@ class ReportBuilderTest {
         System.out.println(jrxml);
 
     }
+
+    // pomocnicza metoda do zliczania wystąpień fragmentu
+    private int countOccurrences(String text, String fragment) {
+        int count = 0, idx = 0;
+        while ((idx = text.indexOf(fragment, idx)) != -1) {
+            count++;
+            idx += fragment.length();
+        }
+        return count;
+    }
+
+    @Test
+    void testThrowsOnSummationForNonNumericType() {
+        ReportBuilder builder = new ReportBuilder();
+        assertThrows(IllegalArgumentException.class, () ->
+                builder.addColumn("name", "Nazwa", 100, DataType.STRING, null, true)
+        );
+    }
+
+    @Test
+    void testNoSummaryWhenNoSummedColumns() {
+        String jrxml = new ReportBuilder()
+                .withTitle("Brak sum")
+                .addColumn("name", "Nazwa", 200, DataType.STRING)
+                .addColumn("qty", "Ilość", 100, DataType.INTEGER)
+                .build();
+
+        assertNotNull(jrxml);
+        assertFalse(jrxml.contains("<summary>"));
+        assertFalse(jrxml.contains("_SUM"));
+    }
+
+    @Test
+    void testPageSizeAndColumnWidthApplied() {
+        int w = 800, h = 1000;
+        String jrxml = new ReportBuilder()
+                .withPageSize(w, h)
+                .addColumn("name", "Nazwa", 300, DataType.STRING)
+                .build();
+
+        assertTrue(jrxml.contains("pageWidth=\"" + w + "\""));
+        assertTrue(jrxml.contains("pageHeight=\"" + h + "\""));
+        assertTrue(jrxml.contains("columnWidth=\"" + (w - 40) + "\""));
+        assertTrue(jrxml.contains("leftMargin=\"20\" rightMargin=\"20\" topMargin=\"20\" bottomMargin=\"20\""));
+    }
+
+    @Test
+    void testQueryStringIsEmpty() {
+        String jrxml = new ReportBuilder()
+                .addColumn("name", "Nazwa", 200, DataType.STRING)
+                .build();
+
+        assertTrue(jrxml.contains("<queryString><![CDATA[]]></queryString>"));
+    }
+
+    @Test
+    void testTitleParameterAndExpressionPresent() {
+        String jrxml = new ReportBuilder()
+                .withTitle("Tytuł")
+                .addColumn("name", "Nazwa", 200, DataType.STRING)
+                .build();
+
+        assertTrue(jrxml.contains("<parameter name=\"ReportTitle\" class=\"java.lang.String\"/>"));
+        assertTrue(jrxml.contains("<textFieldExpression><![CDATA[$P{ReportTitle}]]></textFieldExpression>"));
+    }
+
+    @Test
+    void testRightAlignmentOnlyForNumericFieldsInDetail() {
+        String jrxml = new ReportBuilder()
+                .addColumn("name", "Nazwa", 200, DataType.STRING)
+                .addColumn("qty", "Ilość", 100, DataType.INTEGER) // bez sumowania, więc brak <summary>
+                .build();
+
+        // Dokładnie jedno wyrównanie do prawej w szczegółach (dla pola liczbowego)
+        assertEquals(1, countOccurrences(jrxml, "<textElement textAlignment=\"Right\"/>"));
+    }
+
+    @Test
+    void testNoPatternAttributeWhenPatternNull() {
+        String jrxml = new ReportBuilder()
+                .addColumn("name", "Nazwa", 200, DataType.STRING) // brak wzorca
+                .build();
+
+        assertFalse(jrxml.contains("pattern="));
+    }
+
+    @Test
+    void testGeneratesVariablesOnlyForSummedColumns() {
+        String jrxml = new ReportBuilder()
+                .addColumn("productName", "Produkt", 200, DataType.STRING, null, false)
+                .addColumn("quantity", "Ilość", 100, DataType.INTEGER, "#,##0", true)
+                .addColumn("totalValue", "Wartość", 150, DataType.BIG_DECIMAL, "#,##0.00 zł", true)
+                .build();
+
+        assertTrue(jrxml.contains("<variable name=\"quantity_SUM\""));
+        assertTrue(jrxml.contains("<variable name=\"totalValue_SUM\""));
+        assertFalse(jrxml.contains("<variable name=\"productName_SUM\""));
+    }
+
+    @Test
+    void testZebraStripingDisabledDoesNotEmitStyle() {
+        String jrxml = new ReportBuilder()
+                .withTitle("Bez zebry")
+                .addColumn("name", "Nazwa", 300, DataType.STRING)
+                .build();
+
+        assertFalse(jrxml.contains("<style name=\"ZebraStripeStyle\""));
+        assertFalse(jrxml.contains("style=\"ZebraStripeStyle\""));
+    }
 }
