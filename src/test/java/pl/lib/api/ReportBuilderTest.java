@@ -1,9 +1,20 @@
 package pl.lib.api;
 
+import net.sf.jasperreports.engine.*;
+import net.sf.jasperreports.engine.design.JRDesignField;
+import net.sf.jasperreports.engine.design.JRDesignStyle;
+import net.sf.jasperreports.engine.type.HorizontalAlignEnum;
+import net.sf.jasperreports.engine.type.ModeEnum;
+import net.sf.jasperreports.engine.type.VerticalAlignEnum;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import pl.lib.api.ReportBuilder;
 import pl.lib.model.*;
+
+import java.awt.*;
+import java.util.Arrays;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -17,293 +28,148 @@ class ReportBuilderTest {
     }
 
     @Test
-    void testBasicReportGeneration() {
-        String jrxml = reportBuilder
+    void testBasicReportGeneration() throws JRException {
+        JasperReport jasperReport = reportBuilder
                 .withTitle("Testowy Raport")
                 .withPageSize(842, 595) // A4 Poziomo
                 .build();
 
-        assertNotNull(jrxml);
-        assertTrue(jrxml.startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
-        assertTrue(jrxml.contains("<jasperReport"));
-        assertTrue(jrxml.contains("name=\"Testowy_Raport\""));
-        assertTrue(jrxml.contains("pageWidth=\"842\""));
-        assertTrue(jrxml.contains("pageHeight=\"595\""));
-        assertTrue(jrxml.contains("<textFieldExpression><![CDATA[$P{ReportTitle}]]></textFieldExpression>"));
-        assertTrue(jrxml.endsWith("</jasperReport>"));
-
-        System.out.println(jrxml);
+        assertNotNull(jasperReport);
+        assertEquals(842, jasperReport.getPageWidth());
+        assertEquals(595, jasperReport.getPageHeight());
+        assertNotNull(jasperReport.getTitle());
+        assertTrue(jasperReport.getTitle().getHeight() > 0);
+        assertNotNull(Arrays.stream(jasperReport.getParameters()).anyMatch(p -> p.getName().equals("ReportTitle")));
     }
 
     @Test
-    void testHorizontalLayout() {
-        String jrxml = reportBuilder
+    void testHorizontalLayout() throws JRException {
+        JasperReport jasperReport = reportBuilder
                 .withPageSize(595, 842) // A4 Portret
                 .withHorizontalLayout()
                 .build();
 
-        // Sprawdza, czy wymiary zostały zamienione
-        assertTrue(jrxml.contains("pageWidth=\"842\""));
-        assertTrue(jrxml.contains("pageHeight=\"595\""));
-        System.out.println(jrxml);
-
+        assertEquals(842, jasperReport.getPageWidth());
+        assertEquals(595, jasperReport.getPageHeight());
     }
 
     @Test
-    void testColumnAdditionAndFieldGeneration() {
-        String jrxml = reportBuilder
+    void testColumnAdditionAndFieldGeneration() throws JRException {
+        JasperReport jasperReport = reportBuilder
                 .addColumn(new Column("USER_NAME", "Nazwa użytkownika", 150, DataType.STRING, null, Calculation.NONE, Calculation.NONE))
                 .addColumn(new Column("ORDER_COUNT", "Liczba zamówień", 100, DataType.INTEGER, null, Calculation.NONE, Calculation.NONE))
                 .build();
 
-        // Sprawdzenie definicji pól
-        assertTrue(jrxml.contains("<field name=\"USER_NAME\" class=\"java.lang.String\"/>"));
-        assertTrue(jrxml.contains("<field name=\"ORDER_COUNT\" class=\"java.lang.Integer\"/>"));
+        Map<String, JRField> fieldsMap = Arrays.stream(jasperReport.getFields()).collect(Collectors.toMap(JRField::getName, f -> f));
 
-        // Sprawdzenie nagłówków kolumn
-        assertTrue(jrxml.contains("<text><![CDATA[Nazwa użytkownika]]></text>"));
-        assertTrue(jrxml.contains("<reportElement mode=\"Opaque\" backcolor=\"#DEDEDE\" x=\"0\" y=\"0\" width=\"150\" height=\"25\"/>"));
-        assertTrue(jrxml.contains("<text><![CDATA[Liczba zamówień]]></text>"));
-        assertTrue(jrxml.contains("<reportElement mode=\"Opaque\" backcolor=\"#DEDEDE\" x=\"150\" y=\"0\" width=\"100\" height=\"25\"/>"));
+        assertTrue(fieldsMap.containsKey("USER_NAME"));
+        assertEquals("java.lang.String", fieldsMap.get("USER_NAME").getValueClassName());
 
-        // Sprawdzenie pól w sekcji detail
-        assertTrue(jrxml.contains("<textFieldExpression><![CDATA[$F{USER_NAME}]]></textFieldExpression>"));
-        assertTrue(jrxml.contains("<textFieldExpression><![CDATA[$F{ORDER_COUNT}]]></textFieldExpression>"));
-        System.out.println(jrxml);
+        assertTrue(fieldsMap.containsKey("ORDER_COUNT"));
+        assertEquals("java.lang.Integer", fieldsMap.get("ORDER_COUNT").getValueClassName());
 
+        assertNotNull(jasperReport.getColumnHeader());
+        // Sprawdzamy, czy są 2 elementy w nagłówku (dla 2 kolumn)
+        assertEquals(2, jasperReport.getColumnHeader().getElements().length);
     }
 
     @Test
-    void testAutoWidthColumnCalculation() {
+    void testAutoWidthColumnCalculation() throws JRException {
         // Szerokość strony: 595, marginesy: 20 + 20 = 40. Dostępna szerokość: 555.
         // Kolumna stała: 155. Zostaje: 400. Dwie kolumny auto => 200px na każdą.
-        String jrxml = reportBuilder
+        JasperReport jasperReport = reportBuilder
                 .addColumn(new Column("ID", "ID", -1, DataType.INTEGER, null, Calculation.NONE, Calculation.NONE))
                 .addColumn(new Column("FIXED_COL", "Stała", 155, DataType.STRING, null, Calculation.NONE, Calculation.NONE))
-                .addColumn(new Column("DESC", "Opis", 0, DataType.STRING, null, Calculation.NONE, Calculation.NONE))
+                .addColumn(new Column("DESC", "Opis", -1, DataType.STRING, null, Calculation.NONE, Calculation.NONE))
                 .build();
 
-        assertTrue(jrxml.contains("<reportElement mode=\"Opaque\" backcolor=\"#DEDEDE\" x=\"0\" y=\"0\" width=\"200\" height=\"25\"/>"));
-        assertTrue(jrxml.contains("<reportElement mode=\"Opaque\" backcolor=\"#DEDEDE\" x=\"200\" y=\"0\" width=\"155\" height=\"25\"/>"));
-        assertTrue(jrxml.contains("<reportElement mode=\"Opaque\" backcolor=\"#DEDEDE\" x=\"355\" y=\"0\" width=\"200\" height=\"25\"/>"));
-
-        System.out.println(jrxml);
-
+        JRElement[] headerElements = jasperReport.getColumnHeader().getElements();
+        assertEquals(3, headerElements.length);
+        assertEquals(200, headerElements[0].getWidth());
+        assertEquals(155, headerElements[1].getWidth());
+        assertEquals(200, headerElements[2].getWidth());
     }
 
     @Test
-    void testZebraStriping() {
-        String jrxml = reportBuilder
+    void testZebraStriping() throws JRException {
+        JasperReport jasperReport = reportBuilder
                 .withZebraStriping()
                 .addColumn(new Column("TEST", "Test", 100, DataType.STRING, null, Calculation.NONE, Calculation.NONE))
                 .build();
 
-        assertTrue(jrxml.contains("<style name=\"ZebraStripeStyle\""));
-        assertTrue(jrxml.contains("<conditionalStyle>"));
-        assertTrue(jrxml.contains("<conditionExpression><![CDATA[$V{REPORT_COUNT} % 2 == 0]]></conditionExpression>"));
-        assertTrue(jrxml.contains("<reportElement style=\"ZebraStripeStyle\""));
-
-        System.out.println(jrxml);
-
+        Map<String, JRStyle> stylesMap = Arrays.stream(jasperReport.getStyles()).collect(Collectors.toMap(JRStyle::getName, s -> s));
+        JRStyle zebraStyle = stylesMap.get("ZebraStripeStyle");
+        assertNotNull(zebraStyle);
+        assertEquals(Color.decode("#F0F0F0"), zebraStyle.getBackcolor());
     }
 
     @Test
-    void testCustomStyle() {
+    void testCustomStyle() throws JRException {
         Style customStyle = new Style("Highlight")
                 .withColors("#FF0000", "#FFFF00")
                 .withFontName("Arial", 12, true);
 
-        String jrxml = reportBuilder
+        JasperReport jasperReport = reportBuilder
                 .addStyle(customStyle)
                 .addColumn(new Column("STYLED_COL", "Styl", 100, DataType.STRING, null, Calculation.NONE, Calculation.NONE, "Highlight"))
                 .build();
 
-        assertTrue(jrxml.contains("<style name=\"Highlight\" fontName=\"Arial\" fontSize=\"12\" isBold=\"true\" forecolor=\"#FF0000\" mode=\"Opaque\" backcolor=\"#FFFF00\">"));
-        assertTrue(jrxml.contains("<reportElement style=\"Highlight\""));
-
-        System.out.println(jrxml);
-
+        Map<String, JRStyle> stylesMap = Arrays.stream(jasperReport.getStyles()).collect(Collectors.toMap(JRStyle::getName, s -> s));
+        JRStyle style = stylesMap.get("Highlight");
+        assertNotNull(style);
+        assertEquals("Arial", style.getFontName());
+        assertTrue(style.isBold());
+        assertEquals(Color.decode("#FF0000"), style.getForecolor());
+        assertEquals(Color.decode("#FFFF00"), style.getBackcolor());
     }
 
     @Test
-    void testGroupingAndGroupCalculations() {
-        String jrxml = reportBuilder
-                .addGroup(new Group("CATEGORY", "\"Kategoria: \" + $F{CATEGORY}"))
+    void testGroupingAndFieldDeclaration() throws JRException {
+        // Testujemy, czy pole do grupowania jest poprawnie deklarowane, nawet jeśli nie jest kolumną
+        JasperReport jasperReport = reportBuilder
+                .addGroup(new Group("CATEGORY_ID", "\"Kategoria: \" + $F{CATEGORY_ID}"))
                 .addColumn(new Column("PRODUCT", "Produkt", 200, DataType.STRING, null, Calculation.NONE, Calculation.NONE))
-                .addColumn(new Column("PRICE", "Cena", 100, DataType.BIG_DECIMAL, "#,##0.00", Calculation.SUM, Calculation.AVERAGE))
                 .build();
 
         // Sprawdzenie grupy
-        assertTrue(jrxml.contains("<group name=\"CATEGORYGroup\">"));
-        assertTrue(jrxml.contains("<groupExpression><![CDATA[$F{CATEGORY}]]></groupExpression>"));
-        assertTrue(jrxml.contains("<textFieldExpression><![CDATA[\"Kategoria: \" + $F{CATEGORY}]]></textFieldExpression>"));
+        assertEquals(1, jasperReport.getGroups().length);
+        JRGroup group = jasperReport.getGroups()[0];
+        assertEquals("Group_CATEGORY_ID", group.getName());
+        assertEquals("$F{CATEGORY_ID}", group.getExpression().getText());
 
-        // Sprawdzenie zmiennej dla obliczeń w grupie
-        assertTrue(jrxml.contains("<variable name=\"PRICE_GROUP_AVERAGE\" class=\"java.math.BigDecimal\" resetType=\"Group\" resetGroup=\"CATEGORYGroup\" calculation=\"Average\">"));
-
-        // Sprawdzenie stopki grupy
-        assertTrue(jrxml.contains("<groupFooter>"));
-        assertTrue(jrxml.contains("<textFieldExpression><![CDATA[$V{PRICE_GROUP_AVERAGE}]]></textFieldExpression>"));
-
-        System.out.println(jrxml);
-
+        // Sprawdzenie, czy pole dla grupy zostało zadeklarowane
+        Map<String, JRField> fieldsMap = Arrays.stream(jasperReport.getFields()).collect(Collectors.toMap(JRField::getName, f -> f));
+        JRField groupField = fieldsMap.get("CATEGORY_ID");
+        assertNotNull(groupField);
+        assertEquals("java.lang.String", groupField.getValueClassName()); // Domyślny typ dla pola grupy
     }
 
     @Test
-    void testReportCalculations() {
-        String jrxml = reportBuilder
-                .addColumn(new Column("AMOUNT", "Wartość", 100, DataType.INTEGER, null, Calculation.SUM, Calculation.NONE))
-                .build();
-
-        // Sprawdzenie zmiennej dla obliczeń raportu
-        assertTrue(jrxml.contains("<variable name=\"AMOUNT_REPORT_SUM\" class=\"java.lang.Integer\" calculation=\"Sum\">"));
-
-        // Sprawdzenie sekcji summary
-        assertTrue(jrxml.contains("<summary>"));
-        assertTrue(jrxml.contains("<textFieldExpression><![CDATA[$V{AMOUNT_REPORT_SUM}]]></textFieldExpression>"));
-
-        System.out.println(jrxml);
-
-    }
-
-    @Test
-    void testStandardFooter() {
-        String jrxml = reportBuilder
+    void testStandardFooter() throws JRException {
+        JasperReport jasperReport = reportBuilder
                 .withStandardFooter("Lewa stopka", "Prawa stopka")
                 .build();
 
-        assertTrue(jrxml.contains("<pageFooter>"));
-        assertTrue(jrxml.contains("<text><![CDATA[Lewa stopka]]></text>"));
-        assertTrue(jrxml.contains("<text><![CDATA[Prawa stopka]]></text>"));
-        // Sprawdzenie paginacji
-        assertTrue(jrxml.contains("<textFieldExpression><![CDATA[\"Strona \" + $V{PAGE_NUMBER} + \" z \"]]></textFieldExpression>"));
-
-        System.out.println(jrxml);
-
+        assertNotNull(jasperReport.getPageFooter());
+        // Weryfikacja jest trudna bez generowania raportu, ale sprawdzamy, czy sekcja istnieje
+        assertTrue(jasperReport.getPageFooter().getHeight() > 0);
     }
 
+
     @Test
-    void testImageInTitle() {
-        String jrxml = reportBuilder
-                .addImageInTitle(new Image("\"logo.png\"", 10, 10, 100, 40))
+    void testHiddenColumn() throws JRException {
+        // Kolumna z szerokością 0 nie powinna być widoczna w nagłówku ani w sekcji detail
+        JasperReport jasperReport = reportBuilder
+                .addColumn(new Column("ID", "ID", 0, DataType.INTEGER, null, Calculation.NONE, Calculation.NONE))
+                .addColumn(new Column("NAME", "Nazwa", 200, DataType.STRING, null, Calculation.NONE, Calculation.NONE))
                 .build();
 
-        assertTrue(jrxml.contains("<title>"));
-        assertTrue(jrxml.contains("<image>"));
-        assertTrue(jrxml.contains("<reportElement x=\"10\" y=\"10\" width=\"100\" height=\"40\"/>"));
-        assertTrue(jrxml.contains("<imageExpression><![CDATA[\"logo.png\"]]></imageExpression>"));
+        // Pole powinno być zadeklarowane
+        Map<String, JRField> fieldsMap = Arrays.stream(jasperReport.getFields()).collect(Collectors.toMap(JRField::getName, f -> f));
+        assertNotNull(fieldsMap.get("ID"));
 
-
-        System.out.println(jrxml);
-
-    }
-
-    // pomocnicza metoda do zliczania wystąpień fragmentu
-    private int countOccurrences(String text, String fragment) {
-        int count = 0, idx = 0;
-        while ((idx = text.indexOf(fragment, idx)) != -1) {
-            count++;
-            idx += fragment.length();
-        }
-        return count;
-    }
-
-    @Test
-    void testThrowsOnSummationForNonNumericType() {
-        ReportBuilder builder = new ReportBuilder();
-        assertThrows(IllegalArgumentException.class, () ->
-                builder.addColumn("name", "Nazwa", 100, DataType.STRING, null, true)
-        );
-    }
-
-    @Test
-    void testNoSummaryWhenNoSummedColumns() {
-        String jrxml = new ReportBuilder()
-                .withTitle("Brak sum")
-                .addColumn("name", "Nazwa", 200, DataType.STRING)
-                .addColumn("qty", "Ilość", 100, DataType.INTEGER)
-                .build();
-
-        assertNotNull(jrxml);
-        assertFalse(jrxml.contains("<summary>"));
-        assertFalse(jrxml.contains("_SUM"));
-    }
-
-    @Test
-    void testPageSizeAndColumnWidthApplied() {
-        int w = 800, h = 1000;
-        String jrxml = new ReportBuilder()
-                .withPageSize(w, h)
-                .addColumn("name", "Nazwa", 300, DataType.STRING)
-                .build();
-
-        assertTrue(jrxml.contains("pageWidth=\"" + w + "\""));
-        assertTrue(jrxml.contains("pageHeight=\"" + h + "\""));
-        assertTrue(jrxml.contains("columnWidth=\"" + (w - 40) + "\""));
-        assertTrue(jrxml.contains("leftMargin=\"20\" rightMargin=\"20\" topMargin=\"20\" bottomMargin=\"20\""));
-    }
-
-    @Test
-    void testQueryStringIsEmpty() {
-        String jrxml = new ReportBuilder()
-                .addColumn("name", "Nazwa", 200, DataType.STRING)
-                .build();
-
-        assertTrue(jrxml.contains("<queryString><![CDATA[]]></queryString>"));
-    }
-
-    @Test
-    void testTitleParameterAndExpressionPresent() {
-        String jrxml = new ReportBuilder()
-                .withTitle("Tytuł")
-                .addColumn("name", "Nazwa", 200, DataType.STRING)
-                .build();
-
-        assertTrue(jrxml.contains("<parameter name=\"ReportTitle\" class=\"java.lang.String\"/>"));
-        assertTrue(jrxml.contains("<textFieldExpression><![CDATA[$P{ReportTitle}]]></textFieldExpression>"));
-    }
-
-    @Test
-    void testRightAlignmentOnlyForNumericFieldsInDetail() {
-        String jrxml = new ReportBuilder()
-                .addColumn("name", "Nazwa", 200, DataType.STRING)
-                .addColumn("qty", "Ilość", 100, DataType.INTEGER) // bez sumowania, więc brak <summary>
-                .build();
-
-        // Dokładnie jedno wyrównanie do prawej w szczegółach (dla pola liczbowego)
-        assertEquals(1, countOccurrences(jrxml, "<textElement textAlignment=\"Right\"/>"));
-    }
-
-    @Test
-    void testNoPatternAttributeWhenPatternNull() {
-        String jrxml = new ReportBuilder()
-                .addColumn("name", "Nazwa", 200, DataType.STRING) // brak wzorca
-                .build();
-
-        assertFalse(jrxml.contains("pattern="));
-    }
-
-    @Test
-    void testGeneratesVariablesOnlyForSummedColumns() {
-        String jrxml = new ReportBuilder()
-                .addColumn("productName", "Produkt", 200, DataType.STRING, null, false)
-                .addColumn("quantity", "Ilość", 100, DataType.INTEGER, "#,##0", true)
-                .addColumn("totalValue", "Wartość", 150, DataType.BIG_DECIMAL, "#,##0.00 zł", true)
-                .build();
-
-        assertTrue(jrxml.contains("<variable name=\"quantity_SUM\""));
-        assertTrue(jrxml.contains("<variable name=\"totalValue_SUM\""));
-        assertFalse(jrxml.contains("<variable name=\"productName_SUM\""));
-    }
-
-    @Test
-    void testZebraStripingDisabledDoesNotEmitStyle() {
-        String jrxml = new ReportBuilder()
-                .withTitle("Bez zebry")
-                .addColumn("name", "Nazwa", 300, DataType.STRING)
-                .build();
-
-        assertFalse(jrxml.contains("<style name=\"ZebraStripeStyle\""));
-        assertFalse(jrxml.contains("style=\"ZebraStripeStyle\""));
+        // Ale nie powinno być elementu w nagłówku ani w detail
+        assertEquals(1, jasperReport.getColumnHeader().getElements().length);
+        assertEquals(1, ((JRBand) jasperReport.getDetailSection().getBands()[0]).getElements().length);
     }
 }

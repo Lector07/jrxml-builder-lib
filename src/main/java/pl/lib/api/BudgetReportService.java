@@ -2,10 +2,7 @@ package pl.lib.api;
 
 import net.sf.jasperreports.engine.*;
 import net.sf.jasperreports.engine.data.JsonDataSource;
-import pl.lib.model.Calculation;
-import pl.lib.model.Column;
-import pl.lib.model.DataType;
-import pl.lib.model.Group;
+import pl.lib.model.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -17,17 +14,27 @@ public class BudgetReportService {
 
     public byte[] generateExpensesReport(String jsonData) throws JRException {
 
-        ReportBuilder builder = new ReportBuilder() ;
+        ReportBuilder builder = new ReportBuilder();
+
+        // Definicja stylu dla nagłówka grupy
+        Style groupHeaderStyle = new Style("GroupHeaderStyle")
+                .withFontName("DejaVu Sans", 10, true)
+                .withColors("#333333", null);
+
+        // Dodanie stylu do buildera
+        builder.addStyle(groupHeaderStyle);
 
         JasperReport jasperReport = builder
                 .withTitle("Zestawienie Wydatków")
-                .withPageSize(595, 842)
+                .withPageSize(842, 595) // A4 Poziomo
+                .withZebraStriping()
+                .withStandardFooter("eBudżet - ZSI \"Sprawny Urząd\"\n" +
+                        "BUK Softres - www.softres.pl", null)
                 .addGroup(new Group("kategoria", "\"Kategoria: \" + $F{kategoria}"))
-                // Należy zadeklarować pole, po którym grupujemy, nawet jeśli nie jest widoczną kolumną
                 .addColumn(new Column("kategoria", "Kategoria", 0, DataType.STRING, null, Calculation.NONE, Calculation.NONE))
                 .addColumn(new Column("data", "Data", -1, DataType.STRING, null, Calculation.NONE, Calculation.NONE))
                 .addColumn(new Column("opis", "Opis", -1, DataType.STRING, null, Calculation.NONE, Calculation.NONE))
-                .addColumn(new Column("kwota", "Kwota", -1, DataType.BIG_DECIMAL, "#,##0.00 PLN", Calculation.SUM, Calculation.SUM))
+                .addColumn(new Column("kwota", "Kwota", -1, DataType.BIG_DECIMAL, "#,##0.00", Calculation.SUM, Calculation.SUM))
                 .build();
 
         InputStream jsonStream = new ByteArrayInputStream(jsonData.getBytes(StandardCharsets.UTF_8));

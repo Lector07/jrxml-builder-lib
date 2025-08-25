@@ -1,13 +1,11 @@
 package pl.lib.api;
 
+import com.lowagie.text.pdf.VerticalText;
 import net.sf.jasperreports.engine.JRException;
 import net.sf.jasperreports.engine.JasperCompileManager;
 import net.sf.jasperreports.engine.JasperReport;
 import net.sf.jasperreports.engine.design.*;
-import net.sf.jasperreports.engine.type.HorizontalTextAlignEnum;
-import net.sf.jasperreports.engine.type.VerticalAlignEnum;
-import net.sf.jasperreports.engine.type.VerticalTextAlignEnum;
-import net.sf.jasperreports.engine.type.WhenNoDataTypeEnum;
+import net.sf.jasperreports.engine.type.*;
 import pl.lib.model.*;
 
 import java.util.ArrayList;
@@ -111,10 +109,12 @@ public class ReportBuilder {
         setupPage();
         declareFields();
         declareParameters();
+        buildGroups();
+        declareVariables();
         buildTitleBand();
         buildColumnHeaderBand();
         buildDetailBand();
-        buildGroups();
+        buildPageFooter();
 
         return JasperCompileManager.compileReport(this.jasperDesign);
     }
@@ -135,24 +135,25 @@ public class ReportBuilder {
                 JRDesignField field = new JRDesignField();
                 field.setName(column.getFieldName());
                 field.setValueClassName(column.getType().getJavaClass());
+
                 this.jasperDesign.addField(field);
+
             }
 
-            // Upewnij się, że pole do grupowania jest zadeklarowane, nawet jeśli nie jest kolumną
             if (group != null && jasperDesign.getFieldsMap().get(group.getFieldName()) == null) {
                 JRDesignField groupField = new JRDesignField();
                 groupField.setName(group.getFieldName());
-                // Zakładamy typ String jako domyślny dla pól grupujących, które nie są kolumnami.
-                // W bardziej zaawansowanym scenariuszu można by rozszerzyć model `Group`, aby zawierał typ.
                 groupField.setValueClassName(DataType.STRING.getJavaClass());
                 this.jasperDesign.addField(groupField);
             }
+
+
         } catch (JRException e) {
             throw new RuntimeException("Error declaring fields", e);
         }
     }
 
-    private void declareParameters() {
+    private void declareParameters() throws JRException {
         try {
             JRDesignParameter param = new JRDesignParameter();
             param.setName("ReportTitle");
@@ -163,15 +164,86 @@ public class ReportBuilder {
         }
     }
 
+    private CalculationEnum toJasperCalculation(Calculation calc) {
+        if (calc == null) {
+            return CalculationEnum.NOTHING;
+        }
+        switch (calc) {
+            case SUM:
+                return CalculationEnum.SUM;
+            case AVERAGE:
+                return CalculationEnum.AVERAGE;
+            case COUNT:
+                return CalculationEnum.COUNT;
+            case DISTINCT_COUNT:
+                return CalculationEnum.DISTINCT_COUNT;
+            case HIGHEST:
+                return CalculationEnum.HIGHEST;
+            case LOWEST:
+                return CalculationEnum.LOWEST;
+            case STANDARD_DEVIATION:
+                return CalculationEnum.STANDARD_DEVIATION;
+            case VARIANCE:
+                return CalculationEnum.VARIANCE;
+            case NONE:
+            default:
+                return CalculationEnum.NOTHING;
+        }
+    }
+
+    private void declareVariables() {
+        try {
+            for (Column column : columns) {
+                boolean needsGroupCalc = group != null && column.hasGroupCalculation() && column.getGroupCalculation().isActive();
+                boolean needsReportCalc = column.hasReportCalculation() && column.getReportCalculation().isActive();
+
+                if (needsGroupCalc) {
+                    JRDesignVariable groupVariable = new JRDesignVariable();
+                    String groupName = "Group_" + this.group.getFieldName();
+                    groupVariable.setName(column.getFieldName() + "_Group_" + column.getGroupCalculation().name());
+                    groupVariable.setValueClassName(column.getType().getJavaClass());
+                    groupVariable.setResetType(net.sf.jasperreports.engine.type.ResetTypeEnum.GROUP);
+                    groupVariable.setResetGroup((JRDesignGroup) jasperDesign.getGroupsMap().get(groupName));
+                    groupVariable.setCalculation(toJasperCalculation(column.getGroupCalculation()));
+
+                    JRDesignExpression groupExpression = new JRDesignExpression();
+                    groupExpression.setText("$F{" + column.getFieldName() + "}");
+                    groupVariable.setExpression(groupExpression);
+
+                    jasperDesign.addVariable(groupVariable);
+                }
+
+                if (needsReportCalc) {
+                    JRDesignVariable reportVariable = new JRDesignVariable();
+                    reportVariable.setName(column.getFieldName() + "_REPORT_" + column.getReportCalculation().name());
+                    reportVariable.setValueClassName(column.getType().getJavaClass());
+                    reportVariable.setResetType(net.sf.jasperreports.engine.type.ResetTypeEnum.REPORT);
+                    reportVariable.setCalculation(toJasperCalculation(column.getReportCalculation()));
+
+                    JRDesignExpression expression = new JRDesignExpression();
+                    expression.setText("$F{" + column.getFieldName() + "}");
+                    reportVariable.setExpression(expression);
+
+                    jasperDesign.addVariable(reportVariable);
+                }
+            }
+        } catch (JRException e) {
+            throw new RuntimeException("Error declaring variables", e);
+        }
+    }
+
     private void buildTitleBand() {
         JRDesignBand titleBand = new JRDesignBand();
         titleBand.setHeight(35);
 
+        int availableWidth = this.pageWidth - this.leftMargin - this.rightMargin;
+
         JRDesignTextField titleTextField = new JRDesignTextField();
         titleTextField.setX(0);
         titleTextField.setY(10);
-        titleTextField.setWidth(jasperDesign.getColumnWidth());
-        titleTextField.setHeight(25); // Poprawiona wysokość
+        titleTextField.setWidth(availableWidth);
+        titleTextField.setHeight(25);
+        titleTextField.setFontName("DejaVu Sans Condensed");
         titleTextField.setHorizontalTextAlign(HorizontalTextAlignEnum.CENTER);
         titleTextField.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
         titleTextField.setFontSize(12f);
@@ -193,12 +265,14 @@ public class ReportBuilder {
 
         int currentX = 0;
         for (Column column : columns) {
-            if (column.getWidth() == 0) continue; // Nie twórz nagłówka dla ukrytych kolumn
+            if (column.getWidth() == 0) continue;
             JRDesignStaticText headerText = new JRDesignStaticText();
             headerText.setX(currentX);
             headerText.setY(0);
             headerText.setWidth(column.getWidth());
             headerText.setHeight(25);
+            headerText.setFontName("DejaVu Sans Condensed");
+
             headerText.setText(column.getTitle());
             headerText.setHorizontalTextAlign(HorizontalTextAlignEnum.CENTER);
             headerText.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
@@ -216,11 +290,13 @@ public class ReportBuilder {
 
         int currentX = 0;
         for (Column column : columns) {
-            if (column.getWidth() == 0) continue; // Nie twórz pola w sekcji detail dla ukrytych kolumn
+            if (column.getWidth() == 0) continue;
             JRDesignTextField dataField = new JRDesignTextField();
             dataField.setX(currentX);
             dataField.setY(0);
             dataField.setWidth(column.getWidth());
+            dataField.setFontName("DejaVu Sans Condensed");
+
             dataField.setHeight(30);
 
             if (column.hasPattern()) {
@@ -246,7 +322,7 @@ public class ReportBuilder {
                 .sum();
 
         List<Column> autoWidthColumns = columns.stream()
-                .filter(c -> c.getWidth() < 0) // Używamy < 0 dla auto-szerokości
+                .filter(c -> c.getWidth() < 0)
                 .collect(Collectors.toList());
 
         if (!autoWidthColumns.isEmpty()) {
@@ -278,6 +354,7 @@ public class ReportBuilder {
         groupHeader.setY(0);
         groupHeader.setWidth(jasperDesign.getColumnWidth());
         groupHeader.setHeight(30);
+        groupHeader.setFontName("DejaVu Sans Condensed");
         groupHeader.setHorizontalTextAlign(HorizontalTextAlignEnum.LEFT);
         groupHeader.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
 
@@ -294,6 +371,54 @@ public class ReportBuilder {
         JRDesignSortField sortField = new JRDesignSortField();
         sortField.setName(this.group.getFieldName());
         jasperDesign.addSortField(sortField);
+    }
+
+
+    private void buildPageFooter() {
+        if ((this.footerLeftText == null || this.footerLeftText.isEmpty()) && (this.footerRightText == null || this.footerRightText.isEmpty())) {
+            return;
+        }
+
+        JRDesignBand pageFooterBand = new JRDesignBand();
+        pageFooterBand.setHeight(35);
+
+        int availableWidth = this.pageWidth - this.leftMargin - this.rightMargin;
+
+        JRDesignLine line = new JRDesignLine();
+        line.setX(0);
+        line.setY(2);
+        line.setWidth(availableWidth);
+        line.setHeight(1);
+        pageFooterBand.addElement(line);
+
+        JRDesignTextField pageNumberField = new JRDesignTextField();
+        pageNumberField.setX(0);
+        pageNumberField.setY(11);
+        pageNumberField.setWidth(availableWidth);
+        pageNumberField.setHeight(20);
+        pageNumberField.setHorizontalTextAlign(HorizontalTextAlignEnum.RIGHT);
+        pageNumberField.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
+        pageNumberField.setFontName("DejaVu Sans Condensed");
+        pageNumberField.setFontSize(8f);
+
+        JRDesignExpression pageNumberExpr = new JRDesignExpression();
+        pageNumberExpr.setText("\"Strona \" + $V{MASTER_CURRENT_PAGE} + \" z \" + $V{MASTER_TOTAL_PAGES}");
+        pageNumberField.setExpression(pageNumberExpr);
+        pageFooterBand.addElement(pageNumberField);
+
+        JRDesignStaticText leftText = new JRDesignStaticText();
+        leftText.setX(0);
+        leftText.setY(2);
+        leftText.setWidth(availableWidth / 2);
+        leftText.setHeight(30);
+        leftText.setVerticalTextAlign(VerticalTextAlignEnum.BOTTOM);
+        leftText.setFontName("DejaVu Sans Condensed");
+        leftText.setFontSize(8f);
+
+        leftText.setText(this.footerLeftText);
+        pageFooterBand.addElement(leftText);
+
+        jasperDesign.setPageFooter(pageFooterBand);
     }
 
 }

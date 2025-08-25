@@ -19,4 +19,6 @@ public enum Calculation {
         return this != NONE;
     }
 
+
+
 }
