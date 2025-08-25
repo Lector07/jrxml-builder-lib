@@ -9,6 +9,8 @@ public class Column {
     private final Calculation reportCalculation;
     private final Calculation groupCalculation;
     private String styleName;
+    private boolean hasBox = false;
+
 
     public Column(String fieldName, String title, int width, DataType type, String pattern,
                   Calculation reportCalculation, Calculation groupCalculation) {
@@ -86,6 +88,16 @@ public class Column {
 
     public boolean hasGroupCalculation() {
         return groupCalculation != null;
+    }
+
+
+    public Column withBox(boolean hasBox) {
+        this.hasBox = hasBox;
+        return this;
+    }
+
+    public boolean hasBox() {
+        return hasBox;
     }
 
 

@@ -6,8 +6,16 @@ import net.sf.jasperreports.engine.JasperCompileManager;
 import net.sf.jasperreports.engine.JasperReport;
 import net.sf.jasperreports.engine.design.*;
 import net.sf.jasperreports.engine.type.*;
+import net.sf.jasperreports.engine.base.*;
+import net.sf.jasperreports.engine.JRLineBox;
+import net.sf.jasperreports.engine.xml.JRXmlWriter;
 import pl.lib.model.*;
 
+import java.awt.*;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -16,22 +24,40 @@ import java.util.stream.Collectors;
 public class ReportBuilder {
     private final List<Column> columns = new ArrayList<>();
     private final List<Style> styles = new ArrayList<>();
-    private final List<Image> imagesInTitle = new ArrayList<>();
     private final JasperDesign jasperDesign;
     private String title = "Raport";
     private int pageWidth = 595;
     private int pageHeight = 842;
     private int leftMargin = 20, rightMargin = 20, topMargin = 20, bottomMargin = 20;
-    private boolean zebraStripingEnabled = false;
     private String footerLeftText = "";
     private String footerRightText = "";
     private Group group;
+    private String headerStyleName = null;
+
 
     public ReportBuilder(String reportName) {
         this.jasperDesign = new JasperDesign();
         this.jasperDesign.setName(reportName);
         this.jasperDesign.setWhenNoDataType(WhenNoDataTypeEnum.ALL_SECTIONS_NO_DETAIL);
         this.jasperDesign.setLanguage("java");
+    }
+
+    public ReportBuilder exportToJrxml(String filePath) throws JRException {
+        try (FileOutputStream fos = new FileOutputStream(new File(filePath))) {
+            JRXmlWriter.writeReport(jasperDesign, fos, "UTF-8");
+        } catch (IOException e) {
+            throw new JRException("Błąd podczas zapisywania pliku JRXML", e);
+        }
+        return this;
+    }
+
+    public String getJrxmlContent() throws JRException {
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+            JRXmlWriter.writeReport(jasperDesign, baos, "UTF-8");
+            return baos.toString("UTF-8");
+        } catch (IOException e) {
+            throw new JRException("Błąd podczas generowania JRXML", e);
+        }
     }
 
     public ReportBuilder() {
@@ -65,29 +91,23 @@ public class ReportBuilder {
         return this;
     }
 
-    public ReportBuilder withZebraStriping() {
-        this.zebraStripingEnabled = true;
-        Style zebraStyle = new Style("ZebraStripeStyle").withColors(null, "#F0F0F0");
-        addStyle(zebraStyle);
-        return this;
-    }
-
     public ReportBuilder withStandardFooter(String leftText, String rightText) {
         this.footerLeftText = leftText;
         this.footerRightText = rightText;
         return this;
     }
 
+    public ReportBuilder withHeaderStyle(String styleName) {
+        this.headerStyleName = styleName;
+        return this;
+    }
 
     public ReportBuilder addGroup(Group group) {
         this.group = group;
         return this;
     }
 
-    public ReportBuilder addImageInTitle(Image image) {
-        this.imagesInTitle.add(image);
-        return this;
-    }
+
 
     public ReportBuilder addColumn(Column column) {
         this.columns.add(column);
@@ -107,6 +127,7 @@ public class ReportBuilder {
 
     public JasperReport build() throws JRException {
         setupPage();
+        buildStyles();
         declareFields();
         declareParameters();
         buildGroups();
@@ -115,6 +136,7 @@ public class ReportBuilder {
         buildColumnHeaderBand();
         buildDetailBand();
         buildPageFooter();
+        buildSummaryBand();
 
         return JasperCompileManager.compileReport(this.jasperDesign);
     }
@@ -248,6 +270,30 @@ public class ReportBuilder {
         titleTextField.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
         titleTextField.setFontSize(12f);
 
+        JRLineBox box = titleTextField.getLineBox();
+        box.setTopPadding(2);
+        box.setRightPadding(2);
+        box.setBottomPadding(2);
+        box.setLeftPadding(2);
+
+        float borderWidth = 1.0f;
+        Color borderColor = Color.BLACK;
+
+        box.getTopPen().setLineWidth(borderWidth);
+        box.getTopPen().setLineColor(borderColor);
+        box.getRightPen().setLineWidth(borderWidth);
+        box.getRightPen().setLineColor(borderColor);
+        box.getBottomPen().setLineWidth(borderWidth);
+        box.getBottomPen().setLineColor(borderColor);
+        box.getLeftPen().setLineWidth(borderWidth);
+        box.getLeftPen().setLineColor(borderColor);
+
+        if (this.headerStyleName != null && jasperDesign.getStylesMap().get(this.headerStyleName) != null) {
+            titleTextField.setStyle(jasperDesign.getStylesMap().get(this.headerStyleName));
+        } else {
+            titleTextField.setBold(true);
+        }
+
         JRDesignExpression expression = new JRDesignExpression();
         expression.setText("$P{ReportTitle} != null ? $P{ReportTitle} : \"" + this.title + "\"");
         titleTextField.setExpression(expression);
@@ -272,6 +318,25 @@ public class ReportBuilder {
             headerText.setWidth(column.getWidth());
             headerText.setHeight(25);
             headerText.setFontName("DejaVu Sans Condensed");
+
+            JRLineBox box = headerText.getLineBox();
+            box.setTopPadding(2);
+            box.setRightPadding(2);
+            box.setBottomPadding(2);
+            box.setLeftPadding(2);
+
+            float borderWidth = 1.0f;
+            Color borderColor = Color.BLACK;
+
+            box.getTopPen().setLineWidth(borderWidth);
+            box.getTopPen().setLineColor(borderColor);
+            box.getRightPen().setLineWidth(borderWidth);
+            box.getRightPen().setLineColor(borderColor);
+            box.getBottomPen().setLineWidth(borderWidth);
+            box.getBottomPen().setLineColor(borderColor);
+            box.getLeftPen().setLineWidth(borderWidth);
+            box.getLeftPen().setLineColor(borderColor);
+
 
             headerText.setText(column.getTitle());
             headerText.setHorizontalTextAlign(HorizontalTextAlignEnum.CENTER);
@@ -299,9 +364,16 @@ public class ReportBuilder {
 
             dataField.setHeight(30);
 
+            if (column.getStyleName() != null && jasperDesign.getStylesMap().get(column.getStyleName()) != null) {
+                dataField.setStyle(jasperDesign.getStylesMap().get(column.getStyleName()));
+            } else {
+                configureTextFieldBox(dataField, column);
+            }
+
             if (column.hasPattern()) {
                 dataField.setPattern(column.getPattern());
             }
+
 
             JRDesignExpression expression = new JRDesignExpression();
             expression.setText("$F{" + column.getFieldName() + "}");
@@ -352,11 +424,30 @@ public class ReportBuilder {
         JRDesignTextField groupHeader = new JRDesignTextField();
         groupHeader.setX(0);
         groupHeader.setY(0);
-        groupHeader.setWidth(jasperDesign.getColumnWidth());
+        groupHeader.setWidth(jasperDesign.getPageWidth()-leftMargin-rightMargin);
         groupHeader.setHeight(30);
         groupHeader.setFontName("DejaVu Sans Condensed");
         groupHeader.setHorizontalTextAlign(HorizontalTextAlignEnum.LEFT);
         groupHeader.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
+
+
+        JRLineBox box = groupHeader.getLineBox();
+        box.setTopPadding(2);
+        box.setRightPadding(2);
+        box.setBottomPadding(2);
+        box.setLeftPadding(2);
+
+        float borderWidth = 1.0f;
+        Color borderColor = Color.BLACK;
+
+        box.getTopPen().setLineWidth(borderWidth);
+        box.getTopPen().setLineColor(borderColor);
+        box.getRightPen().setLineWidth(borderWidth);
+        box.getRightPen().setLineColor(borderColor);
+        box.getBottomPen().setLineWidth(borderWidth);
+        box.getBottomPen().setLineColor(borderColor);
+        box.getLeftPen().setLineWidth(borderWidth);
+        box.getLeftPen().setLineColor(borderColor);
 
         JRDesignExpression headerExpression = new JRDesignExpression();
         headerExpression.setText(this.group.getHeaderExpression());
@@ -402,7 +493,7 @@ public class ReportBuilder {
         pageNumberField.setFontSize(8f);
 
         JRDesignExpression pageNumberExpr = new JRDesignExpression();
-        pageNumberExpr.setText("\"Strona \" + $V{MASTER_CURRENT_PAGE} + \" z \" + $V{MASTER_TOTAL_PAGES}");
+        pageNumberExpr.setText("\"Strona \" + $V{PAGE_NUMBER}");
         pageNumberField.setExpression(pageNumberExpr);
         pageFooterBand.addElement(pageNumberField);
 
@@ -421,4 +512,111 @@ public class ReportBuilder {
         jasperDesign.setPageFooter(pageFooterBand);
     }
 
+
+    private void buildSummaryBand() {
+        boolean hasReportCalculation = columns.stream().anyMatch(c -> c.hasReportCalculation() && c.getReportCalculation().isActive());
+        if (!hasReportCalculation) {
+            return;
+        }
+
+        JRDesignBand summaryBand = new JRDesignBand();
+        summaryBand.setHeight(30);
+
+        JRDesignStaticText summaryLabel = new JRDesignStaticText();
+        summaryLabel.setText("Podsumowanie raportu:");
+        summaryLabel.setX(0);
+        summaryLabel.setY(5);
+        summaryLabel.setWidth(150);
+        summaryLabel.setHeight(20);
+        summaryLabel.setBold(true);
+        summaryBand.addElement(summaryLabel);
+
+        int currentX = 0;
+        for (Column column : columns) {
+            if (column.hasReportCalculation() && column.getReportCalculation().isActive()) {
+                JRDesignTextField summaryField = new JRDesignTextField();
+                summaryField.setX(currentX);
+                summaryField.setY(5);
+                summaryField.setWidth(column.getWidth());
+                summaryField.setHeight(20);
+                summaryField.setBold(true);
+                if (column.hasPattern()) {
+                    summaryField.setPattern(column.getPattern());
+                }
+
+                JRDesignExpression expression = new JRDesignExpression();
+                String variableName = column.getFieldName() + "_REPORT_" + column.getReportCalculation().name();
+                expression.setText("$V{" + variableName + "}");
+                summaryField.setExpression(expression);
+                summaryBand.addElement(summaryField);
+            }
+            currentX += column.getWidth();
+        }
+        jasperDesign.setSummary(summaryBand);
+    }
+
+    private void buildStyles() throws JRException {
+        for (Style style : this.styles) {
+            JRDesignStyle jrStyle = new JRDesignStyle();
+            jrStyle.setName(style.getName());
+            jrStyle.setDefault(false);
+            jrStyle.setFontName(style.getFontName());
+            jrStyle.setFontSize(style.getFontSize());
+            jrStyle.setBold(style.isBold());
+
+            if (style.getFontColor() != null) {
+                jrStyle.setForecolor(Color.decode(style.getFontColor()));
+            }
+            if (style.getBackColor() != null) {
+                jrStyle.setBackcolor(Color.decode(style.getBackColor()));
+                jrStyle.setMode(ModeEnum.OPAQUE);
+            }
+
+            jrStyle.setHorizontalTextAlign(HorizontalTextAlignEnum.valueOf(style.getHorizontalAlignment().toUpperCase()));
+            jrStyle.setVerticalTextAlign(VerticalTextAlignEnum.valueOf(style.getVerticalAlignment().toUpperCase()));
+
+            if (style.getBorderWidth() > 0) {
+                JRLineBox box = jrStyle.getLineBox();
+                box.setTopPadding(2);
+                box.setRightPadding(2);
+                box.setBottomPadding(2);
+                box.setLeftPadding(2);
+
+                float width = style.getBorderWidth();
+                Color color = Color.decode(style.getBorderColor());
+
+                box.getTopPen().setLineWidth(width);
+                box.getTopPen().setLineColor(color);
+                box.getRightPen().setLineWidth(width);
+                box.getRightPen().setLineColor(color);
+                box.getBottomPen().setLineWidth(width);
+                box.getBottomPen().setLineColor(color);
+                box.getLeftPen().setLineWidth(width);
+                box.getLeftPen().setLineColor(color);
+            }
+            jasperDesign.addStyle(jrStyle);
+        }
+    }
+
+    private void configureTextFieldBox(JRDesignTextField textField, Column column) {
+        if (column.hasBox()) {
+            JRLineBox box = textField.getLineBox();
+            box.setTopPadding(2);
+            box.setRightPadding(2);
+            box.setBottomPadding(2);
+            box.setLeftPadding(2);
+
+            float width = 0.5f; // domyślna szerokość
+            Color color = Color.BLACK; // domyślny kolor
+
+            box.getTopPen().setLineWidth(width);
+            box.getTopPen().setLineColor(color);
+            box.getRightPen().setLineWidth(width);
+            box.getRightPen().setLineColor(color);
+            box.getBottomPen().setLineWidth(width);
+            box.getBottomPen().setLineColor(color);
+            box.getLeftPen().setLineWidth(width);
+            box.getLeftPen().setLineColor(color);
+        }
+    }
 }

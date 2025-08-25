@@ -16,25 +16,27 @@ public class BudgetReportService {
 
         ReportBuilder builder = new ReportBuilder();
 
-        // Definicja stylu dla nagłówka grupy
-        Style groupHeaderStyle = new Style("GroupHeaderStyle")
-                .withFontName("DejaVu Sans", 10, true)
-                .withColors("#333333", null);
+        Style headerStyle = new Style("HeaderWithBorder")
+                .withFont("DejaVu Sans Condensed", 12, true)
+                .withAlignment("Center", "Middle")
+                .withBorders(1.0f, "#000000");
+        builder.addStyle(headerStyle)
+                .withHeaderStyle("HeaderWithBorder");
 
-        // Dodanie stylu do buildera
-        builder.addStyle(groupHeaderStyle);
+        Group expensesGroup = new Group("kategoria", "\"Kategoria: \" + $F{kategoria}");
 
         JasperReport jasperReport = builder
                 .withTitle("Zestawienie Wydatków")
-                .withPageSize(842, 595) // A4 Poziomo
-                .withZebraStriping()
+                .withPageSize(842, 595)
+                .withHeaderStyle("HeaderStyle")
                 .withStandardFooter("eBudżet - ZSI \"Sprawny Urząd\"\n" +
                         "BUK Softres - www.softres.pl", null)
-                .addGroup(new Group("kategoria", "\"Kategoria: \" + $F{kategoria}"))
-                .addColumn(new Column("kategoria", "Kategoria", 0, DataType.STRING, null, Calculation.NONE, Calculation.NONE))
-                .addColumn(new Column("data", "Data", -1, DataType.STRING, null, Calculation.NONE, Calculation.NONE))
-                .addColumn(new Column("opis", "Opis", -1, DataType.STRING, null, Calculation.NONE, Calculation.NONE))
-                .addColumn(new Column("kwota", "Kwota", -1, DataType.BIG_DECIMAL, "#,##0.00", Calculation.SUM, Calculation.SUM))
+                .addGroup(expensesGroup)
+                .addStyle(new Style("BoxedStyle").withBorders(1.0f, "#000000"))
+                .addColumn(new Column("kategoria", "Kategoria", 0, DataType.STRING, null, Calculation.NONE, Calculation.NONE).withBox(true))
+                .addColumn(new Column("data", "Data", -1, DataType.STRING, null, Calculation.NONE, Calculation.NONE).withBox(true))
+                .addColumn(new Column("opis", "Opis", -1, DataType.STRING, null, Calculation.NONE, Calculation.NONE).withBox(true))
+                .addColumn(new Column("kwota", "Kwota", -1, DataType.BIG_DECIMAL, "#,##0.00", Calculation.SUM, Calculation.SUM).withBox(true))
                 .build();
 
         InputStream jsonStream = new ByteArrayInputStream(jsonData.getBytes(StandardCharsets.UTF_8));
@@ -43,6 +45,130 @@ public class BudgetReportService {
         Map<String, Object> parameters = new HashMap<>();
         parameters.put("ReportTitle", "Raport Wydatków - Sierpień 2025");
 
+        JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, jsonDataSource);
+
+
+        System.out.println(builder.getJrxmlContent());
+        return JasperExportManager.exportReportToPdf(jasperPrint);
+    }
+
+    public byte[] generateIncomeReport(String jsonData) throws JRException {
+        ReportBuilder builder = new ReportBuilder();
+
+        Style groupHeaderStyle = new Style("GroupHeaderStyle")
+                .withFont("DejaVu Sans", 10, true)
+                .withColors("#005500", null);
+
+        Style positiveAmountStyle = new Style("PositiveAmount")
+                .withFont("DejaVu Sans", 10, true)
+                .withColors("#006600", null);
+
+        builder.addStyle(groupHeaderStyle);
+        builder.addStyle(positiveAmountStyle);
+
+        Group incomeGroup = new Group("zrodlo", "\"Źródło: \" + $F{zrodlo}");
+
+        JasperReport jasperReport = builder
+                .withTitle("Zestawienie Przychodów")
+                .withPageSize(842, 595)
+                .withStandardFooter("eBudżet - ZSI \"Sprawny Urząd\"\n" +
+                        "BUK Softres - www.softres.pl", null)
+                .addGroup(incomeGroup)
+                .addStyle(new Style("BoxedStyle").withBorders(1.0f, "#000000"))
+
+                .addColumn(new Column("zrodlo", "Źródło", 0, DataType.STRING, null, Calculation.NONE, Calculation.NONE))
+                .addColumn(new Column("data", "Data", -1, DataType.STRING, null, Calculation.NONE, Calculation.NONE))
+                .addColumn(new Column("opis", "Opis", -1, DataType.STRING, null, Calculation.NONE, Calculation.NONE))
+                .addColumn(new Column("kwota", "Kwota", -1, DataType.BIG_DECIMAL, "#,##0.00", Calculation.SUM, Calculation.SUM, "PositiveAmount"))
+                .build();
+
+        InputStream jsonStream = new ByteArrayInputStream(jsonData.getBytes(StandardCharsets.UTF_8));
+        JRDataSource jsonDataSource = new JsonDataSource(jsonStream, "przychody");
+
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put("ReportTitle", "Raport Przychodów - Sierpień 2025");
+
+        JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, jsonDataSource);
+
+        return JasperExportManager.exportReportToPdf(jasperPrint);
+    }
+
+    public byte[] generateBudgetSummaryReport(String jsonData) throws JRException {
+        ReportBuilder builder = new ReportBuilder();
+
+        Style positiveStyle = new Style("PositiveAmount")
+                .withFont("DejaVu Sans", 10, true)
+                .withColors("#006600", null);
+
+        Style negativeStyle = new Style("NegativeAmount")
+                .withFont("DejaVu Sans", 10, true)
+                .withColors("#CC0000", null);
+
+        Style headerStyle = new Style("HeaderStyle")
+                .withFont("DejaVu Sans", 11, true)
+                .withColors("#000000", "#E6E6E6");
+
+        builder.addStyle(positiveStyle);
+        builder.addStyle(negativeStyle);
+        builder.addStyle(headerStyle);
+
+        JasperReport jasperReport = builder
+                .withTitle("Podsumowanie Budżetu")
+                .withPageSize(595, 842) // A4 Pionowo
+                .withStandardFooter("eBudżet - ZSI \"Sprawny Urząd\"\n" +
+                        "BUK Softres - www.softres.pl", null)
+                .addColumn(new Column("typ", "Typ", -1, DataType.STRING, null, Calculation.NONE, Calculation.NONE).withBox(true))
+                .addColumn(new Column("kategoria", "Kategoria/Źródło", -1, DataType.STRING, null, Calculation.NONE, Calculation.NONE).withBox(true))
+                .addColumn(new Column("kwota", "Kwota", -1, DataType.BIG_DECIMAL, "#,##0.00", Calculation.NONE, Calculation.SUM).withBox(true))
+                .build();
+
+        InputStream jsonStream = new ByteArrayInputStream(jsonData.getBytes(StandardCharsets.UTF_8));
+        JRDataSource jsonDataSource = new JsonDataSource(jsonStream, "zestawienie");
+
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put("ReportTitle", "Podsumowanie Budżetu - Sierpień 2025");
+
+        JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, jsonDataSource);
+
+        return JasperExportManager.exportReportToPdf(jasperPrint);
+    }
+
+    public byte[] generateMonthlyReport(String jsonData, String month, String year) throws JRException {
+        ReportBuilder builder = new ReportBuilder();
+
+        Style totalStyle = new Style("TotalStyle")
+                .withFont("DejaVu Sans", 11, true)
+                .withColors("#000000", "#F0F0F0")
+                .withBorders(1.0f, "#000000");
+
+        builder.addStyle(totalStyle);
+
+        Group dateGroup = new Group("tydzien", "\"Tydzień: \" + $F{tydzien}");
+
+        JasperReport jasperReport = builder
+                .withTitle("Raport Miesięczny: " + month + " " + year)
+                .withPageSize(842, 595) // A4 Poziomo
+                .withStandardFooter("eBudżet - ZSI \"Sprawny Urząd\"\n" +
+                        "BUK Softres - www.softres.pl", null)
+                .addGroup(dateGroup)
+                .addStyle(new Style("BoxedStyle").withBorders(1.0f, "#000000"))
+
+                .addColumn(new Column("tydzien", "Tydzień", 0, DataType.STRING, null, Calculation.NONE, Calculation.NONE))
+                .addColumn(new Column("data", "Data", -1, DataType.STRING, null, Calculation.NONE, Calculation.NONE))
+                .addColumn(new Column("kategoria", "Kategoria", -1, DataType.STRING, null, Calculation.NONE, Calculation.NONE))
+                .addColumn(new Column("opis", "Opis", -1, DataType.STRING, null, Calculation.NONE, Calculation.NONE))
+                .addColumn(new Column("przychod", "Przychód", -1, DataType.BIG_DECIMAL, "#,##0.00", Calculation.SUM, Calculation.SUM))
+                .addColumn(new Column("wydatek", "Wydatek", -1, DataType.BIG_DECIMAL, "#,##0.00", Calculation.SUM, Calculation.SUM))
+                .addColumn(new Column("bilans", "Bilans", -1, DataType.BIG_DECIMAL, "#,##0.00", Calculation.SUM, Calculation.SUM))
+                .build();
+
+        InputStream jsonStream = new ByteArrayInputStream(jsonData.getBytes(StandardCharsets.UTF_8));
+        JRDataSource jsonDataSource = new JsonDataSource(jsonStream, "transakcje");
+
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put("ReportTitle", "Raport Miesięczny: " + month + " " + year);
+
+        System.out.println();
         JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, jsonDataSource);
 
         return JasperExportManager.exportReportToPdf(jasperPrint);
@@ -81,9 +207,18 @@ public class BudgetReportService {
         BudgetReportService reportService = new BudgetReportService();
         try {
             byte[] pdfBytes = reportService.generateExpensesReport(jsonData);
+            byte[] pdfBytesIncome = reportService.generateIncomeReport(jsonData);
+            byte[] pdfBytesSummary = reportService.generateBudgetSummaryReport(jsonData);
+            byte[] pdfBytesMonthly = reportService.generateMonthlyReport(jsonData, "Sierpień", "2025");
+
             java.nio.file.Files.write(java.nio.file.Paths.get("raport_wydatkow.pdf"), pdfBytes);
+            java.nio.file.Files.write(java.nio.file.Paths.get("raport_przychodow.pdf"), pdfBytesIncome);
+            java.nio.file.Files.write(java.nio.file.Paths.get("podsumowanie_budzetu.pdf"), pdfBytesSummary);
+            java.nio.file.Files.write(java.nio.file.Paths.get("raport_miesieczny.pdf"), pdfBytesMonthly);
+
 
             System.out.println("Raport PDF został pomyślnie wygenerowany: raport_wydatkow.pdf");
+
         } catch (JRException | java.io.IOException e) {
             e.printStackTrace();
         }

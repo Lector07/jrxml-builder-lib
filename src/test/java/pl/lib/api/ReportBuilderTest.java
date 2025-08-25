@@ -93,7 +93,6 @@ class ReportBuilderTest {
     @Test
     void testZebraStriping() throws JRException {
         JasperReport jasperReport = reportBuilder
-                .withZebraStriping()
                 .addColumn(new Column("TEST", "Test", 100, DataType.STRING, null, Calculation.NONE, Calculation.NONE))
                 .build();
 
@@ -107,7 +106,7 @@ class ReportBuilderTest {
     void testCustomStyle() throws JRException {
         Style customStyle = new Style("Highlight")
                 .withColors("#FF0000", "#FFFF00")
-                .withFontName("Arial", 12, true);
+                .withFont("Arial", 12, true);
 
         JasperReport jasperReport = reportBuilder
                 .addStyle(customStyle)
