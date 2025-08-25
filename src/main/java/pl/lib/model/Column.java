@@ -101,4 +101,7 @@ public class Column {
     }
 
 
+    public DataType getDataType() {
+        return type;
+    }
 }

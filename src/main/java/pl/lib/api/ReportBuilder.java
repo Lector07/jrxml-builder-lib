@@ -102,6 +102,11 @@ public class ReportBuilder {
         return this;
     }
 
+    private void setTextFieldBackground(JRDesignTextField textField, Color color) {
+        textField.setBackcolor(color);
+        textField.setMode(ModeEnum.OPAQUE);
+    }
+
     public ReportBuilder addGroup(Group group) {
         this.group = group;
         return this;
@@ -266,9 +271,12 @@ public class ReportBuilder {
         titleTextField.setWidth(availableWidth);
         titleTextField.setHeight(25);
         titleTextField.setFontName("DejaVu Sans Condensed");
+        titleTextField.setForecolor(Color.decode("#FFFFFF"));
         titleTextField.setHorizontalTextAlign(HorizontalTextAlignEnum.CENTER);
         titleTextField.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
         titleTextField.setFontSize(12f);
+        setTextFieldBackground(titleTextField, Color.decode("#2A3F54"));
+
 
         JRLineBox box = titleTextField.getLineBox();
         box.setTopPadding(2);
@@ -317,6 +325,8 @@ public class ReportBuilder {
             headerText.setY(0);
             headerText.setWidth(column.getWidth());
             headerText.setHeight(25);
+            headerText.setBackcolor(Color.decode("#C6D8E4"));
+            headerText.setMode(ModeEnum.OPAQUE);
             headerText.setFontName("DejaVu Sans Condensed");
 
             JRLineBox box = headerText.getLineBox();
@@ -361,6 +371,17 @@ public class ReportBuilder {
             dataField.setY(0);
             dataField.setWidth(column.getWidth());
             dataField.setFontName("DejaVu Sans Condensed");
+            dataField.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
+
+            if (column.getDataType() == DataType.INTEGER ||
+                    column.getDataType() == DataType.BIG_DECIMAL ||
+                    column.getDataType() == DataType.FLOAT ||
+                    column.getDataType() == DataType.DOUBLE ||
+                    column.getDataType() == DataType.LONG) {
+                dataField.setHorizontalTextAlign(HorizontalTextAlignEnum.RIGHT);
+            } else {
+                dataField.setHorizontalTextAlign(HorizontalTextAlignEnum.LEFT);
+            }
 
             dataField.setHeight(30);
 
@@ -373,7 +394,6 @@ public class ReportBuilder {
             if (column.hasPattern()) {
                 dataField.setPattern(column.getPattern());
             }
-
 
             JRDesignExpression expression = new JRDesignExpression();
             expression.setText("$F{" + column.getFieldName() + "}");
@@ -429,7 +449,7 @@ public class ReportBuilder {
         groupHeader.setFontName("DejaVu Sans Condensed");
         groupHeader.setHorizontalTextAlign(HorizontalTextAlignEnum.LEFT);
         groupHeader.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
-
+        setTextFieldBackground(groupHeader, Color.decode("#E6E6E6"));
 
         JRLineBox box = groupHeader.getLineBox();
         box.setTopPadding(2);
@@ -531,6 +551,7 @@ public class ReportBuilder {
         summaryLabel.setBold(true);
         summaryBand.addElement(summaryLabel);
 
+
         int currentX = 0;
         for (Column column : columns) {
             if (column.hasReportCalculation() && column.getReportCalculation().isActive()) {
@@ -540,6 +561,10 @@ public class ReportBuilder {
                 summaryField.setWidth(column.getWidth());
                 summaryField.setHeight(20);
                 summaryField.setBold(true);
+                summaryField.setBackcolor(Color.decode("#C6D8E4"));
+                summaryField.setMode(ModeEnum.OPAQUE);
+                summaryField.setHorizontalTextAlign(HorizontalTextAlignEnum.RIGHT);
+                summaryField.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
                 if (column.hasPattern()) {
                     summaryField.setPattern(column.getPattern());
                 }
