@@ -2,26 +2,40 @@ package pl.lib.api;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import pl.lib.model.Column;
-import pl.lib.model.DataType;
-import pl.lib.model.Calculation;
-import pl.lib.model.Style;
+import pl.lib.model.*;
 import net.sf.jasperreports.engine.*;
 import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
 
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.util.*;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
 
 public class RealizacjaRaport {
 
-    public static JasperReport stworzRaport() throws JRException {
+    public static class ReportData {
+        private final JasperReport report;
+        private final Map<String, Object> parameters;
+
+        public ReportData(JasperReport report, Map<String, Object> parameters) {
+            this.report = report;
+            this.parameters = parameters;
+        }
+
+        public JasperReport getReport() { return report; }
+        public Map<String, Object> getParameters() { return parameters; }
+    }
+
+    public static ReportData stworzRaport() throws JRException {
         ReportBuilder builder = new ReportBuilder()
                 .withTitle("Raport realizacji")
                 .withPageSize(842, 595)
                 .withMargins(20, 20, 20, 20)
+                .withCompanyInfo("Moja Firma", "ul. Przykładowa 1, 00-000 Miasto", "NIP: 123-456-78-90", "Tel: 123-456-789")
                 .withStandardFooter("Wygenerowano: " + new SimpleDateFormat("yyyy-MM-dd").format(new Date()), "Dokument wewnętrzny");
 
         Style headerStyle = new Style("NaglowekStyle")
@@ -39,14 +53,16 @@ public class RealizacjaRaport {
 
         builder.addColumn(new Column("id", "ID", -1, DataType.INTEGER, null, Calculation.NONE, Calculation.NONE).withBox(true));
         builder.addColumn(new Column("name", "Nazwa", -1, DataType.STRING, null, Calculation.NONE, Calculation.NONE).withBox(true));
-        builder.addColumn(new Column("internalNumber", "Nr wew.", -1, DataType.STRING, null, Calculation.NONE, Calculation.NONE).withBox(true));
         builder.addColumn(new Column("departmentSymbol", "Dział", -1, DataType.STRING, null, Calculation.NONE, Calculation.NONE).withBox(true));
-        builder.addColumn(new Column("value", "Wartość", -1, DataType.BIG_DECIMAL, "#,##0.00 zł", Calculation.NONE, Calculation.SUM, "KwotaStyle"));
-        builder.addColumn(new Column("realizationAmount", "Kwota realizacji", -1, DataType.BIG_DECIMAL, "#,##0.00 zł", Calculation.NONE, Calculation.SUM, "KwotaStyle"));
-        builder.addColumn(new Column("realizationBalanceAmount", "Pozostało", -1, DataType.BIG_DECIMAL, "#,##0.00 zł", Calculation.NONE, Calculation.SUM, "KwotaStyle"));
-        builder.withStandardFooter("Wygenerowano: " + new SimpleDateFormat("yyyy-MM-dd").format(new Date()), "Dokument wewnętrzny");
+        builder.addColumn(new Column("value", "Wartość", -1, DataType.BIG_DECIMAL, "#,##0.00", Calculation.NONE, Calculation.SUM, "KwotaStyle"));
+        builder.addColumn(new Column("realizationAmount", "Kwota realizacji", -1, DataType.BIG_DECIMAL, "#,##0.00", Calculation.NONE, Calculation.SUM, "KwotaStyle"));
+        builder.addColumn(new Column("realizationBalanceAmount", "Pozostało", -1, DataType.BIG_DECIMAL, "#,##0.00", Calculation.SUM, Calculation.SUM, "KwotaStyle"));
 
-        return builder.build();
+
+        // Dodanie grupowania po polu departmentSymbol (dział)
+        builder.addGroup(new Group("internalNumber", "\"Nr wewnętrzny:  \" + $F{internalNumber}"));
+
+        return new ReportData(builder.build(), builder.getParameters());
     }
 
     private static List<Map<String, Object>> wczytajDaneZPliku(String sciezkaPliku) {
@@ -61,7 +77,6 @@ public class RealizacjaRaport {
             List<Map<String, Object>> dane = mapper.readValue(plik,
                     new TypeReference<List<Map<String, Object>>>() {});
 
-            // Konwersja wartości liczbowych na BigDecimal
             dane.forEach(wiersz -> {
                 if (wiersz.containsKey("value")) {
                     wiersz.put("value", new BigDecimal(wiersz.get("value").toString()));
@@ -84,10 +99,10 @@ public class RealizacjaRaport {
 
     public static void main(String[] args) {
         try {
-            // Generowanie raportu
-            JasperReport raport = stworzRaport();
+            ReportData reportData = stworzRaport();
+            JasperReport raport = reportData.getReport();
+            Map<String, Object> parametry = reportData.getParameters();
 
-            // Wczytanie danych z pliku JSON
             List<Map<String, Object>> dane = wczytajDaneZPliku("realization.json");
             if (dane.isEmpty()) {
                 System.err.println("Nie udało się wczytać danych z pliku. Raport nie zostanie wygenerowany.");
@@ -96,17 +111,11 @@ public class RealizacjaRaport {
 
             JRDataSource dataSource = new JRBeanCollectionDataSource(dane);
 
-            // Parametry raportu
-            Map<String, Object> parametry = new HashMap<>();
             parametry.put("ReportTitle", "Raport realizacji projektów");
 
-            // Wypełnienie raportu danymi
             JasperPrint jasperPrint = JasperFillManager.fillReport(raport, parametry, dataSource);
 
-            // Określenie ścieżki wyjściowej dla pliku PDF
             String sciezkaWyjsciowa = "raport_realizacji.pdf";
-
-            // Eksport do PDF
             JasperExportManager.exportReportToPdfFile(jasperPrint, sciezkaWyjsciowa);
 
             System.out.println("Raport został pomyślnie wygenerowany i zapisany do pliku: " + sciezkaWyjsciowa);

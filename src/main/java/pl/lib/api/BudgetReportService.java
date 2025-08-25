@@ -212,9 +212,6 @@ public class BudgetReportService {
             byte[] pdfBytesMonthly = reportService.generateMonthlyReport(jsonData, "Sierpień", "2025");
 
             java.nio.file.Files.write(java.nio.file.Paths.get("raport_wydatkow.pdf"), pdfBytes);
-            java.nio.file.Files.write(java.nio.file.Paths.get("raport_przychodow.pdf"), pdfBytesIncome);
-            java.nio.file.Files.write(java.nio.file.Paths.get("podsumowanie_budzetu.pdf"), pdfBytesSummary);
-            java.nio.file.Files.write(java.nio.file.Paths.get("raport_miesieczny.pdf"), pdfBytesMonthly);
 
 
             System.out.println("Raport PDF został pomyślnie wygenerowany: raport_wydatkow.pdf");

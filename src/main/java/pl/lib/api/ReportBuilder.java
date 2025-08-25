@@ -1,13 +1,10 @@
 package pl.lib.api;
 
 import com.lowagie.text.pdf.VerticalText;
-import net.sf.jasperreports.engine.JRException;
-import net.sf.jasperreports.engine.JasperCompileManager;
-import net.sf.jasperreports.engine.JasperReport;
+import net.sf.jasperreports.engine.*;
 import net.sf.jasperreports.engine.design.*;
 import net.sf.jasperreports.engine.type.*;
 import net.sf.jasperreports.engine.base.*;
-import net.sf.jasperreports.engine.JRLineBox;
 import net.sf.jasperreports.engine.xml.JRXmlWriter;
 import pl.lib.model.*;
 
@@ -17,9 +14,13 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class ReportBuilder {
     private final List<Column> columns = new ArrayList<>();
@@ -33,6 +34,8 @@ public class ReportBuilder {
     private String footerRightText = "";
     private Group group;
     private String headerStyleName = null;
+    private final Map<String, Object> parameters = new HashMap<>();
+
 
 
     public ReportBuilder(String reportName) {
@@ -62,6 +65,11 @@ public class ReportBuilder {
 
     public ReportBuilder() {
         this(UUID.randomUUID().toString());
+    }
+
+    public ReportBuilder addParameter(String name, Object value) {
+        parameters.put(name, value);
+        return this;
     }
 
 
@@ -102,6 +110,19 @@ public class ReportBuilder {
         return this;
     }
 
+    public ReportBuilder withCompanyInfo(String name, String address, String nipOrPostalCode, String phoneOrCity) {
+        addParameter("CompanyName", name);
+        addParameter("CompanyAddress", address);
+        addParameter("CompanyPostalCode", nipOrPostalCode);
+        addParameter("CompanyCity", phoneOrCity);
+
+        return this;
+    }
+
+    public Map<String, Object> getParameters() {
+        return this.parameters;
+    }
+
     private void setTextFieldBackground(JRDesignTextField textField, Color color) {
         textField.setBackcolor(color);
         textField.setMode(ModeEnum.OPAQUE);
@@ -137,6 +158,8 @@ public class ReportBuilder {
         declareParameters();
         buildGroups();
         declareVariables();
+
+
         buildTitleBand();
         buildColumnHeaderBand();
         buildDetailBand();
@@ -186,6 +209,29 @@ public class ReportBuilder {
             param.setName("ReportTitle");
             param.setValueClassName("java.lang.String");
             jasperDesign.addParameter(param);
+
+
+            JRDesignParameter companyName = new JRDesignParameter();
+            companyName.setName("CompanyName");
+            companyName.setValueClassName("java.lang.String");
+            jasperDesign.addParameter(companyName);
+
+            JRDesignParameter companyAddress = new JRDesignParameter();
+            companyAddress.setName("CompanyAddress");
+            companyAddress.setValueClassName("java.lang.String");
+            jasperDesign.addParameter(companyAddress);
+
+            JRDesignParameter companyPostal = new JRDesignParameter();
+            companyPostal.setName("CompanyPostalCode");
+            companyPostal.setValueClassName("java.lang.String");
+            jasperDesign.addParameter(companyPostal);
+
+            JRDesignParameter companyCity = new JRDesignParameter();
+            companyCity.setName("CompanyCity");
+            companyCity.setValueClassName("java.lang.String");
+            jasperDesign.addParameter(companyCity);
+
+
         } catch (JRException e) {
             throw new RuntimeException("Error declaring parameters", e);
         }
@@ -261,13 +307,52 @@ public class ReportBuilder {
 
     private void buildTitleBand() {
         JRDesignBand titleBand = new JRDesignBand();
-        titleBand.setHeight(35);
+        titleBand.setHeight(80);
 
         int availableWidth = this.pageWidth - this.leftMargin - this.rightMargin;
 
+
+        JRDesignTextField companyNameField = new JRDesignTextField();
+        companyNameField.setX(0);
+        companyNameField.setY(0);
+        companyNameField.setWidth(availableWidth / 2);
+        companyNameField.setHeight(18);
+        companyNameField.setFontName("DejaVu Sans");
+        companyNameField.setBold(true);
+        companyNameField.setFontSize(10f);
+        JRDesignExpression companyNameExpr = new JRDesignExpression();
+        companyNameExpr.setText("$P{CompanyName}");
+        companyNameField.setExpression(companyNameExpr);
+        titleBand.addElement(companyNameField);
+
+        JRDesignTextField companyAddressField = new JRDesignTextField();
+        companyAddressField.setX(0);
+        companyAddressField.setY(18);
+        companyAddressField.setWidth(availableWidth / 2);
+        companyAddressField.setHeight(15);
+        companyAddressField.setFontName("DejaVu Sans");
+        companyAddressField.setFontSize(9f);
+        JRDesignExpression companyAddressExpr = new JRDesignExpression();
+        companyAddressExpr.setText("$P{CompanyAddress}");
+        companyAddressField.setExpression(companyAddressExpr);
+        titleBand.addElement(companyAddressField);
+
+        JRDesignTextField companyCityField = new JRDesignTextField();
+        companyCityField.setX(0);
+        companyCityField.setY(33);
+        companyCityField.setWidth(availableWidth / 2);
+        companyCityField.setHeight(15);
+        companyCityField.setFontName("DejaVu Sans");
+        companyCityField.setFontSize(9f);
+        JRDesignExpression companyCityExpr = new JRDesignExpression();
+        companyCityExpr.setText("$P{CompanyPostalCode} + \" \" + $P{CompanyCity}");
+        companyCityField.setExpression(companyCityExpr);
+        titleBand.addElement(companyCityField);
+
+
         JRDesignTextField titleTextField = new JRDesignTextField();
         titleTextField.setX(0);
-        titleTextField.setY(10);
+        titleTextField.setY(50);
         titleTextField.setWidth(availableWidth);
         titleTextField.setHeight(25);
         titleTextField.setFontName("DejaVu Sans Condensed");
@@ -277,37 +362,10 @@ public class ReportBuilder {
         titleTextField.setFontSize(12f);
         setTextFieldBackground(titleTextField, Color.decode("#2A3F54"));
 
-
-        JRLineBox box = titleTextField.getLineBox();
-        box.setTopPadding(2);
-        box.setRightPadding(2);
-        box.setBottomPadding(2);
-        box.setLeftPadding(2);
-
-        float borderWidth = 1.0f;
-        Color borderColor = Color.BLACK;
-
-        box.getTopPen().setLineWidth(borderWidth);
-        box.getTopPen().setLineColor(borderColor);
-        box.getRightPen().setLineWidth(borderWidth);
-        box.getRightPen().setLineColor(borderColor);
-        box.getBottomPen().setLineWidth(borderWidth);
-        box.getBottomPen().setLineColor(borderColor);
-        box.getLeftPen().setLineWidth(borderWidth);
-        box.getLeftPen().setLineColor(borderColor);
-
-        if (this.headerStyleName != null && jasperDesign.getStylesMap().get(this.headerStyleName) != null) {
-            titleTextField.setStyle(jasperDesign.getStylesMap().get(this.headerStyleName));
-        } else {
-            titleTextField.setBold(true);
-        }
-
         JRDesignExpression expression = new JRDesignExpression();
         expression.setText("$P{ReportTitle} != null ? $P{ReportTitle} : \"" + this.title + "\"");
         titleTextField.setExpression(expression);
-
         titleBand.addElement(titleTextField);
-
         jasperDesign.setTitle(titleBand);
     }
 
