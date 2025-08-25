@@ -126,7 +126,7 @@ class ReportBuilderTest {
     void testGroupingAndFieldDeclaration() throws JRException {
         // Testujemy, czy pole do grupowania jest poprawnie deklarowane, nawet jeśli nie jest kolumną
         JasperReport jasperReport = reportBuilder
-                .addGroup(new Group("CATEGORY_ID", "\"Kategoria: \" + $F{CATEGORY_ID}"))
+                .addGroup(new Group("CATEGORY_ID", "\"Kategoria: \" + $F{CATEGORY_ID}", "GroupHeaderStyle", false))
                 .addColumn(new Column("PRODUCT", "Produkt", 200, DataType.STRING, null, Calculation.NONE, Calculation.NONE))
                 .build();
 

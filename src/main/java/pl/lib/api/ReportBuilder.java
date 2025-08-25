@@ -26,16 +26,15 @@ public class ReportBuilder {
     private final List<Column> columns = new ArrayList<>();
     private final List<Style> styles = new ArrayList<>();
     private final JasperDesign jasperDesign;
+    private final List<Group> groups = new ArrayList<>();
+    private final Map<String, Object> parameters = new HashMap<>();
     private String title = "Raport";
     private int pageWidth = 595;
     private int pageHeight = 842;
     private int leftMargin = 20, rightMargin = 20, topMargin = 20, bottomMargin = 20;
     private String footerLeftText = "";
     private String footerRightText = "";
-    private Group group;
     private String headerStyleName = null;
-    private final Map<String, Object> parameters = new HashMap<>();
-
 
 
     public ReportBuilder(String reportName) {
@@ -43,6 +42,10 @@ public class ReportBuilder {
         this.jasperDesign.setName(reportName);
         this.jasperDesign.setWhenNoDataType(WhenNoDataTypeEnum.ALL_SECTIONS_NO_DETAIL);
         this.jasperDesign.setLanguage("java");
+    }
+
+    public ReportBuilder() {
+        this(UUID.randomUUID().toString());
     }
 
     public ReportBuilder exportToJrxml(String filePath) throws JRException {
@@ -61,10 +64,6 @@ public class ReportBuilder {
         } catch (IOException e) {
             throw new JRException("Błąd podczas generowania JRXML", e);
         }
-    }
-
-    public ReportBuilder() {
-        this(UUID.randomUUID().toString());
     }
 
     public ReportBuilder addParameter(String name, Object value) {
@@ -129,10 +128,9 @@ public class ReportBuilder {
     }
 
     public ReportBuilder addGroup(Group group) {
-        this.group = group;
+        this.groups.add(group);
         return this;
     }
-
 
 
     public ReportBuilder addColumn(Column column) {
@@ -190,11 +188,13 @@ public class ReportBuilder {
 
             }
 
-            if (group != null && jasperDesign.getFieldsMap().get(group.getFieldName()) == null) {
-                JRDesignField groupField = new JRDesignField();
-                groupField.setName(group.getFieldName());
-                groupField.setValueClassName(DataType.STRING.getJavaClass());
-                this.jasperDesign.addField(groupField);
+            for (Group currentGroup : this.groups) {
+                if (jasperDesign.getFieldsMap().get(currentGroup.getFieldName()) == null) {
+                    JRDesignField groupField = new JRDesignField();
+                    groupField.setName(currentGroup.getFieldName());
+                    groupField.setValueClassName(DataType.STRING.getJavaClass());
+                    this.jasperDesign.addField(groupField);
+                }
             }
 
 
@@ -267,37 +267,36 @@ public class ReportBuilder {
     private void declareVariables() {
         try {
             for (Column column : columns) {
-                boolean needsGroupCalc = group != null && column.hasGroupCalculation() && column.getGroupCalculation().isActive();
-                boolean needsReportCalc = column.hasReportCalculation() && column.getReportCalculation().isActive();
-
-                if (needsGroupCalc) {
-                    JRDesignVariable groupVariable = new JRDesignVariable();
-                    String groupName = "Group_" + this.group.getFieldName();
-                    groupVariable.setName(column.getFieldName() + "_Group_" + column.getGroupCalculation().name());
-                    groupVariable.setValueClassName(column.getType().getJavaClass());
-                    groupVariable.setResetType(net.sf.jasperreports.engine.type.ResetTypeEnum.GROUP);
-                    groupVariable.setResetGroup((JRDesignGroup) jasperDesign.getGroupsMap().get(groupName));
-                    groupVariable.setCalculation(toJasperCalculation(column.getGroupCalculation()));
-
-                    JRDesignExpression groupExpression = new JRDesignExpression();
-                    groupExpression.setText("$F{" + column.getFieldName() + "}");
-                    groupVariable.setExpression(groupExpression);
-
-                    jasperDesign.addVariable(groupVariable);
-                }
-
-                if (needsReportCalc) {
+                if (column.hasReportCalculation() && column.getReportCalculation().isActive()) {
                     JRDesignVariable reportVariable = new JRDesignVariable();
                     reportVariable.setName(column.getFieldName() + "_REPORT_" + column.getReportCalculation().name());
                     reportVariable.setValueClassName(column.getType().getJavaClass());
                     reportVariable.setResetType(net.sf.jasperreports.engine.type.ResetTypeEnum.REPORT);
                     reportVariable.setCalculation(toJasperCalculation(column.getReportCalculation()));
-
                     JRDesignExpression expression = new JRDesignExpression();
                     expression.setText("$F{" + column.getFieldName() + "}");
                     reportVariable.setExpression(expression);
-
                     jasperDesign.addVariable(reportVariable);
+                }
+
+                for (Group currentGroup : this.groups) {
+                    if (column.hasGroupCalculation() && column.getGroupCalculation().isActive()) {
+                        JRDesignVariable groupVariable = new JRDesignVariable();
+                        String groupName = "Group_" + currentGroup.getFieldName();
+                        String variableName = column.getFieldName() + "_" + groupName + "_" + column.getGroupCalculation().name();
+
+                        groupVariable.setName(variableName);
+                        groupVariable.setValueClassName(column.getType().getJavaClass());
+                        groupVariable.setResetType(net.sf.jasperreports.engine.type.ResetTypeEnum.GROUP);
+                        groupVariable.setResetGroup((JRDesignGroup) jasperDesign.getGroupsMap().get(groupName));
+                        groupVariable.setCalculation(toJasperCalculation(column.getGroupCalculation()));
+
+                        JRDesignExpression groupExpression = new JRDesignExpression();
+                        groupExpression.setText("$F{" + column.getFieldName() + "}");
+                        groupVariable.setExpression(groupExpression);
+
+                        jasperDesign.addVariable(groupVariable);
+                    }
                 }
             }
         } catch (JRException e) {
@@ -430,6 +429,9 @@ public class ReportBuilder {
             dataField.setWidth(column.getWidth());
             dataField.setFontName("DejaVu Sans Condensed");
             dataField.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
+            dataField.setStretchWithOverflow(true);
+            dataField.setStretchType(StretchTypeEnum.RELATIVE_TO_TALLEST_OBJECT);
+
 
             if (column.getDataType() == DataType.INTEGER ||
                     column.getDataType() == DataType.BIG_DECIMAL ||
@@ -485,61 +487,99 @@ public class ReportBuilder {
     }
 
     private void buildGroups() throws JRException {
-        if (this.group == null) {
+        if (this.groups.isEmpty()) {
             return;
         }
 
-        JRDesignGroup jrGroup = new JRDesignGroup();
-        jrGroup.setName("Group_" + this.group.getFieldName());
+        for (Group currentGroup : this.groups) {
+            JRDesignGroup jrGroup = new JRDesignGroup();
+            String groupName = "Group_" + currentGroup.getFieldName();
+            jrGroup.setName(groupName);
 
-        JRDesignExpression groupExpression = new JRDesignExpression();
-        groupExpression.setText("$F{" + this.group.getFieldName() + "}");
-        jrGroup.setExpression(groupExpression);
+            JRDesignExpression groupExpression = new JRDesignExpression();
+            groupExpression.setText("$F{" + currentGroup.getFieldName() + "}");
+            jrGroup.setExpression(groupExpression);
 
-        JRDesignBand groupBand = new JRDesignBand();
-        groupBand.setHeight(30);
+            JRDesignBand groupHeaderBand = new JRDesignBand();
+            groupHeaderBand.setHeight(30);
 
-        JRDesignTextField groupHeader = new JRDesignTextField();
-        groupHeader.setX(0);
-        groupHeader.setY(0);
-        groupHeader.setWidth(jasperDesign.getPageWidth()-leftMargin-rightMargin);
-        groupHeader.setHeight(30);
-        groupHeader.setFontName("DejaVu Sans Condensed");
-        groupHeader.setHorizontalTextAlign(HorizontalTextAlignEnum.LEFT);
-        groupHeader.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
-        setTextFieldBackground(groupHeader, Color.decode("#E6E6E6"));
+            JRDesignTextField groupHeader = new JRDesignTextField();
+            groupHeader.setX(0);
+            groupHeader.setY(0);
+            groupHeader.setWidth(pageWidth-leftMargin-rightMargin);
+            groupHeader.setHeight(30);
+            groupHeader.setFontName("DejaVu Sans Condensed");
+            groupHeader.setHorizontalTextAlign(HorizontalTextAlignEnum.LEFT);
+            groupHeader.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
+            groupHeader.setBackcolor(Color.decode("#E6E6E6"));
+            groupHeader.setMode(ModeEnum.OPAQUE);
 
-        JRLineBox box = groupHeader.getLineBox();
-        box.setTopPadding(2);
-        box.setRightPadding(2);
-        box.setBottomPadding(2);
-        box.setLeftPadding(2);
+            JRLineBox headerBox = groupHeader.getLineBox();
+            headerBox.getTopPen().setLineWidth(1.0f);
+            headerBox.getRightPen().setLineWidth(1.0f);
+            headerBox.getBottomPen().setLineWidth(1.0f);
+            headerBox.getLeftPen().setLineWidth(1.0f);
 
-        float borderWidth = 1.0f;
-        Color borderColor = Color.BLACK;
+            JRDesignExpression headerExpression = new JRDesignExpression();
+            headerExpression.setText(currentGroup.getHeaderExpression());
+            groupHeader.setExpression(headerExpression);
 
-        box.getTopPen().setLineWidth(borderWidth);
-        box.getTopPen().setLineColor(borderColor);
-        box.getRightPen().setLineWidth(borderWidth);
-        box.getRightPen().setLineColor(borderColor);
-        box.getBottomPen().setLineWidth(borderWidth);
-        box.getBottomPen().setLineColor(borderColor);
-        box.getLeftPen().setLineWidth(borderWidth);
-        box.getLeftPen().setLineColor(borderColor);
+            groupHeaderBand.addElement(groupHeader);
+            ((JRDesignSection) jrGroup.getGroupHeaderSection()).addBand(groupHeaderBand);
 
-        JRDesignExpression headerExpression = new JRDesignExpression();
-        headerExpression.setText(this.group.getHeaderExpression());
-        groupHeader.setExpression(headerExpression);
+            if (currentGroup.isShowGroupFooter()) {
+                boolean hasGroupCalculations = columns.stream()
+                        .anyMatch(c -> c.hasGroupCalculation() && c.getGroupCalculation().isActive());
 
-        groupBand.addElement(groupHeader);
+                if (hasGroupCalculations) {
+                    JRDesignBand groupFooterBand = new JRDesignBand();
+                    groupFooterBand.setHeight(25);
+                    calculateColumnWidths();
 
-        ((JRDesignSection) jrGroup.getGroupHeaderSection()).addBand(groupBand);
+                    int currentX = 0;
+                    for (Column column : columns) {
+                        if (column.hasGroupCalculation() && column.getGroupCalculation().isActive()) {
+                            JRDesignTextField sumField = new JRDesignTextField();
+                            sumField.setX(currentX);
+                            sumField.setY(2);
+                            sumField.setWidth(column.getWidth());
+                            sumField.setHeight(20);
+                            sumField.setBold(true);
+                            sumField.setBackcolor(Color.decode("#C6D8E4"));
+                            sumField.setMode(ModeEnum.OPAQUE);
+                            sumField.setHorizontalTextAlign(HorizontalTextAlignEnum.RIGHT);
+                            sumField.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
 
-        jasperDesign.addGroup(jrGroup);
+                            if (column.hasPattern()) {
+                                sumField.setPattern(column.getPattern());
+                            }
 
-        JRDesignSortField sortField = new JRDesignSortField();
-        sortField.setName(this.group.getFieldName());
-        jasperDesign.addSortField(sortField);
+                            JRDesignExpression sumExpression = new JRDesignExpression();
+                            String variableName = column.getFieldName() + "_" + groupName + "_" + column.getGroupCalculation().name();
+                            sumExpression.setText("$V{" + variableName + "}");
+                            sumField.setExpression(sumExpression);
+
+                            JRLineBox sumBox = sumField.getLineBox();
+                            sumBox.getTopPen().setLineWidth(1.0f);
+                            sumBox.getRightPen().setLineWidth(1.0f);
+                            sumBox.getBottomPen().setLineWidth(1.0f);
+                            sumBox.getLeftPen().setLineWidth(1.0f);
+
+                            groupFooterBand.addElement(sumField);
+                        }
+                        currentX += column.getWidth();
+                    }
+
+                    ((JRDesignSection) jrGroup.getGroupFooterSection()).addBand(groupFooterBand);
+                }
+            }
+
+            jasperDesign.addGroup(jrGroup);
+
+            JRDesignSortField sortField = new JRDesignSortField();
+            sortField.setName(currentGroup.getFieldName());
+            jasperDesign.addSortField(sortField);
+        }
     }
 
 

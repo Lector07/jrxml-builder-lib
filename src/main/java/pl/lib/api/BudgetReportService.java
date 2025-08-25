@@ -23,7 +23,7 @@ public class BudgetReportService {
         builder.addStyle(headerStyle)
                 .withHeaderStyle("HeaderWithBorder");
 
-        Group expensesGroup = new Group("kategoria", "\"Kategoria: \" + $F{kategoria}");
+        Group expensesGroup = new Group("kategoria", "\"Kategoria: \" + $F{kategoria}", "HeaderWithBorder", true);
 
         JasperReport jasperReport = builder
                 .withTitle("Zestawienie Wydatków")
@@ -66,7 +66,7 @@ public class BudgetReportService {
         builder.addStyle(groupHeaderStyle);
         builder.addStyle(positiveAmountStyle);
 
-        Group incomeGroup = new Group("zrodlo", "\"Źródło: \" + $F{zrodlo}");
+        Group incomeGroup = new Group("zrodlo", "\"Źródło: \" + $F{zrodlo}", "GroupHeaderStyle", true);
 
         JasperReport jasperReport = builder
                 .withTitle("Zestawienie Przychodów")
@@ -143,7 +143,7 @@ public class BudgetReportService {
 
         builder.addStyle(totalStyle);
 
-        Group dateGroup = new Group("tydzien", "\"Tydzień: \" + $F{tydzien}");
+        Group dateGroup = new Group("tydzien", "\"Tydzień: \" + $F{tydzien}", "TotalStyle", true);
 
         JasperReport jasperReport = builder
                 .withTitle("Raport Miesięczny: " + month + " " + year)
