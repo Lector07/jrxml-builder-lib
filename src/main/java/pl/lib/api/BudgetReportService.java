@@ -2,7 +2,6 @@ package pl.lib.api;
 
 import net.sf.jasperreports.engine.*;
 import net.sf.jasperreports.engine.data.JsonDataSource;
-import pl.lib.api.ReportBuilder; // Twoja klasa ReportBuilder
 import pl.lib.model.Calculation;
 import pl.lib.model.Column;
 import pl.lib.model.DataType;
@@ -10,39 +9,26 @@ import pl.lib.model.Group;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
 public class BudgetReportService {
 
-    /**
-     * Generuje raport wydatków w formacie PDF na podstawie danych JSON.
-     *
-     * @param jsonData String zawierający dane w formacie JSON.
-     * @return Tablica bajtów (byte[]) reprezentująca plik PDF.
-     * @throws JRException jeśli wystąpi błąd podczas generowania raportu.
-     */
     public byte[] generateExpensesReport(String jsonData) throws JRException {
 
-        ReportBuilder builder = new ReportBuilder();
-        String jrxmlTemplate = builder
+        ReportBuilder builder = new ReportBuilder() ;
+
+        JasperReport jasperReport = builder
                 .withTitle("Zestawienie Wydatków")
-                .withPageSize(595, 842) // A4
-                .withStandardFooter("Wygenerowano przez e-budżet", "Poufne")
-                .addGroup(new Group("kategoria", "\"Kategoria: \" + $F{kategoria}")) // Grupowanie po kategorii
+                .withPageSize(595, 842)
+                .addGroup(new Group("kategoria", "\"Kategoria: \" + $F{kategoria}"))
+                // Należy zadeklarować pole, po którym grupujemy, nawet jeśli nie jest widoczną kolumną
+                .addColumn(new Column("kategoria", "Kategoria", 0, DataType.STRING, null, Calculation.NONE, Calculation.NONE))
                 .addColumn(new Column("data", "Data", -1, DataType.STRING, null, Calculation.NONE, Calculation.NONE))
-                .addColumn(new Column("opis", "Opis", -1, DataType.STRING, null, Calculation.NONE, Calculation.NONE)) // -1 = auto szerokość
+                .addColumn(new Column("opis", "Opis", -1, DataType.STRING, null, Calculation.NONE, Calculation.NONE))
                 .addColumn(new Column("kwota", "Kwota", -1, DataType.BIG_DECIMAL, "#,##0.00 PLN", Calculation.SUM, Calculation.SUM))
                 .build();
-
-        System.out.println("--- Wygenerowany JRXML ---");
-        System.out.println(jrxmlTemplate);
-        System.out.println("--------------------------");
-
-        InputStream jrxmlStream = new ByteArrayInputStream(jrxmlTemplate.getBytes(StandardCharsets.UTF_8));
-        JasperReport jasperReport = JasperCompileManager.compileReport(jrxmlStream);
 
         InputStream jsonStream = new ByteArrayInputStream(jsonData.getBytes(StandardCharsets.UTF_8));
         JRDataSource jsonDataSource = new JsonDataSource(jsonStream, "wydatki");
@@ -55,14 +41,8 @@ public class BudgetReportService {
         return JasperExportManager.exportReportToPdf(jasperPrint);
     }
 
-    // Metoda main do przetestowania serwisu
     public static void main(String[] args) {
-        // Przykładowe dane JSON
         String jsonData = "{\n" +
-                "  \"budzetInfo\": {\n" +
-                "    \"nazwa\": \"Budżet domowy - Sierpień 2025\",\n" +
-                "    \"wlasciciel\": \"Jan Kowalski\"\n" +
-                "  },\n" +
                 "  \"wydatki\": [\n" +
                 "    {\n" +
                 "      \"kategoria\": \"Jedzenie\",\n" +
@@ -94,15 +74,14 @@ public class BudgetReportService {
         BudgetReportService reportService = new BudgetReportService();
         try {
             byte[] pdfBytes = reportService.generateExpensesReport(jsonData);
-
-            // Zapisz plik PDF na dysku w celu weryfikacji
             java.nio.file.Files.write(java.nio.file.Paths.get("raport_wydatkow.pdf"), pdfBytes);
-            System.out.println("Raport PDF został pomyślnie wygenerowany: raport_wydatkow.pdf");
 
+            System.out.println("Raport PDF został pomyślnie wygenerowany: raport_wydatkow.pdf");
         } catch (JRException | java.io.IOException e) {
             e.printStackTrace();
         }
     }
+}
 
     //TODO : Proponowany Plan Rozwoju (Roadmap)
     //Krok 1 (Fundament): Skoncentruj 100% wysiłków na refaktoryzacji ReportBuilder z StringBuilder na JasperDesign. To najważniejszy dług technologiczny do spłacenia. Wszystkie obecne testy powinny nadal przechodzić po tej zmianie.
@@ -308,4 +287,3 @@ public class BudgetReportService {
     //Cel: Rozpoznawanie stringów wyglądających jak daty i mapowanie ich na DataType.DATE.
     //
     //Akcja: W mapJavaTypeToDataType, jeśli typem jest String, spróbuj sparsować wartość, aby sprawdzić, czy pasuje do popularnych formatów dat.
-}

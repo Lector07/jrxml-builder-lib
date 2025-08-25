@@ -3,9 +3,9 @@ package pl.lib.model;
 public class Column {
     private final String fieldName;
     private final String title;
-    private final int width;
+    private int width; // Usunięto modyfikator 'final'
     private final DataType type;
-    private final String pattern;
+    private  String pattern;
     private final Calculation reportCalculation;
     private final Calculation groupCalculation;
     private String styleName;
@@ -40,6 +40,10 @@ public class Column {
         return width;
     }
 
+    public void setWidth(int width) {
+        this.width = width;
+    }
+
     public DataType getType() {
         return type;
     }
@@ -50,6 +54,10 @@ public class Column {
 
     public boolean hasPattern() {
         return pattern != null && !pattern.isEmpty();
+    }
+
+    public void setPattern(String pattern) {
+        this.pattern = pattern;
     }
 
     public Calculation getReportCalculation() {
@@ -79,4 +87,6 @@ public class Column {
     public boolean hasGroupCalculation() {
         return groupCalculation != null;
     }
+
+
 }

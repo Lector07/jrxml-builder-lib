@@ -15,7 +15,6 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
 
-        <!-- Definiujemy wersję JasperReports w jednym miejscu -->
         <jasperreports.version>6.21.3</jasperreports.version>
         <jackson.version>2.17.1</jackson.version>
     </properties>
@@ -28,21 +27,19 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- Główna biblioteka JasperReports -->
+        <!-- Zależności JasperReports -->
         <dependency>
             <groupId>net.sf.jasperreports</groupId>
             <artifactId>jasperreports</artifactId>
-            <version>${jasperreports.version}</version> <!-- Używamy zdefiniowanej właściwości -->
+            <version>${jasperreports.version}</version>
         </dependency>
-
         <dependency>
             <groupId>net.sf.jasperreports</groupId>
             <artifactId>jasperreports-fonts</artifactId>
-            <version>6.21.3</version>
+            <version>${jasperreports.version}</version>
         </dependency>
 
-
-        <!-- Biblioteki Jackson -->
+        <!-- Zależności Jackson (dla źródeł danych JSON w JasperReports) -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-core</artifactId>
@@ -57,11 +54,6 @@
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
             <version>${jackson.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>net.sf.jasperreports</groupId>
-            <artifactId>jasperreports</artifactId>
-            <version>6.21.3</version>
         </dependency>
     </dependencies>
 
