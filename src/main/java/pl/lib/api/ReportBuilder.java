@@ -35,6 +35,7 @@ public class ReportBuilder {
     private String footerLeftText = "";
     private String footerRightText = "";
     private String headerStyleName = null;
+    private List<? extends Subreport> subreports = new ArrayList<>();
 
 
     public ReportBuilder(String reportName) {
@@ -115,6 +116,11 @@ public class ReportBuilder {
         addParameter("CompanyPostalCode", nipOrPostalCode);
         addParameter("CompanyCity", phoneOrCity);
 
+        return this;
+    }
+
+    public ReportBuilder withSubreports(List<? extends Subreport> subreports) {
+        this.subreports = subreports != null ? subreports : new ArrayList<>();
         return this;
     }
 
@@ -472,6 +478,7 @@ public class ReportBuilder {
         }
 
         ((JRDesignSection) jasperDesign.getDetailSection()).addBand(detailBand);
+        buildSubreports("DETAIL", detailBand);
     }
 
     private void calculateColumnWidths() {
@@ -710,6 +717,7 @@ public class ReportBuilder {
             currentX += column.getWidth();
         }
         jasperDesign.setSummary(summaryBand);
+        buildSubreports("SUMMARY", summaryBand);
     }
 
     private void buildStyles() throws JRException {
@@ -784,6 +792,47 @@ public class ReportBuilder {
             box.getBottomPen().setLineColor(color);
             box.getLeftPen().setLineWidth(width);
             box.getLeftPen().setLineColor(color);
+        }
+    }
+
+    private void buildSubreports(String bandName, JRDesignBand band) {
+        if (band == null || this.subreports == null) return;
+
+        int yOffset = 0;
+
+        for (Subreport subreport : this.subreports) {
+            if (subreport.getTargetBand().equalsIgnoreCase(bandName)) {
+                // Poprawione wywołanie konstruktora z wymaganym argumentem
+                JRDesignSubreport jrSubreport = new JRDesignSubreport(jasperDesign);
+
+                jrSubreport.setX(0);
+                jrSubreport.setY(yOffset);
+                jrSubreport.setWidth(jasperDesign.getColumnWidth());
+                jrSubreport.setHeight(50);
+
+                JRDesignExpression subreportObjectExpression = new JRDesignExpression();
+                subreportObjectExpression.setText("$P{" + subreport.getSubreportObjectParameterName() + "}");
+                jrSubreport.setExpression(subreportObjectExpression);
+
+                JRDesignSubreportParameter dataSourceParam = new JRDesignSubreportParameter();
+                dataSourceParam.setName("REPORT_DATA_SOURCE");
+                JRDesignExpression dataSourceExpression = new JRDesignExpression();
+                dataSourceExpression.setText(subreport.getDataSourceExpression());
+                dataSourceParam.setExpression(dataSourceExpression);
+
+                try {
+                    jrSubreport.addParameter(dataSourceParam);
+                } catch (JRException e) {
+                    throw new RuntimeException("Błąd podczas dodawania parametru do podraportu", e);
+                }
+
+                band.addElement(jrSubreport);
+
+                yOffset += jrSubreport.getHeight();
+                if (band.getHeight() < yOffset) {
+                    band.setHeight(yOffset);
+                }
+            }
         }
     }
 }
