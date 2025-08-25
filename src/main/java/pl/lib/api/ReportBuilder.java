@@ -429,8 +429,16 @@ public class ReportBuilder {
             dataField.setWidth(column.getWidth());
             dataField.setFontName("DejaVu Sans Condensed");
             dataField.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
+            dataField.setMode(ModeEnum.OPAQUE);
+
             dataField.setStretchWithOverflow(true);
             dataField.setStretchType(StretchTypeEnum.RELATIVE_TO_TALLEST_OBJECT);
+
+            JRLineBox box = dataField.getLineBox();
+            box.setTopPadding(6);
+            box.setRightPadding(6);
+            box.setBottomPadding(6);
+            box.setLeftPadding(6);
 
 
             if (column.getDataType() == DataType.INTEGER ||
@@ -491,7 +499,9 @@ public class ReportBuilder {
             return;
         }
 
-        for (Group currentGroup : this.groups) {
+        for (int i = 0; i < this.groups.size(); i++) {
+            Group currentGroup = this.groups.get(i);
+
             JRDesignGroup jrGroup = new JRDesignGroup();
             String groupName = "Group_" + currentGroup.getFieldName();
             jrGroup.setName(groupName);
@@ -501,29 +511,49 @@ public class ReportBuilder {
             jrGroup.setExpression(groupExpression);
 
             JRDesignBand groupHeaderBand = new JRDesignBand();
-            groupHeaderBand.setHeight(30);
+            groupHeaderBand.setHeight(25);
 
             JRDesignTextField groupHeader = new JRDesignTextField();
-            groupHeader.setX(0);
-            groupHeader.setY(0);
-            groupHeader.setWidth(pageWidth-leftMargin-rightMargin);
-            groupHeader.setHeight(30);
-            groupHeader.setFontName("DejaVu Sans Condensed");
-            groupHeader.setHorizontalTextAlign(HorizontalTextAlignEnum.LEFT);
-            groupHeader.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
-            groupHeader.setBackcolor(Color.decode("#E6E6E6"));
-            groupHeader.setMode(ModeEnum.OPAQUE);
 
-            JRLineBox headerBox = groupHeader.getLineBox();
-            headerBox.getTopPen().setLineWidth(1.0f);
-            headerBox.getRightPen().setLineWidth(1.0f);
-            headerBox.getBottomPen().setLineWidth(1.0f);
-            headerBox.getLeftPen().setLineWidth(1.0f);
+            int indentation = i * 20;
+            groupHeader.setX(indentation);
+            groupHeader.setWidth(jasperDesign.getPageWidth()-leftMargin-rightMargin - indentation);
+            groupHeader.setY(0);
+            groupHeader.setHeight(25);
+            groupHeader.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
+
+            JRLineBox box = groupHeader.getLineBox();
+            // Dodanie paddingu 3px do nagłówka grupy
+            box.setTopPadding(3);
+            box.setRightPadding(3);
+            box.setBottomPadding(3);
+            box.setLeftPadding(3);
+            box.getTopPen().setLineWidth(1.0f);
+            box.getRightPen().setLineWidth(1.0f);
+            box.getBottomPen().setLineWidth(1.0f);
+            box.getLeftPen().setLineWidth(1.0f);
+
+            if (currentGroup.hasStyle() && jasperDesign.getStylesMap().containsKey(currentGroup.getStyleName())) {
+                JRDesignStyle baseStyle = (JRDesignStyle) jasperDesign.getStylesMap().get(currentGroup.getStyleName());
+
+                JRDesignStyle levelStyle = (JRDesignStyle) baseStyle.clone();
+
+                Color newBackColor = baseStyle.getBackcolor();
+                for (int j = 0; j < i; j++) {
+                    newBackColor = newBackColor.brighter();
+                }
+                levelStyle.setBackcolor(newBackColor);
+
+                if (i > 0) {
+                    levelStyle.setBold(false);
+                }
+
+                groupHeader.setStyle(levelStyle);
+            }
 
             JRDesignExpression headerExpression = new JRDesignExpression();
             headerExpression.setText(currentGroup.getHeaderExpression());
             groupHeader.setExpression(headerExpression);
-
             groupHeaderBand.addElement(groupHeader);
             ((JRDesignSection) jrGroup.getGroupHeaderSection()).addBand(groupHeaderBand);
 
@@ -541,7 +571,7 @@ public class ReportBuilder {
                         if (column.hasGroupCalculation() && column.getGroupCalculation().isActive()) {
                             JRDesignTextField sumField = new JRDesignTextField();
                             sumField.setX(currentX);
-                            sumField.setY(2);
+                            sumField.setY(0);
                             sumField.setWidth(column.getWidth());
                             sumField.setHeight(20);
                             sumField.setBold(true);
@@ -560,6 +590,10 @@ public class ReportBuilder {
                             sumField.setExpression(sumExpression);
 
                             JRLineBox sumBox = sumField.getLineBox();
+                            sumBox.setTopPadding(3);
+                            sumBox.setRightPadding(3);
+                            sumBox.setBottomPadding(3);
+                            sumBox.setLeftPadding(3);
                             sumBox.getTopPen().setLineWidth(1.0f);
                             sumBox.getRightPen().setLineWidth(1.0f);
                             sumBox.getBottomPen().setLineWidth(1.0f);
@@ -717,6 +751,16 @@ public class ReportBuilder {
                 box.getLeftPen().setLineWidth(width);
                 box.getLeftPen().setLineColor(color);
             }
+
+            if (style.getPadding() != null) {
+                JRLineBox box = jrStyle.getLineBox();
+                int paddingValue = style.getPadding();
+                box.setTopPadding(paddingValue);
+                box.setRightPadding(paddingValue);
+                box.setBottomPadding(paddingValue);
+                box.setLeftPadding(paddingValue);
+            }
+
             jasperDesign.addStyle(jrStyle);
         }
     }
@@ -729,8 +773,8 @@ public class ReportBuilder {
             box.setBottomPadding(2);
             box.setLeftPadding(2);
 
-            float width = 0.5f; // domyślna szerokość
-            Color color = Color.BLACK; // domyślny kolor
+            float width = 1f;
+            Color color = Color.BLACK;
 
             box.getTopPen().setLineWidth(width);
             box.getTopPen().setLineColor(color);

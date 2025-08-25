@@ -38,34 +38,34 @@ public class RealizacjaRaport {
                 .withCompanyInfo("BIURO USŁUG KOMPUTEROWYCH \"SOFTRES\" SP Z O.O", "ul. Zaciszna 44, 35-326 Rzeszów", "NIP: 8130335217", "Regon: 690037603")
                 .withStandardFooter("Wygenerowano: " + new SimpleDateFormat("yyyy-MM-dd").format(new Date()), "Dokument wewnętrzny");
 
-        // --- Definicja stylów ---
-        Style headerStyle = new Style("TableHeaderStyle") // Zmieniono nazwę na bardziej generyczną
-                .withFont("DejaVu Sans", 10, true)
+        Style headerStyle = new Style("TableHeaderStyle")
+                .withFont("DejaVu Sans", 10, false)
                 .withColors("#FFFFFF", "#2A3F54")
                 .withAlignment("Center", "Middle")
-                .withBorders(0.5f, "#000000");
+                .withBorders(0.2f, "#000000").withPadding(6);
 
         Style dataStyle = new Style("TableDataStyle") // Styl dla danych
-                .withFont("DejaVu Sans", 9, false)
+                .withFont("DejaVu Sans", 8, false)
                 .withAlignment("Left", "Middle")
-                .withBorders(0.5f, "#000000");
+                .withBorders(0.2f, "#000000").withPadding(6);
 
-        Style kwotaStyle = new Style("KwotaStyle") // Oddzielny styl dla kwot (dziedziczy po dataStyle, ale wyrównuje w prawo)
-                .withFont("DejaVu Sans", 9, false)
+        Style kwotaStyle = new Style("KwotaStyle")
+                .withFont("DejaVu Sans", 8, false)
                 .withAlignment("Right", "Middle")
-                .withBorders(0.5f, "#000000");
+                .withBorders(0.2f, "#000000").withPadding(6);
 
         Style groupHeaderStyle = new Style("GroupHeaderStyle")
                 .withFont("DejaVu Sans", 10, true)
-                .withColors("#000000", "#E6E6E6") // Czarny tekst na szarym tle
-                .withAlignment("Left", "Middle");
+                .withColors("#000000", "#E6E6E6")
+                .withAlignment("Left", "Middle")
+                .withBorders(0.2f, "#000000").withPadding(6);
+
 
         builder.addStyle(headerStyle);
         builder.addStyle(dataStyle);
         builder.addStyle(kwotaStyle);
         builder.addStyle(groupHeaderStyle);
 
-        // --- Definicja kolumn ---
         builder.addColumn(new Column("id", "ID", 80, DataType.INTEGER, null, Calculation.NONE, Calculation.NONE, "dataStyle").withBox(true));
         builder.addColumn(new Column("name", "Nazwa", -1, DataType.STRING, null, Calculation.NONE, Calculation.NONE, "dataStyle").withBox(true));
         builder.addColumn(new Column("departmentSymbol", "Dział", 100, DataType.STRING, null, Calculation.NONE, Calculation.NONE, "dataStyle").withBox(true));
@@ -73,13 +73,16 @@ public class RealizacjaRaport {
         builder.addColumn(new Column("realizationAmount", "Kwota realizacji", 120, DataType.BIG_DECIMAL, "#,##0.00", Calculation.SUM, Calculation.SUM, "kwotaStyle").withBox(true));
         builder.addColumn(new Column("realizationBalanceAmount", "Pozostało", 120, DataType.BIG_DECIMAL, "#,##0.00", Calculation.SUM, Calculation.SUM, "kwotaStyle").withBox(true));
 
-        // --- Definicja i konfiguracja Grupy ---
-        Group subGroup = new Group("internalNumber", "\"Nr wewnętrzny: \" + $F{internalNumber}", "kwotaStyle", false);
-        Group group = new Group("edType", "\"Typ: \" + $F{edType}", "kwotaStyle", false);
+        Group subGroup = new Group("internalNumber", "\"Nr wewnętrzny: \" + $F{internalNumber}", "kwotaStyle", false).withHeaderStyle("GroupHeaderStyle").withShowGroupFooter(true);
+        Group group = new Group("edType", "\"Typ: \" + $F{edType}", "kwotaStyle", false).withHeaderStyle("GroupHeaderStyle").withShowGroupFooter(true);
         builder.addGroup(group);
         builder.addGroup(subGroup);
 
+        System.out.println(builder.getJrxmlContent());
+
+
         return new ReportData(builder.build(), builder.getParameters());
+
     }
 
     private static List<Map<String, Object>> wczytajDaneZPliku(String sciezkaPliku) {
@@ -125,11 +128,12 @@ public class RealizacjaRaport {
             parametry.put("ReportTitle", "Raport realizacji projektów");
 
             JasperPrint jasperPrint = JasperFillManager.fillReport(raport, parametry, dataSource);
-
             String sciezkaWyjsciowa = "raport_realizacji.pdf";
             JasperExportManager.exportReportToPdfFile(jasperPrint, sciezkaWyjsciowa);
 
             System.out.println("Raport został pomyślnie wygenerowany i zapisany do pliku: " + sciezkaWyjsciowa);
+
+
 
         } catch (JRException e) {
             System.err.println("Błąd podczas generowania raportu PDF: " + e.getMessage());

@@ -10,6 +10,7 @@ public class Style {
     private String horizontalAlignment = "Left";
     private String verticalAlignment = "Middle";
     private boolean hasBox = false;
+    private Integer padding = null;
 
     private float borderWidth = 0f;
     private String borderColor = "#000000";
@@ -48,6 +49,11 @@ public class Style {
         return this;
     }
 
+    public Style withPadding(int padding) {
+        this.padding = padding;
+        return this;
+    }
+
     public String getName() { return name; }
     public String getFontName() { return fontName; }
     public float getFontSize() { return fontSize; }
@@ -58,4 +64,12 @@ public class Style {
     public String getVerticalAlignment() { return verticalAlignment; }
     public float getBorderWidth() { return borderWidth; }
     public String getBorderColor() { return borderColor; }
+
+    public Integer getPadding() {
+        return padding;
+    }
+
+    public void setPadding(Integer padding) {
+        this.padding = padding;
+    }
 }
