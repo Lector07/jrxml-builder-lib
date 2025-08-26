@@ -11,6 +11,7 @@ import pl.lib.model.*;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class JsonReportGenerator {
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -104,6 +105,8 @@ public class JsonReportGenerator {
         return DataType.STRING;
     }
 
+
+    // === GŁÓWNA ZMIANA 1: Logika obliczania szerokości przeniesiona tutaj ===
     private JasperReport createMainReport(ReportBuilder builder, ReportStructure structure, Map<String, JasperReport> compiledSubreports) throws JRException {
         builder.withHorizontalLayout()
                 .withMargins(20, 20, 20, 20)
@@ -116,9 +119,10 @@ public class JsonReportGenerator {
         builder.addGroup(new Group("chapterSegment", "\"Rozdział: \" + $F{chapterSegment}", "GroupStyle2", true));
         builder.addGroup(new Group("classificationSymbol", "\"Klasyfikacja: \" + $F{classificationSymbol}", "GroupStyle2", true));
 
-
         Set<String> groupFields = new HashSet<>(Arrays.asList("paragraphGroup", "origin", "chapterSegment", "classificationSymbol"));
 
+        // Krok 1: Stwórz listę wszystkich kolumn, które mają być wyświetlone w raporcie głównym
+        List<Column> mainReportColumns = new ArrayList<>();
         for (String fieldName : structure.getFields()) {
             if (groupFields.contains(fieldName)) continue;
 
@@ -126,30 +130,54 @@ public class JsonReportGenerator {
             boolean isSubreport = structure.getNestedStructures().containsKey(fieldName);
 
             if (!isSubreport) {
-                builder.addColumn(createColumn(fieldName, dataType));
+                mainReportColumns.add(createColumn(fieldName, dataType));
             } else {
+                // Obsługa subraportu (niezmieniona)
                 ReportStructure subreportStructure = structure.getNestedStructures().get(fieldName);
                 JasperReport subreport = createSubreport(fieldName, subreportStructure, builder.getParameters());
                 compiledSubreports.put(fieldName, subreport);
-
                 String subreportObjectName = "SUBREPORT_OBJECT_" + fieldName;
                 String dataSourceExpression = "$F{" + fieldName + "}";
-
                 builder.addSubreport(new Subreport("DETAIL", subreport, dataSourceExpression).withSubreportObjectParameterName(subreportObjectName));
                 builder.addColumn(new Column(fieldName, "", 0, DataType.JR_DATA_SOURCE, null, Calculation.NONE, null, null));
             }
         }
+
+        // Krok 2: Automatyczne obliczanie szerokości kolumn
+        int availableWidth = 802; // Szerokość strony (842) - marginesy (20 + 20)
+
+        // Filtrujemy kolumny na te o stałej szerokości i te, które mają być elastyczne (width = -1)
+        List<Column> fixedWidthColumns = mainReportColumns.stream().filter(c -> c.getWidth() > 0).collect(Collectors.toList());
+        List<Column> proportionalColumns = mainReportColumns.stream().filter(c -> c.getWidth() < 0).collect(Collectors.toList());
+
+        int fixedWidthTotal = fixedWidthColumns.stream().mapToInt(Column::getWidth).sum();
+
+        if (!proportionalColumns.isEmpty()) {
+            int remainingWidth = availableWidth - fixedWidthTotal;
+            int widthPerColumn = (remainingWidth > 0) ? remainingWidth / proportionalColumns.size() : 100; // 100 jako fallback
+
+            for (Column col : proportionalColumns) {
+                col.setWidth(widthPerColumn);
+            }
+        }
+
+        // Krok 3: Dodaj skonfigurowane kolumny do buildera
+        for(Column col : mainReportColumns) {
+            builder.addColumn(col);
+        }
+
         return builder.build();
     }
 
     private JasperReport createSubreport(String fieldName, ReportStructure structure, Map<String, Object> parentParams) throws JRException {
+        // Ta metoda nie wymaga zmian, ponieważ subraport jest budowany w ten sam sposób
         ReportBuilder subreportBuilder = new ReportBuilder("Subreport_" + fieldName)
                 .withMargins(0, 0, 0, 0)
                 .setForSubreport(true);
 
         subreportBuilder.withTitle("Zestawienie uchwał/zarządzeń");
-
         addDefaultStyles(subreportBuilder);
+
 
         for (String subfieldName : structure.getFields()) {
             subreportBuilder.addColumn(createColumn(subfieldName, structure.getFieldTypes().get(subfieldName)));
@@ -158,56 +186,44 @@ public class JsonReportGenerator {
         return subreportBuilder.build();
     }
 
-    // === POPRAWKA ZNAJDUJE SIĘ W TEJ METODZIE ===
+
     private Column createColumn(String fieldName, DataType dataType) {
         String title = fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1).replaceAll("([A-Z])", " $1").trim();
-        int width = -1; // Domyślnie auto-dopasowanie
+        int width = -1; // -1 oznacza "oblicz automatycznie" (kolumna elastyczna)
         String pattern = null;
         Calculation reportCalc = Calculation.NONE;
         Calculation groupCalc = Calculation.NONE;
         String styleName = "DataStyle";
 
+        // Przypisujemy stałą szerokość tylko tam, gdzie to ma sens
         if (dataType.isNumeric()) {
             pattern = "#,##0.00";
             styleName = "NumericStyle";
             reportCalc = Calculation.SUM;
             groupCalc = Calculation.SUM;
-            width = 65;
+            width = 70; // Stała szerokość dla liczb
         } else if (dataType == DataType.DATE) {
             pattern = "dd-MM-yy";
-            width = 70;
+            width = 70; // Stała szerokość dla dat
         } else if (dataType == DataType.BOOLEAN) {
-            width = 50;
+            width = 50; // Stała szerokość dla wartości logicznych
         }
 
-        // === GŁÓWNA ZMIANA: Zmniejszenie szerokości kolumn, aby suma zmieściła się w 802px ===
-        // Nowa suma: (4 * 120) + (2 * 30) + (4 * 65) = 480 + 60 + 260 = 800px. Idealnie!
-        switch (fieldName) {
-            // Długie kolumny tekstowe w raporcie głównym
-            case "sectionSegment":
-            case "paragraphSegment":
-            case "classificationName":
-            case "unitName":
-                width = 120;
-                break;
-            // Krótkie kolumny ID w raporcie głównym
+        // Dla specyficznych krótkich pól tekstowych również możemy ustawić stałą szerokość
+        switch(fieldName) {
             case "financingSegment":
             case "unitSymbol":
-                width = 31; // Minimalne dopasowanie, aby suma wyszła 802
-                break;
-
-            // Kolumny dla subraportu - mogą być szersze, bo subraport ma do dyspozycji całą szerokość
-            case "resolutionId":
-                width = 100;
-                break;
-            case "resolutionName":
-                width = 150;
+                width = 40;
                 break;
         }
+
+        // Wszystkie inne kolumny (np. sectionSegment, classificationName)
+        // pozostaną z `width = -1`, dzięki czemu ich szerokość zostanie obliczona dynamicznie.
 
         return new Column(fieldName, title, width, dataType, pattern, reportCalc, groupCalc, styleName);
     }
 
+    // ... (reszta metod: addDefaultStyles, convertJsonArrayToList, etc. pozostaje bez zmian)
     private void addDefaultStyles(ReportBuilder builder) {
         builder.addStyle(new Style("HeaderStyle").withFont("DejaVu Sans", 10, true).withColors("#FFFFFF", "#2A3F54").withAlignment("Center", "Middle").withBorders(1f, "#000000").withPadding(3))
                 .addStyle(new Style("DataStyle").withFont("DejaVu Sans", 7, false).withColors("#000000", null).withAlignment("Left", "Middle").withBorders(0.5f, "#CCCCCC").withPadding(3))
@@ -250,7 +266,6 @@ public class JsonReportGenerator {
     }
 
     private void printJrxmlToConsole(JasperReport report, String reportName) {
-
             System.out.println("\n" + "=".repeat(80) + "\n=== " + reportName + " ===\n" + "=".repeat(80));
             System.out.println(JRXmlWriter.writeReport(report, "UTF-8"));
             System.out.println("=".repeat(80) + "\n");
