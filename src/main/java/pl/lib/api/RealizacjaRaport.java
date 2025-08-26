@@ -64,8 +64,7 @@ public class RealizacjaRaport {
         ReportBuilder builder = new ReportBuilder()
                 .withTitle("Raport realizacji")
                 .withPageSize(842, 595)
-                .withMargins(20, 20, 20, 20)
-                .withCompanyInfo("BIURO USŁUG KOMPUTEROWYCH \"SOFTRES\" SP Z O.O", "ul. Zaciszna 44, 35-326 Rzeszów", "NIP: 8130335217", "Regon: 690037603");
+                .withMargins(20, 20, 20, 20);
 
         String nazwaParametruDanych = "PODSUMOWANIE_KOSZTOW_DS";
         Subreport subreport = new Subreport("summary", podraportSkompilowany, nazwaParametruDanych);

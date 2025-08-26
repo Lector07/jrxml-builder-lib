@@ -10,8 +10,9 @@ import pl.lib.model.*;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class JsonReportGenerator {
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -35,7 +36,7 @@ public class JsonReportGenerator {
         JasperReport mainReport = createMainReport(reportBuilder, structure, compiledSubreports);
 
         if (printJrxmlToConsole) {
-            printJrxmlToConsole(mainReport, "RAPORT GŁÓWNY: " + reportTitle);
+            printJrxmlToConsole(mainReport, "MAIN REPORT: " + reportTitle);
         }
 
         List<Map<String, Object>> mainData = convertJsonArrayToList(arrayNode);
@@ -71,12 +72,18 @@ public class JsonReportGenerator {
                     DataType newType = determineDataType(fieldValue);
                     DataType existingType = fieldTypes.get(fieldName);
 
-                    if (existingType == null || (existingType != DataType.BIG_DECIMAL && newType == DataType.BIG_DECIMAL)) {
+                    // Upgrade type if a more specific one is found.
+                    // Precedence: BIG_DECIMAL > DATE > BOOLEAN > STRING.
+                    if (existingType == null) {
                         fieldTypes.put(fieldName, newType);
-                    } else if (existingType != DataType.DATE && newType == DataType.DATE) {
-                        fieldTypes.put(fieldName, newType);
-                    } else if (!fieldTypes.containsKey(fieldName)){
-                        fieldTypes.put(fieldName, newType);
+                    } else if (newType != existingType) {
+                        if (newType == DataType.BIG_DECIMAL) {
+                            fieldTypes.put(fieldName, DataType.BIG_DECIMAL); // Highest precedence
+                        } else if (newType == DataType.DATE && existingType != DataType.BIG_DECIMAL) {
+                            fieldTypes.put(fieldName, DataType.DATE); // Upgrade to date if not already a number
+                        } else if (newType == DataType.BOOLEAN && existingType == DataType.STRING) {
+                            fieldTypes.put(fieldName, DataType.BOOLEAN); // Upgrade from string to boolean
+                        }
                     }
 
                     if (fieldValue.isArray() && !fieldValue.isEmpty()) {
@@ -91,38 +98,54 @@ public class JsonReportGenerator {
         return structure;
     }
 
+    // Task 1: Improved date detection, prioritizing ISO 8601 strings
     private DataType determineDataType(JsonNode node) {
         if (node == null || node.isNull()) return DataType.STRING;
 
+        if (node.isTextual()) {
+            try {
+                Instant.parse(node.asText());
+                return DataType.DATE;
+            } catch (DateTimeParseException e) {
+                return DataType.STRING;
+            }
+        }
+
         if (node.isNumber()) {
+            // Fallback for 13-digit timestamp
             if (node.isIntegralNumber() && node.asText().length() == 13) {
                 return DataType.DATE;
             }
             return DataType.BIG_DECIMAL;
         }
+
         if (node.isBoolean()) return DataType.BOOLEAN;
 
         return DataType.STRING;
     }
 
-
-    // === GŁÓWNA ZMIANA 1: Logika obliczania szerokości przeniesiona tutaj ===
+    // Task 2, 4, 5: Refactored main report creation
     private JasperReport createMainReport(ReportBuilder builder, ReportStructure structure, Map<String, JasperReport> compiledSubreports) throws JRException {
+        // Task 4: Use CompanyInfo object
+        CompanyInfo companyInfo = new CompanyInfo("BIURO USŁUG KOMPUTEROWYCH \"SOFTRES\" SP Z O.O")
+                .withAddress("ul. Zaciszna 44")
+                .withLocation("35-326", "Rzeszów")
+                .withTaxId("8130335217");
+
         builder.withHorizontalLayout()
                 .withMargins(20, 20, 20, 20)
-                .withCompanyInfo("BIURO USŁUG KOMPUTEROWYCH \"SOFTRES\" SP Z O.O", "ul. Zaciszna 44, 35-326 Rzeszów", "NIP: 8130335217", "Regon: 690037603");
+                .withCompanyInfo(companyInfo);
 
         addDefaultStyles(builder);
 
-        builder.addGroup(new Group("paragraphGroup", "\"Dział: \" + $F{paragraphGroup}", "GroupStyle1", true));
-        builder.addGroup(new Group("origin", "\"Źródło: \" + $F{origin}", "GroupStyle2", true));
-        builder.addGroup(new Group("chapterSegment", "\"Rozdział: \" + $F{chapterSegment}", "GroupStyle2", true));
-        builder.addGroup(new Group("classificationSymbol", "\"Klasyfikacja: \" + $F{classificationSymbol}", "GroupStyle2", true));
+        // Task 5: Translate group headers and use style constants
+        builder.addGroup(new Group("paragraphGroup", "\"Section: \" + $F{paragraphGroup}", ReportStyles.GROUP_STYLE_1, true));
+        builder.addGroup(new Group("origin", "\"Source: \" + $F{origin}", ReportStyles.GROUP_STYLE_2, true));
+        builder.addGroup(new Group("chapterSegment", "\"Chapter: \" + $F{chapterSegment}", ReportStyles.GROUP_STYLE_2, true));
+        builder.addGroup(new Group("classificationSymbol", "\"Classification: \" + $F{classificationSymbol}", ReportStyles.GROUP_STYLE_2, true));
 
         Set<String> groupFields = new HashSet<>(Arrays.asList("paragraphGroup", "origin", "chapterSegment", "classificationSymbol"));
 
-        // Krok 1: Stwórz listę wszystkich kolumn, które mają być wyświetlone w raporcie głównym
-        List<Column> mainReportColumns = new ArrayList<>();
         for (String fieldName : structure.getFields()) {
             if (groupFields.contains(fieldName)) continue;
 
@@ -130,11 +153,11 @@ public class JsonReportGenerator {
             boolean isSubreport = structure.getNestedStructures().containsKey(fieldName);
 
             if (!isSubreport) {
-                mainReportColumns.add(createColumn(fieldName, dataType));
+                // Task 2: Width calculation is now delegated to ReportBuilder.
+                builder.addColumn(createColumn(fieldName, dataType));
             } else {
-                // Obsługa subraportu (niezmieniona)
                 ReportStructure subreportStructure = structure.getNestedStructures().get(fieldName);
-                JasperReport subreport = createSubreport(fieldName, subreportStructure, builder.getParameters());
+                JasperReport subreport = createSubreport(fieldName, subreportStructure);
                 compiledSubreports.put(fieldName, subreport);
                 String subreportObjectName = "SUBREPORT_OBJECT_" + fieldName;
                 String dataSourceExpression = "$F{" + fieldName + "}";
@@ -143,41 +166,18 @@ public class JsonReportGenerator {
             }
         }
 
-        // Krok 2: Automatyczne obliczanie szerokości kolumn
-        int availableWidth = 802; // Szerokość strony (842) - marginesy (20 + 20)
-
-        // Filtrujemy kolumny na te o stałej szerokości i te, które mają być elastyczne (width = -1)
-        List<Column> fixedWidthColumns = mainReportColumns.stream().filter(c -> c.getWidth() > 0).collect(Collectors.toList());
-        List<Column> proportionalColumns = mainReportColumns.stream().filter(c -> c.getWidth() < 0).collect(Collectors.toList());
-
-        int fixedWidthTotal = fixedWidthColumns.stream().mapToInt(Column::getWidth).sum();
-
-        if (!proportionalColumns.isEmpty()) {
-            int remainingWidth = availableWidth - fixedWidthTotal;
-            int widthPerColumn = (remainingWidth > 0) ? remainingWidth / proportionalColumns.size() : 100; // 100 jako fallback
-
-            for (Column col : proportionalColumns) {
-                col.setWidth(widthPerColumn);
-            }
-        }
-
-        // Krok 3: Dodaj skonfigurowane kolumny do buildera
-        for(Column col : mainReportColumns) {
-            builder.addColumn(col);
-        }
-
+        // Task 2: Width calculation logic is removed. ReportBuilder.build() will now handle it.
         return builder.build();
     }
 
-    private JasperReport createSubreport(String fieldName, ReportStructure structure, Map<String, Object> parentParams) throws JRException {
-        // Ta metoda nie wymaga zmian, ponieważ subraport jest budowany w ten sam sposób
-        ReportBuilder subreportBuilder = new ReportBuilder("Subreport_" + fieldName)
+    private JasperReport createSubreport(String fieldName, ReportStructure structure) throws JRException {
+        ReportBuilder subreportBuilder = new ReportBuilder("Subreport_" + fieldName).withTitle("d")
                 .withMargins(0, 0, 0, 0)
                 .setForSubreport(true);
 
-        subreportBuilder.withTitle("Zestawienie uchwał/zarządzeń");
+        // Task 5: Translate title
+        subreportBuilder.withTitle("Summary of Resolutions/Orders");
         addDefaultStyles(subreportBuilder);
-
 
         for (String subfieldName : structure.getFields()) {
             subreportBuilder.addColumn(createColumn(subfieldName, structure.getFieldTypes().get(subfieldName)));
@@ -186,50 +186,40 @@ public class JsonReportGenerator {
         return subreportBuilder.build();
     }
 
-
+    // Task 2 & 3: Refactored column creation with style constants and suggested widths
     private Column createColumn(String fieldName, DataType dataType) {
         String title = fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1).replaceAll("([A-Z])", " $1").trim();
-        int width = -1; // -1 oznacza "oblicz automatycznie" (kolumna elastyczna)
+        int width = -1; // Default to auto-width (flexible column)
         String pattern = null;
         Calculation reportCalc = Calculation.NONE;
         Calculation groupCalc = Calculation.NONE;
-        String styleName = "DataStyle";
+        String styleName = ReportStyles.DATA_STYLE;
 
-        // Przypisujemy stałą szerokość tylko tam, gdzie to ma sens
+        // Assign a suggested fixed width for specific data types
         if (dataType.isNumeric()) {
-            pattern = "#,##0.00";
-            styleName = "NumericStyle";
+            pattern = ReportStyles.NUMERIC_PATTERN;
+            styleName = ReportStyles.NUMERIC_STYLE;
             reportCalc = Calculation.SUM;
             groupCalc = Calculation.SUM;
-            width = 70; // Stała szerokość dla liczb
+            width = 80; // Suggested width for numbers
         } else if (dataType == DataType.DATE) {
-            pattern = "dd-MM-yy";
-            width = 70; // Stała szerokość dla dat
+            pattern = ReportStyles.DATE_PATTERN;
+            width = 70; // Suggested width for dates
         } else if (dataType == DataType.BOOLEAN) {
-            width = 50; // Stała szerokość dla wartości logicznych
+            width = 50; // Suggested width for booleans
         }
 
-        // Dla specyficznych krótkich pól tekstowych również możemy ustawić stałą szerokość
-        switch(fieldName) {
-            case "financingSegment":
-            case "unitSymbol":
-                width = 40;
-                break;
-        }
-
-        // Wszystkie inne kolumny (np. sectionSegment, classificationName)
-        // pozostaną z `width = -1`, dzięki czemu ich szerokość zostanie obliczona dynamicznie.
-
+        // All other columns will remain with `width = -1` for dynamic calculation.
         return new Column(fieldName, title, width, dataType, pattern, reportCalc, groupCalc, styleName);
     }
 
-    // ... (reszta metod: addDefaultStyles, convertJsonArrayToList, etc. pozostaje bez zmian)
+    // Task 3: Use constants from ReportStyles
     private void addDefaultStyles(ReportBuilder builder) {
-        builder.addStyle(new Style("HeaderStyle").withFont("DejaVu Sans", 10, true).withColors("#FFFFFF", "#2A3F54").withAlignment("Center", "Middle").withBorders(1f, "#000000").withPadding(3))
-                .addStyle(new Style("DataStyle").withFont("DejaVu Sans", 7, false).withColors("#000000", null).withAlignment("Left", "Middle").withBorders(0.5f, "#CCCCCC").withPadding(3))
-                .addStyle(new Style("NumericStyle").withFont("DejaVu Sans", 7, false).withColors("#000000", null).withAlignment("Right", "Middle").withBorders(0.5f, "#CCCCCC").withPadding(3))
-                .addStyle(new Style("GroupStyle1").withFont("DejaVu Sans", 9, true).withColors("#FFFFFF", "#4F6A83").withAlignment("Left", "Middle").withBorders(0.5f, "#000000").withPadding(3))
-                .addStyle(new Style("GroupStyle2").withFont("DejaVu Sans", 8, false).withColors("#000000", "#D0D8E0").withAlignment("Left", "Middle").withBorders(0.5f, "#000000").withPadding(3));
+        builder.addStyle(new Style(ReportStyles.HEADER_STYLE).withFont(ReportStyles.FONT_DEJAVU_SANS, 10, true).withColors(ReportStyles.COLOR_WHITE, ReportStyles.COLOR_PRIMARY_BACKGROUND).withAlignment("Center", "Middle").withBorders(1f, ReportStyles.COLOR_BLACK).withPadding(3))
+                .addStyle(new Style(ReportStyles.DATA_STYLE).withFont(ReportStyles.FONT_DEJAVU_SANS, 7, false).withColors(ReportStyles.COLOR_BLACK, null).withAlignment("Left", "Middle").withBorders(0.5f, ReportStyles.COLOR_TABLE_BORDER).withPadding(3))
+                .addStyle(new Style(ReportStyles.NUMERIC_STYLE).withFont(ReportStyles.FONT_DEJAVU_SANS, 7, false).withColors(ReportStyles.COLOR_BLACK, null).withAlignment("Right", "Middle").withBorders(0.5f, ReportStyles.COLOR_TABLE_BORDER).withPadding(3))
+                .addStyle(new Style(ReportStyles.GROUP_STYLE_1).withFont(ReportStyles.FONT_DEJAVU_SANS, 9, true).withColors(ReportStyles.COLOR_WHITE, ReportStyles.COLOR_SECONDARY_BACKGROUND).withAlignment("Left", "Middle").withBorders(0.5f, ReportStyles.COLOR_BLACK).withPadding(3))
+                .addStyle(new Style(ReportStyles.GROUP_STYLE_2).withFont(ReportStyles.FONT_DEJAVU_SANS, 8, false).withColors(ReportStyles.COLOR_BLACK, ReportStyles.COLOR_GROUP_BACKGROUND).withAlignment("Left", "Middle").withBorders(0.5f, ReportStyles.COLOR_BLACK).withPadding(3));
     }
 
     private List<Map<String, Object>> convertJsonArrayToList(JsonNode arrayNode) {
@@ -248,8 +238,17 @@ public class JsonReportGenerator {
         return map;
     }
 
+    // Task 1: Improved date conversion to handle ISO strings and timestamps
     private Object convertJsonValue(JsonNode value) {
         if (value == null || value.isNull()) return null;
+
+        if (value.isTextual()) {
+            try {
+                return Date.from(Instant.parse(value.asText()));
+            } catch (DateTimeParseException e) {
+                return value.asText(); // Not a date, return as plain text
+            }
+        }
 
         if (value.isNumber()) {
             if (value.isIntegralNumber() && value.asText().length() == 13) {
@@ -257,14 +256,17 @@ public class JsonReportGenerator {
             }
             return new BigDecimal(value.asText());
         }
+
         if (value.isBoolean()) return value.asBoolean();
-        if (value.isTextual()) return value.asText();
+
         if (value.isArray()) {
             return new JRBeanCollectionDataSource(convertJsonArrayToList(value));
         }
+
         return value.toString();
     }
 
+    // Task 5: Translate console output
     private void printJrxmlToConsole(JasperReport report, String reportName) {
             System.out.println("\n" + "=".repeat(80) + "\n=== " + reportName + " ===\n" + "=".repeat(80));
             System.out.println(JRXmlWriter.writeReport(report, "UTF-8"));
@@ -276,11 +278,29 @@ public class JsonReportGenerator {
         private Set<String> fields = new LinkedHashSet<>();
         private Map<String, DataType> fieldTypes = new HashMap<>();
         private Map<String, ReportStructure> nestedStructures = new HashMap<>();
-        public Set<String> getFields() { return fields; }
-        public void setFields(Set<String> fields) { this.fields = fields; }
-        public Map<String, DataType> getFieldTypes() { return fieldTypes; }
-        public void setFieldTypes(Map<String, DataType> fieldTypes) { this.fieldTypes = fieldTypes; }
-        public Map<String, ReportStructure> getNestedStructures() { return nestedStructures; }
-        public void setNestedStructures(Map<String, ReportStructure> nestedStructures) { this.nestedStructures = nestedStructures; }
+
+        public Set<String> getFields() {
+            return fields;
+        }
+
+        public void setFields(Set<String> fields) {
+            this.fields = fields;
+        }
+
+        public Map<String, DataType> getFieldTypes() {
+            return fieldTypes;
+        }
+
+        public void setFieldTypes(Map<String, DataType> fieldTypes) {
+            this.fieldTypes = fieldTypes;
+        }
+
+        public Map<String, ReportStructure> getNestedStructures() {
+            return nestedStructures;
+        }
+
+        public void setNestedStructures(Map<String, ReportStructure> nestedStructures) {
+            this.nestedStructures = nestedStructures;
+        }
     }
 }

@@ -14,13 +14,11 @@ public class Subreport {
         this.targetBand = targetBand;
         this.subreport = subreport;
         this.dataSourceExpression = dataSourceExpression;
-        // Domyślna nazwa parametru dla obiektu podraportu jest generowana na podstawie nazwy raportu
         if (subreport != null && subreport.getName() != null) {
             this.subreportObjectParameterName = "SUBREPORT_OBJECT_" + subreport.getName();
         }
     }
 
-    // --- Gettery używane przez ReportBuilder ---
     public String getTargetBand() {
         return targetBand;
     }
@@ -41,7 +39,6 @@ public class Subreport {
         return dataSourceParameterName;
     }
 
-    // --- Fluent Settery (metody "with"), które brakowały ---
     public Subreport withSubreportObjectParameterName(String name) {
         this.subreportObjectParameterName = name;
         return this;

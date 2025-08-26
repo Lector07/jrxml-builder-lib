@@ -7,20 +7,21 @@ import java.nio.file.Paths;
 public class JsonReportExample {
     public static void main(String[] args) {
         AutomatedReportService service = new AutomatedReportService();
-        String filePath = "RESOLUTION-CHANGES.json"; // Nazwa pliku w głównym katalogu projektu
+        // File name in the project's root directory
+        String filePath = "RESOLUTION-CHANGES.json";
 
         try {
-            System.out.println("Wczytywanie danych z pliku: " + filePath);
+            System.out.println("Loading data from file: " + filePath);
             String jsonData = new String(Files.readAllBytes(Paths.get(filePath)));
 
-            System.out.println("Generowanie automatycznego raportu z JRXML w konsoli...");
-            service.generatePdfReportFromJsonWithJrxml(jsonData, "Zestawienie zmian w uchwałach", "zmiany_w_uchwalach.pdf");
+            System.out.println("Generating automatic report with JRXML in console...");
+            service.generatePdfReportFromJsonWithJrxml(jsonData, "Summary of Changes in Resolutions", "resolution_changes.pdf");
 
-            System.out.println("\n✅ Raport został wygenerowany pomyślnie!");
-            System.out.println("📁 Plik PDF zapisany jako: zmiany_w_uchwalach.pdf");
+            System.out.println("\n✅ Report generated successfully!");
+            System.out.println("📁 PDF file saved as: resolution_changes.pdf");
 
         } catch (Exception e) {
-            System.err.println("❌ Błąd podczas generowania raportu:");
+            System.err.println("❌ Error during report generation:");
             e.printStackTrace();
         }
     }

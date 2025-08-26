@@ -59,11 +59,13 @@ public class ReportBuilder {
         return this;
     }
 
-    public ReportBuilder withCompanyInfo(String name, String address, String nipOrPostalCode, String city) {
-        parameters.put("CompanyName", name);
-        parameters.put("CompanyAddress", address);
-        parameters.put("CompanyPostalCode", nipOrPostalCode);
-        parameters.put("CompanyCity", city);
+    public ReportBuilder withCompanyInfo(CompanyInfo companyInfo) {
+        if (companyInfo != null) {
+            parameters.put("CompanyName", companyInfo.getName());
+            parameters.put("CompanyAddress", companyInfo.getAddress());
+            parameters.put("CompanyPostalCode", companyInfo.getPostalCode());
+            parameters.put("CompanyCity", companyInfo.getCity());
+        }
         return this;
     }
 
@@ -100,6 +102,9 @@ public class ReportBuilder {
 
     public JasperReport build() throws JRException {
         setupPage();
+        // FIX: Calculate final column widths before building any bands.
+        calculateColumnWidths();
+
         buildStyles();
         declareParameters();
         declareFields();
@@ -202,8 +207,8 @@ public class ReportBuilder {
         if (isForSubreport) {
             titleBand.setHeight(40);
             JRDesignTextField titleTextField = createTextField("$P{ReportTitle}", 0, 10, availableWidth, 25, true, 12f);
-            titleTextField.setForecolor(Color.WHITE);
-            titleTextField.setBackcolor(Color.decode("#2A3F54"));
+            titleTextField.setForecolor(Color.decode(ReportStyles.COLOR_WHITE));
+            titleTextField.setBackcolor(Color.decode(ReportStyles.COLOR_PRIMARY_BACKGROUND));
             titleTextField.setMode(ModeEnum.OPAQUE);
             titleTextField.setHorizontalTextAlign(HorizontalTextAlignEnum.CENTER);
             titleTextField.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
@@ -214,8 +219,8 @@ public class ReportBuilder {
             titleBand.addElement(createTextField("$P{CompanyAddress}", 0, 18, availableWidth / 2, 15, false, 9f));
             titleBand.addElement(createTextField("$P{CompanyPostalCode} + \" \" + $P{CompanyCity}", 0, 33, availableWidth / 2, 15, false, 9f));
             JRDesignTextField titleTextField = createTextField("$P{ReportTitle}", 0, 50, availableWidth, 25, true, 12f);
-            titleTextField.setForecolor(Color.WHITE);
-            titleTextField.setBackcolor(Color.decode("#2A3F54"));
+            titleTextField.setForecolor(Color.decode(ReportStyles.COLOR_WHITE));
+            titleTextField.setBackcolor(Color.decode(ReportStyles.COLOR_PRIMARY_BACKGROUND));
             titleTextField.setMode(ModeEnum.OPAQUE);
             titleTextField.setHorizontalTextAlign(HorizontalTextAlignEnum.CENTER);
             titleTextField.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
@@ -230,7 +235,7 @@ public class ReportBuilder {
         textField.setY(y);
         textField.setWidth(w);
         textField.setHeight(h);
-        textField.setFontName("DejaVu Sans");
+        textField.setFontName(ReportStyles.FONT_DEJAVU_SANS);
         textField.setBold(isBold);
         textField.setFontSize(fontSize);
         textField.setExpression(new JRDesignExpression(expressionText));
@@ -242,7 +247,6 @@ public class ReportBuilder {
 
         JRDesignBand columnHeaderBand = new JRDesignBand();
         columnHeaderBand.setHeight(30);
-        calculateColumnWidths();
         int currentX = 0;
         for (Column column : columns) {
             if (column.getWidth() == 0) continue;
@@ -251,13 +255,13 @@ public class ReportBuilder {
             headerText.setY(0);
             headerText.setWidth(column.getWidth());
             headerText.setHeight(25);
-            headerText.setBackcolor(Color.decode("#C6D8E4"));
+            headerText.setBackcolor(Color.decode(ReportStyles.COLOR_TABLE_HEADER_BACKGROUND));
             headerText.setMode(ModeEnum.OPAQUE);
-            headerText.setFontName("DejaVu Sans Condensed");
+            headerText.setFontName(ReportStyles.FONT_DEJAVU_SANS_CONDENSED);
             headerText.setText(column.getTitle());
             headerText.setHorizontalTextAlign(HorizontalTextAlignEnum.CENTER);
             headerText.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
-            setBox(headerText.getLineBox(), Color.BLACK, 1.0f);
+            setBox(headerText.getLineBox(), Color.decode(ReportStyles.COLOR_BLACK), 1.0f);
             columnHeaderBand.addElement(headerText);
             currentX += column.getWidth();
         }
@@ -325,7 +329,7 @@ public class ReportBuilder {
 
         if (!autoWidthColumns.isEmpty()) {
             int remainingWidth = availableWidth - fixedWidthTotal;
-            int autoColumnWidth = (remainingWidth > 0) ? remainingWidth / autoWidthColumns.size() : 100;
+            int autoColumnWidth = (remainingWidth > 0) ? remainingWidth / autoWidthColumns.size() : 100; // Default fallback width
             autoWidthColumns.forEach(c -> c.setWidth(autoColumnWidth));
         }
     }
@@ -356,9 +360,9 @@ public class ReportBuilder {
                     if (column.hasGroupCalculation() && column.getGroupCalculation().isActive()) {
                         String variableName = column.getFieldName() + "_" + groupName + "_SUM";
                         JRDesignTextField sumField = createTextField("$V{" + variableName + "}", currentX, 0, column.getWidth(), 22, true, 7f);
-                        sumField.setBackcolor(new Color(224, 224, 224, 150));
+                        sumField.setBackcolor(ReportStyles.FOOTER_BACKGROUND_COLOR);
                         sumField.setMode(ModeEnum.OPAQUE);
-                        sumField.setStyle((JRStyle) jasperDesign.getStylesMap().get("NumericStyle"));
+                        sumField.setStyle((JRStyle) jasperDesign.getStylesMap().get(ReportStyles.NUMERIC_STYLE));
                         if (column.hasPattern()) {
                             sumField.setPattern(column.getPattern());
                         }
@@ -380,7 +384,7 @@ public class ReportBuilder {
         summaryBand.setHeight(30);
 
         JRDesignStaticText summaryLabel = new JRDesignStaticText();
-        summaryLabel.setText("Podsumowanie Całkowite:");
+        summaryLabel.setText("Total Summary:");
         summaryLabel.setX(0);
         summaryLabel.setY(5);
         summaryLabel.setWidth(200);
@@ -396,9 +400,9 @@ public class ReportBuilder {
             if (column.hasReportCalculation() && column.getReportCalculation().isActive()) {
                 String variableName = column.getFieldName() + "_REPORT_SUM";
                 JRDesignTextField summaryField = createTextField("$V{" + variableName + "}", currentX, 5, column.getWidth(), 20, true, 9f);
-                summaryField.setBackcolor(Color.decode("#C6D8E4"));
+                summaryField.setBackcolor(Color.decode(ReportStyles.COLOR_TABLE_HEADER_BACKGROUND));
                 summaryField.setMode(ModeEnum.OPAQUE);
-                summaryField.setStyle((JRStyle) jasperDesign.getStylesMap().get("NumericStyle"));
+                summaryField.setStyle((JRStyle) jasperDesign.getStylesMap().get(ReportStyles.NUMERIC_STYLE));
                 if (column.hasPattern()) {
                     summaryField.setPattern(column.getPattern());
                 }
