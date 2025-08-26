@@ -7,7 +7,7 @@ import java.nio.file.Paths;
 public class JsonReportExample {
     public static void main(String[] args) {
         AutomatedReportService service = new AutomatedReportService();
-        String filePath = "realization.json"; // Nazwa pliku w głównym katalogu projektu
+        String filePath = "RESOLUTION-CHANGES.json"; // Nazwa pliku w głównym katalogu projektu
 
         try {
             System.out.println("Wczytywanie danych z pliku: " + filePath);

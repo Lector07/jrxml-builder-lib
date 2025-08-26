@@ -66,9 +66,18 @@ public class JsonReportGenerator {
                 item.fieldNames().forEachRemaining(fieldName -> {
                     allFields.add(fieldName);
                     JsonNode fieldValue = item.get(fieldName);
-                    if (!fieldTypes.containsKey(fieldName)) {
-                        fieldTypes.put(fieldName, determineDataType(fieldValue));
+
+                    DataType newType = determineDataType(fieldValue);
+                    DataType existingType = fieldTypes.get(fieldName);
+
+                    if (existingType == null || (existingType != DataType.BIG_DECIMAL && newType == DataType.BIG_DECIMAL)) {
+                        fieldTypes.put(fieldName, newType);
+                    } else if (existingType != DataType.DATE && newType == DataType.DATE) {
+                        fieldTypes.put(fieldName, newType);
+                    } else if (!fieldTypes.containsKey(fieldName)){
+                        fieldTypes.put(fieldName, newType);
                     }
+
                     if (fieldValue.isArray() && !fieldValue.isEmpty()) {
                         nestedStructures.computeIfAbsent(fieldName, k -> analyzeArrayStructure(fieldValue));
                     }
@@ -84,30 +93,31 @@ public class JsonReportGenerator {
     private DataType determineDataType(JsonNode node) {
         if (node == null || node.isNull()) return DataType.STRING;
 
-        // --- KLUCZOWA ZMIANA 1: WSZYSTKO CO JEST LICZBĄ, JEST TERAZ BIGDECIMAL ---
         if (node.isNumber()) {
+            if (node.isIntegralNumber() && node.asText().length() == 13) {
+                return DataType.DATE;
+            }
             return DataType.BIG_DECIMAL;
         }
-        // ---------------------------------------------------------------------
-
         if (node.isBoolean()) return DataType.BOOLEAN;
 
-        String text = node.asText();
-        if (text.matches("\\d{13}")) {
-            return DataType.DATE;
-        }
         return DataType.STRING;
     }
 
     private JasperReport createMainReport(ReportBuilder builder, ReportStructure structure, Map<String, JasperReport> compiledSubreports) throws JRException {
-        builder.withPageSize(842, 595).withMargins(20, 20, 20, 20)
+        builder.withHorizontalLayout()
+                .withMargins(20, 20, 20, 20)
                 .withCompanyInfo("BIURO USŁUG KOMPUTEROWYCH \"SOFTRES\" SP Z O.O", "ul. Zaciszna 44, 35-326 Rzeszów", "NIP: 8130335217", "Regon: 690037603");
 
         addDefaultStyles(builder);
 
+        builder.addGroup(new Group("paragraphGroup", "\"Dział: \" + $F{paragraphGroup}", "GroupStyle1", true));
+        builder.addGroup(new Group("origin", "\"Źródło: \" + $F{origin}", "GroupStyle2", true));
+        builder.addGroup(new Group("chapterSegment", "\"Rozdział: \" + $F{chapterSegment}", "GroupStyle2", true));
+        builder.addGroup(new Group("classificationSymbol", "\"Klasyfikacja: \" + $F{classificationSymbol}", "GroupStyle2", true));
 
 
-        Set<String> groupFields = new HashSet<>(Arrays.asList("sectionSegment", "chapterSegment"));
+        Set<String> groupFields = new HashSet<>(Arrays.asList("paragraphGroup", "origin", "chapterSegment", "classificationSymbol"));
 
         for (String fieldName : structure.getFields()) {
             if (groupFields.contains(fieldName)) continue;
@@ -134,12 +144,11 @@ public class JsonReportGenerator {
 
     private JasperReport createSubreport(String fieldName, ReportStructure structure, Map<String, Object> parentParams) throws JRException {
         ReportBuilder subreportBuilder = new ReportBuilder("Subreport_" + fieldName)
-                .withPageSize(595, 842)
-                .withMargins(10, 10, 10, 10)
-                .setForSubreport(true); // <<<--- DODAJ TĘ LINIĘ
+                .withMargins(0, 0, 0, 0)
+                .setForSubreport(true);
 
-        subreportBuilder.getParameters().putAll(parentParams);
-        subreportBuilder.getParameters().put("ReportTitle", "Szczegóły: " + fieldName);
+        subreportBuilder.withTitle("Zestawienie uchwał/zarządzeń");
+
         addDefaultStyles(subreportBuilder);
 
         for (String subfieldName : structure.getFields()) {
@@ -149,22 +158,51 @@ public class JsonReportGenerator {
         return subreportBuilder.build();
     }
 
+    // === POPRAWKA ZNAJDUJE SIĘ W TEJ METODZIE ===
     private Column createColumn(String fieldName, DataType dataType) {
         String title = fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1).replaceAll("([A-Z])", " $1").trim();
-        int width = -1;
+        int width = -1; // Domyślnie auto-dopasowanie
         String pattern = null;
         Calculation reportCalc = Calculation.NONE;
         Calculation groupCalc = Calculation.NONE;
         String styleName = "DataStyle";
 
-        if (dataType == DataType.BIG_DECIMAL) {
+        if (dataType.isNumeric()) {
             pattern = "#,##0.00";
             styleName = "NumericStyle";
-            width = 120;
             reportCalc = Calculation.SUM;
             groupCalc = Calculation.SUM;
+            width = 65;
         } else if (dataType == DataType.DATE) {
-            pattern = "yyyy-MM-dd";
+            pattern = "dd-MM-yy";
+            width = 70;
+        } else if (dataType == DataType.BOOLEAN) {
+            width = 50;
+        }
+
+        // === GŁÓWNA ZMIANA: Zmniejszenie szerokości kolumn, aby suma zmieściła się w 802px ===
+        // Nowa suma: (4 * 120) + (2 * 30) + (4 * 65) = 480 + 60 + 260 = 800px. Idealnie!
+        switch (fieldName) {
+            // Długie kolumny tekstowe w raporcie głównym
+            case "sectionSegment":
+            case "paragraphSegment":
+            case "classificationName":
+            case "unitName":
+                width = 120;
+                break;
+            // Krótkie kolumny ID w raporcie głównym
+            case "financingSegment":
+            case "unitSymbol":
+                width = 31; // Minimalne dopasowanie, aby suma wyszła 802
+                break;
+
+            // Kolumny dla subraportu - mogą być szersze, bo subraport ma do dyspozycji całą szerokość
+            case "resolutionId":
+                width = 100;
+                break;
+            case "resolutionName":
+                width = 150;
+                break;
         }
 
         return new Column(fieldName, title, width, dataType, pattern, reportCalc, groupCalc, styleName);
@@ -172,10 +210,10 @@ public class JsonReportGenerator {
 
     private void addDefaultStyles(ReportBuilder builder) {
         builder.addStyle(new Style("HeaderStyle").withFont("DejaVu Sans", 10, true).withColors("#FFFFFF", "#2A3F54").withAlignment("Center", "Middle").withBorders(1f, "#000000").withPadding(3))
-                .addStyle(new Style("DataStyle").withFont("DejaVu Sans", 8, false).withColors("#000000", null).withAlignment("Left", "Middle").withBorders(0.5f, "#CCCCCC").withPadding(4))
-                .addStyle(new Style("NumericStyle").withFont("DejaVu Sans", 8, false).withColors("#000000", null).withAlignment("Right", "Middle").withBorders(0.5f, "#CCCCCC").withPadding(4))
+                .addStyle(new Style("DataStyle").withFont("DejaVu Sans", 7, false).withColors("#000000", null).withAlignment("Left", "Middle").withBorders(0.5f, "#CCCCCC").withPadding(3))
+                .addStyle(new Style("NumericStyle").withFont("DejaVu Sans", 7, false).withColors("#000000", null).withAlignment("Right", "Middle").withBorders(0.5f, "#CCCCCC").withPadding(3))
                 .addStyle(new Style("GroupStyle1").withFont("DejaVu Sans", 9, true).withColors("#FFFFFF", "#4F6A83").withAlignment("Left", "Middle").withBorders(0.5f, "#000000").withPadding(3))
-                .addStyle(new Style("GroupStyle2").withFont("DejaVu Sans", 9, false).withColors("#000000", "#D0D8E0").withAlignment("Left", "Middle").withBorders(0.5f, "#000000").withPadding(3));
+                .addStyle(new Style("GroupStyle2").withFont("DejaVu Sans", 8, false).withColors("#000000", "#D0D8E0").withAlignment("Left", "Middle").withBorders(0.5f, "#000000").withPadding(3));
     }
 
     private List<Map<String, Object>> convertJsonArrayToList(JsonNode arrayNode) {
@@ -197,24 +235,14 @@ public class JsonReportGenerator {
     private Object convertJsonValue(JsonNode value) {
         if (value == null || value.isNull()) return null;
 
-        // --- KLUCZOWA ZMIANA 2: ZAWSZE KONWERTUJ LICZBY DO BIGDECIMAL ---
         if (value.isNumber()) {
+            if (value.isIntegralNumber() && value.asText().length() == 13) {
+                return new Date(value.asLong());
+            }
             return new BigDecimal(value.asText());
         }
-        // -------------------------------------------------------------
-
         if (value.isBoolean()) return value.asBoolean();
-        if (value.isTextual()) {
-            String text = value.asText();
-            if (text.matches("\\d{13}")) {
-                try {
-                    return new Date(Long.parseLong(text));
-                } catch (NumberFormatException e) {
-                    // Ignoruj
-                }
-            }
-            return text;
-        }
+        if (value.isTextual()) return value.asText();
         if (value.isArray()) {
             return new JRBeanCollectionDataSource(convertJsonArrayToList(value));
         }
@@ -222,9 +250,11 @@ public class JsonReportGenerator {
     }
 
     private void printJrxmlToConsole(JasperReport report, String reportName) {
-        System.out.println("\n" + "=".repeat(80) + "\n=== " + reportName + " ===\n" + "=".repeat(80));
-        System.out.println(JRXmlWriter.writeReport(report, "UTF-8"));
-        System.out.println("=".repeat(80) + "\n");
+
+            System.out.println("\n" + "=".repeat(80) + "\n=== " + reportName + " ===\n" + "=".repeat(80));
+            System.out.println(JRXmlWriter.writeReport(report, "UTF-8"));
+            System.out.println("=".repeat(80) + "\n");
+
     }
 
     private static class ReportStructure {
