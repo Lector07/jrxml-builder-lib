@@ -1,26 +1,38 @@
 package pl.lib.model;
 
+import net.sf.jasperreports.engine.JRDataSource;
+import java.awt.Image;
+import java.math.BigDecimal;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.util.Date;
+
 public enum DataType {
-    STRING("java.lang.String"),
-    INTEGER("java.lang.Integer"),
-    LONG("java.lang.Long"),
-    DOUBLE("java.lang.Double"),
-    DATE("java.util.Date"),
-    BOOLEAN("java.lang.Boolean"),
-    BIG_DECIMAL("java.math.BigDecimal"),
-    SHORT("java.lang.Short"),
-    TIME("java.sql.Time"),
-    TIMESTAMP("java.sql.Timestamp"),
-    FLOAT("java.lang.Float"),
-    IMAGE("java.awt.Image");
+    STRING(String.class),
+    INTEGER(Integer.class),
+    LONG(Long.class),
+    DOUBLE(Double.class),
+    DATE(Date.class),
+    BOOLEAN(Boolean.class),
+    BIG_DECIMAL(BigDecimal.class),
+    SHORT(Short.class),
+    TIME(Time.class),
+    TIMESTAMP(Timestamp.class),
+    FLOAT(Float.class),
+    IMAGE(Image.class),
+    JR_DATA_SOURCE(JRDataSource.class); // Poprawiony i dodany typ dla podraportów
 
-    private final String javaClass;
+    private final Class<?> javaClass;
 
-    DataType(String javaClass) {
+    DataType(Class<?> javaClass) {
         this.javaClass = javaClass;
     }
 
-    public String getJavaClass() {
+    public Class<?> getJavaClass() {
         return javaClass;
+    }
+
+    public boolean isNumeric() {
+        return this == INTEGER || this == LONG || this == DOUBLE || this == BIG_DECIMAL || this == SHORT || this == FLOAT;
     }
 }

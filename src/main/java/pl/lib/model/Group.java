@@ -6,6 +6,7 @@ public class Group {
     private String styleName;
     private boolean showGroupFooter;
 
+
     public Group(String fieldName, String headerExpression, String styleName, boolean showGroupFooter) {
         this.fieldName = fieldName;
         this.headerExpression = headerExpression;
