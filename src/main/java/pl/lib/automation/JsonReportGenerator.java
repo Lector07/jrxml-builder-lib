@@ -72,17 +72,15 @@ public class JsonReportGenerator {
                     DataType newType = determineDataType(fieldValue);
                     DataType existingType = fieldTypes.get(fieldName);
 
-                    // Upgrade type if a more specific one is found.
-                    // Precedence: BIG_DECIMAL > DATE > BOOLEAN > STRING.
                     if (existingType == null) {
                         fieldTypes.put(fieldName, newType);
                     } else if (newType != existingType) {
                         if (newType == DataType.BIG_DECIMAL) {
-                            fieldTypes.put(fieldName, DataType.BIG_DECIMAL); // Highest precedence
+                            fieldTypes.put(fieldName, DataType.BIG_DECIMAL);
                         } else if (newType == DataType.DATE && existingType != DataType.BIG_DECIMAL) {
-                            fieldTypes.put(fieldName, DataType.DATE); // Upgrade to date if not already a number
+                            fieldTypes.put(fieldName, DataType.DATE);
                         } else if (newType == DataType.BOOLEAN && existingType == DataType.STRING) {
-                            fieldTypes.put(fieldName, DataType.BOOLEAN); // Upgrade from string to boolean
+                            fieldTypes.put(fieldName, DataType.BOOLEAN);
                         }
                     }
 
@@ -98,7 +96,6 @@ public class JsonReportGenerator {
         return structure;
     }
 
-    // Task 1: Improved date detection, prioritizing ISO 8601 strings
     private DataType determineDataType(JsonNode node) {
         if (node == null || node.isNull()) return DataType.STRING;
 
@@ -112,7 +109,6 @@ public class JsonReportGenerator {
         }
 
         if (node.isNumber()) {
-            // Fallback for 13-digit timestamp
             if (node.isIntegralNumber() && node.asText().length() == 13) {
                 return DataType.DATE;
             }
@@ -124,9 +120,7 @@ public class JsonReportGenerator {
         return DataType.STRING;
     }
 
-    // Task 2, 4, 5: Refactored main report creation
     private JasperReport createMainReport(ReportBuilder builder, ReportStructure structure, Map<String, JasperReport> compiledSubreports) throws JRException {
-        // Task 4: Use CompanyInfo object
         CompanyInfo companyInfo = new CompanyInfo("BIURO USŁUG KOMPUTEROWYCH \"SOFTRES\" SP Z O.O")
                 .withAddress("ul. Zaciszna 44")
                 .withLocation("35-326", "Rzeszów")
@@ -138,7 +132,6 @@ public class JsonReportGenerator {
 
         addDefaultStyles(builder);
 
-        // Task 5: Translate group headers and use style constants
         builder.addGroup(new Group("paragraphGroup", "\"Section: \" + $F{paragraphGroup}", ReportStyles.GROUP_STYLE_1, true));
         builder.addGroup(new Group("origin", "\"Source: \" + $F{origin}", ReportStyles.GROUP_STYLE_2, true));
         builder.addGroup(new Group("chapterSegment", "\"Chapter: \" + $F{chapterSegment}", ReportStyles.GROUP_STYLE_2, true));
@@ -153,7 +146,6 @@ public class JsonReportGenerator {
             boolean isSubreport = structure.getNestedStructures().containsKey(fieldName);
 
             if (!isSubreport) {
-                // Task 2: Width calculation is now delegated to ReportBuilder.
                 builder.addColumn(createColumn(fieldName, dataType));
             } else {
                 ReportStructure subreportStructure = structure.getNestedStructures().get(fieldName);
@@ -166,17 +158,18 @@ public class JsonReportGenerator {
             }
         }
 
-        // Task 2: Width calculation logic is removed. ReportBuilder.build() will now handle it.
         return builder.build();
     }
 
+    // FIX: Generate subreport title dynamically from the field name
     private JasperReport createSubreport(String fieldName, ReportStructure structure) throws JRException {
-        ReportBuilder subreportBuilder = new ReportBuilder("Subreport_" + fieldName).withTitle("d")
-                .withMargins(0, 0, 0, 0)
-                .setForSubreport(true);
+        String subreportTitle = fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1).replaceAll("([A-Z])", " $1").trim();
 
-        // Task 5: Translate title
-        subreportBuilder.withTitle("Summary of Resolutions/Orders");
+        ReportBuilder subreportBuilder = new ReportBuilder("Subreport_" + fieldName)
+                .withMargins(0, 0, 0, 0)
+                .setForSubreport(true)
+                .withTitle(subreportTitle);
+
         addDefaultStyles(subreportBuilder);
 
         for (String subfieldName : structure.getFields()) {
@@ -186,34 +179,30 @@ public class JsonReportGenerator {
         return subreportBuilder.build();
     }
 
-    // Task 2 & 3: Refactored column creation with style constants and suggested widths
     private Column createColumn(String fieldName, DataType dataType) {
         String title = fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1).replaceAll("([A-Z])", " $1").trim();
-        int width = -1; // Default to auto-width (flexible column)
+        int width = -1; 
         String pattern = null;
         Calculation reportCalc = Calculation.NONE;
         Calculation groupCalc = Calculation.NONE;
         String styleName = ReportStyles.DATA_STYLE;
 
-        // Assign a suggested fixed width for specific data types
         if (dataType.isNumeric()) {
             pattern = ReportStyles.NUMERIC_PATTERN;
             styleName = ReportStyles.NUMERIC_STYLE;
             reportCalc = Calculation.SUM;
             groupCalc = Calculation.SUM;
-            width = 80; // Suggested width for numbers
+            width = 80;
         } else if (dataType == DataType.DATE) {
             pattern = ReportStyles.DATE_PATTERN;
-            width = 70; // Suggested width for dates
+            width = 70;
         } else if (dataType == DataType.BOOLEAN) {
-            width = 50; // Suggested width for booleans
+            width = 50;
         }
 
-        // All other columns will remain with `width = -1` for dynamic calculation.
         return new Column(fieldName, title, width, dataType, pattern, reportCalc, groupCalc, styleName);
     }
 
-    // Task 3: Use constants from ReportStyles
     private void addDefaultStyles(ReportBuilder builder) {
         builder.addStyle(new Style(ReportStyles.HEADER_STYLE).withFont(ReportStyles.FONT_DEJAVU_SANS, 10, true).withColors(ReportStyles.COLOR_WHITE, ReportStyles.COLOR_PRIMARY_BACKGROUND).withAlignment("Center", "Middle").withBorders(1f, ReportStyles.COLOR_BLACK).withPadding(3))
                 .addStyle(new Style(ReportStyles.DATA_STYLE).withFont(ReportStyles.FONT_DEJAVU_SANS, 7, false).withColors(ReportStyles.COLOR_BLACK, null).withAlignment("Left", "Middle").withBorders(0.5f, ReportStyles.COLOR_TABLE_BORDER).withPadding(3))
@@ -238,7 +227,6 @@ public class JsonReportGenerator {
         return map;
     }
 
-    // Task 1: Improved date conversion to handle ISO strings and timestamps
     private Object convertJsonValue(JsonNode value) {
         if (value == null || value.isNull()) return null;
 
@@ -246,7 +234,7 @@ public class JsonReportGenerator {
             try {
                 return Date.from(Instant.parse(value.asText()));
             } catch (DateTimeParseException e) {
-                return value.asText(); // Not a date, return as plain text
+                return value.asText();
             }
         }
 
@@ -266,7 +254,6 @@ public class JsonReportGenerator {
         return value.toString();
     }
 
-    // Task 5: Translate console output
     private void printJrxmlToConsole(JasperReport report, String reportName) {
             System.out.println("\n" + "=".repeat(80) + "\n=== " + reportName + " ===\n" + "=".repeat(80));
             System.out.println(JRXmlWriter.writeReport(report, "UTF-8"));

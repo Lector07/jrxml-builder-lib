@@ -17,8 +17,8 @@ public class JsonReportExample {
             System.out.println("Generating automatic report with JRXML in console...");
             service.generatePdfReportFromJsonWithJrxml(jsonData, "Summary of Changes in Resolutions", "resolution_changes.pdf");
 
-            System.out.println("\n✅ Report generated successfully!");
-            System.out.println("📁 PDF file saved as: resolution_changes.pdf");
+            System.out.println("\nReport generated successfully!");
+            System.out.println("PDF file saved as: resolution_changes.pdf");
 
         } catch (Exception e) {
             System.err.println("❌ Error during report generation:");
