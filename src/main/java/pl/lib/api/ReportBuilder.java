@@ -22,6 +22,7 @@ public class ReportBuilder {
     private List<Subreport> subreports = new ArrayList<>();
     private final List<Group> groups = new ArrayList<>();
     private boolean isForSubreport = false;
+    private boolean pageFooterEnabled = false;
 
     public ReportBuilder(String reportName) {
         this.jasperDesign = new JasperDesign();
@@ -70,6 +71,11 @@ public class ReportBuilder {
         return this;
     }
 
+    public ReportBuilder withPageFooter(boolean enabled) {
+        this.pageFooterEnabled = enabled;
+        return this;
+    }
+
     public Map<String, Object> getParameters() {
         return this.parameters;
     }
@@ -113,6 +119,7 @@ public class ReportBuilder {
         buildTitleBand();
         buildColumnHeaderBand();
         buildDetailBand();
+        buildPageFooterBand();
         buildSummaryBand();
         return JasperCompileManager.compileReport(this.jasperDesign);
     }
@@ -378,6 +385,47 @@ public class ReportBuilder {
             }
             jasperDesign.addGroup(jrGroup);
         }
+    }
+
+    private void buildPageFooterBand() throws JRException {
+        if (!pageFooterEnabled || isForSubreport) {return;}
+        JRDesignBand pageFooterBand = new JRDesignBand();
+        pageFooterBand.setHeight(35);
+
+        JRDesignLine line = new JRDesignLine();
+        line.setX(0);
+        line.setY(2);
+        line.setWidth(jasperDesign.getColumnWidth());
+        line.setHeight(1);
+        pageFooterBand.addElement(line);
+
+        JRDesignStaticText leftText = new JRDesignStaticText();
+        leftText.setX(0);
+        leftText.setY(2);
+        leftText.setWidth(200);
+        leftText.setHeight(30);
+        leftText.setText("eBudżet - ZSI \"Sprawny Urząd\"\nBUK Softres - www.softres.pl");
+        leftText.setVerticalTextAlign(VerticalTextAlignEnum.BOTTOM);
+        leftText.setHorizontalTextAlign(HorizontalTextAlignEnum.LEFT);
+        leftText.setFontName(ReportStyles.FONT_DEJAVU_SANS_CONDENSED);
+        leftText.setFontSize(8f);
+        pageFooterBand.addElement(leftText);
+
+        JRDesignTextField pageNumberField = new JRDesignTextField();
+        pageNumberField.setX(jasperDesign.getColumnWidth() - 200);
+        pageNumberField.setY(12);
+        pageNumberField.setWidth(200);
+        pageNumberField.setHeight(20);
+        pageNumberField.setExpression(new JRDesignExpression("\"Strona \" + $V{PAGE_NUMBER} + \" z \" + $V{PAGE_COUNT}"));
+        pageNumberField.setHorizontalTextAlign(HorizontalTextAlignEnum.RIGHT);
+        pageNumberField.setVerticalTextAlign(VerticalTextAlignEnum.BOTTOM);
+        pageNumberField.setFontName(ReportStyles.FONT_DEJAVU_SANS_CONDENSED);
+        pageNumberField.setFontSize(8f);
+
+        pageNumberField.setEvaluationTime(EvaluationTimeEnum.PAGE);
+        pageFooterBand.addElement(pageNumberField);
+
+        jasperDesign.setPageFooter(pageFooterBand);
     }
 
     private void buildSummaryBand() throws JRException {

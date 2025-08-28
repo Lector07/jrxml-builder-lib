@@ -27,9 +27,28 @@ public class JsonReportGenerator {
         return this;
     }
 
+    // java
     public JasperPrint generateReportFromJson(String jsonContent, ReportConfig config) throws JRException, IOException {
         JsonNode rootNode = objectMapper.readTree(jsonContent);
-        return generateReportFromArray(rootNode, config);
+
+        JsonNode arrayNode = rootNode;
+
+        if (rootNode.isObject()) {
+            com.fasterxml.jackson.databind.node.ArrayNode mergedArray = objectMapper.createArrayNode();
+
+            Iterator<JsonNode> elements = rootNode.elements();
+            while (elements.hasNext()) {
+                JsonNode node = elements.next();
+                if (node.isArray()) {
+                    for (JsonNode item : node) {
+                        mergedArray.add(item);
+                    }
+                }
+            }
+            arrayNode = mergedArray;
+        }
+
+        return generateReportFromArray(arrayNode, config);
     }
 
     private JasperPrint generateReportFromArray(JsonNode arrayNode, ReportConfig config) throws JRException, IOException { // IOException dodany dla spójności
@@ -135,7 +154,7 @@ public class JsonReportGenerator {
         builder.withTitle(config.getTitle())
                 .withHorizontalLayout()
                 .withMargins(20, 20, 20, 20)
-                .withCompanyInfo(companyInfo);
+                .withCompanyInfo(companyInfo).withPageFooter(true);
 
         addDefaultStyles(builder);
 

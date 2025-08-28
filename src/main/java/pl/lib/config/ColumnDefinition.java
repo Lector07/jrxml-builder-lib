@@ -7,7 +7,7 @@ import java.util.Objects;
 public class ColumnDefinition {
     private final String field;
     private final String header;
-    private final Integer width;
+    private Integer width = -1;
     private final String format;
     private final Calculation reportCalculation;
     private final Calculation groupCalculation;

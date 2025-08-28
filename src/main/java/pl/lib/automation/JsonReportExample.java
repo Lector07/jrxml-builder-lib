@@ -12,20 +12,15 @@ import java.nio.file.Paths;
 public class JsonReportExample {
     public static void main(String[] args) {
         AutomatedReportService service = new AutomatedReportService();
-        // Upewnij się, że plik JSON jest w głównym katalogu projektu
-        String filePath = "realization.json";
+        String filePath = "RESOLUTION-CHANGES.json";
 
         try {
             System.out.println("Reading data from file: " + filePath);
             String jsonData = new String(Files.readAllBytes(Paths.get(filePath)));
 
             ReportConfig config = new ReportConfig.Builder()
-                    .title("Zestawienie Zmian w Uchwałach Finansowych")
-                    .addColumn(ColumnDefinition.builder("id").visible(false).build())
-                    .addColumn(ColumnDefinition.builder("mainEdId").visible(false).build())
-                    .addColumn(ColumnDefinition.builder("edNumber").visible(false).build())
-                    .addGroup(GroupDefinition.builder("edType").showHeader(true).label("\"Typ dokumentu: \" + $F{edType}").build())
-                    .addGroup(GroupDefinition.builder("departmentSymbol").showHeader(true).label("\"Symbol departamentu: \" + $F{departmentSymbol}").build())
+                    .title("Plans")
+
                     .build();
 
             System.out.println("Generating automatic report with JRXML in console...");
