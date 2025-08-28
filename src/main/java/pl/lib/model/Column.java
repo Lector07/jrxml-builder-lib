@@ -3,7 +3,7 @@ package pl.lib.model;
 public class Column {
     private final String fieldName;
     private final String title;
-    private int width; // Usunięto modyfikator 'final'
+    private int width;
     private final DataType type;
     private  String pattern;
     private final Calculation reportCalculation;

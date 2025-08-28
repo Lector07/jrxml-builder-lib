@@ -2,21 +2,20 @@ package pl.lib.config;
 
 import pl.lib.api.ReportBuilder;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 public class ReportConfig {
     private final String title;
     private final List<ColumnDefinition> columns;
     private final List<GroupDefinition> groups;
+    // Nowe pole dla konfiguracji subraportów
+    private final Map<String, ReportConfig> subreportConfigs;
 
     private ReportConfig(Builder builder) {
         this.title = builder.title;
-        this.columns = Collections.unmodifiableList(new ArrayList<>(builder.columns));
-        this.groups = Collections.unmodifiableList(new ArrayList<>(builder.groups));
-
+        this.columns = builder.columns;
+        this.groups = builder.groups;
+        this.subreportConfigs = builder.subreportConfigs;
     }
 
     public String getTitle() {
@@ -31,47 +30,40 @@ public class ReportConfig {
         return groups;
     }
 
-    public Builder builder(){
-        return new Builder();
+    // Nowa metoda do pobrania konfiguracji subraportów
+    public Map<String, ReportConfig> getSubreportConfigs() {
+        return subreportConfigs;
     }
 
-    public static final class Builder{
-        private String title;
-        private final List<ColumnDefinition> columns = new ArrayList<>();
-        private final List<GroupDefinition> groups = new ArrayList<>();
+    public static class Builder {
+        private String title = "";
+        private List<ColumnDefinition> columns = new ArrayList<>();
+        private List<GroupDefinition> groups = new ArrayList<>();
+        // Nowe pole dla buildera
+        private Map<String, ReportConfig> subreportConfigs = new HashMap<>();
 
-        public Builder title(String title){
+        public Builder title(String title) {
             this.title = title;
             return this;
         }
 
-        public Builder addColumn(ColumnDefinition column){
-            this.columns.add(Objects.requireNonNull(column, "column"));
+        public Builder addColumn(ColumnDefinition column) {
+            columns.add(column);
             return this;
         }
 
-        public Builder addColumns(List<ColumnDefinition> columns){
-            if(columns != null){
-                columns.forEach(this::addColumn);
-            }
+        public Builder addGroup(GroupDefinition group) {
+            groups.add(group);
             return this;
         }
 
-        public Builder addGroup(GroupDefinition group){
-            this.groups.add(Objects.requireNonNull(group, "group"));
+        public Builder withSubreportConfig(String fieldName, ReportConfig config) {
+            subreportConfigs.put(fieldName, config);
             return this;
         }
 
-        public Builder addGroups(List<GroupDefinition> groups){
-            if(groups != null){
-                groups.forEach(this::addGroup);
-            }
-            return this;
-        }
-
-        public ReportConfig build(){
+        public ReportConfig build() {
             return new ReportConfig(this);
         }
-
     }
 }

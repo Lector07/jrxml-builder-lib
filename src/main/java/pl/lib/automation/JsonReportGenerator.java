@@ -27,7 +27,6 @@ public class JsonReportGenerator {
         return this;
     }
 
-    // java
     public JasperPrint generateReportFromJson(String jsonContent, ReportConfig config) throws JRException, IOException {
         JsonNode rootNode = objectMapper.readTree(jsonContent);
 
@@ -51,7 +50,7 @@ public class JsonReportGenerator {
         return generateReportFromArray(arrayNode, config);
     }
 
-    private JasperPrint generateReportFromArray(JsonNode arrayNode, ReportConfig config) throws JRException, IOException { // IOException dodany dla spójności
+    private JasperPrint generateReportFromArray(JsonNode arrayNode, ReportConfig config) throws JRException, IOException {
         ReportStructure structure = analyzeArrayStructure(arrayNode);
         Map<String, JasperReport> compiledSubreports = new HashMap<>();
 
@@ -158,7 +157,6 @@ public class JsonReportGenerator {
 
         addDefaultStyles(builder);
 
-        // Grupowanie sterowane w 100% przez config
         for (GroupDefinition groupDef : config.getGroups()) {
             if (!groupDef.isShowHeader()) {
                 continue;
@@ -173,35 +171,29 @@ public class JsonReportGenerator {
                     labelExpression,
                     ReportStyles.GROUP_STYLE_1,
                     groupDef.isShowFooter()
+                    , groupDef.isShowHeader()
             ));
         }
 
-        // Mapa konfiguracji kolumn (dla szybkiego dostępu po nazwie pola)
         Map<String, ColumnDefinition> columnConfigMap = config.getColumns().stream()
                 .collect(Collectors.toMap(ColumnDefinition::getField, def -> def));
 
-        // Zbiór pól użytych do grupowania (nie powtarzamy jako kolumn)
         Set<String> groupFields = config.getGroups().stream()
                 .map(GroupDefinition::getField)
                 .collect(Collectors.toSet());
 
-        // Iterujemy po polach wykrytych z JSON, a nie tylko po tych z konfiguracji
         for (String fieldName : structure.getFields()) {
-            // Pomiń pola będące kluczami grup
             if (groupFields.contains(fieldName)) {
                 continue;
             }
 
-            // Opcjonalna konfiguracja kolumny użytkownika
             ColumnDefinition colDef = columnConfigMap.get(fieldName);
 
-            // Jeśli jawnie ukryta w configu -> pomiń
             Boolean visible = (colDef != null) ? colDef.getVisible() : null;
             if (Boolean.FALSE.equals(visible)) {
                 continue;
             }
 
-            // Typ pola z analizy JSON
             DataType dataType = structure.getFieldTypes().get(fieldName);
             if (dataType == null) {
                 continue;
@@ -223,9 +215,17 @@ public class JsonReportGenerator {
 
                 builder.addColumn(new Column(fieldName, header, width, dataType, format, reportCalc, groupCalc, style));
             } else {
-                // Subraport: jak wcześniej
                 ReportStructure subreportStructure = structure.getNestedStructures().get(fieldName);
-                JasperReport subreport = createSubreport(fieldName, subreportStructure);
+
+                ReportConfig subConfig = null;
+                if (config.getSubreportConfigs() != null) {
+                    subConfig = config.getSubreportConfigs().get(fieldName);
+                }
+                if (subConfig == null) {
+                    subConfig = new ReportConfig.Builder().title("").build();
+                }
+
+                JasperReport subreport = createSubreport(fieldName, subreportStructure, subConfig);
                 compiledSubreports.put(fieldName, subreport);
 
                 String subreportObjectName = "SUBREPORT_OBJECT_" + fieldName;
@@ -243,17 +243,41 @@ public class JsonReportGenerator {
         return builder.build();
     }
 
-    private JasperReport createSubreport(String fieldName, ReportStructure structure) throws JRException {
-        String subreportTitle = fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1).replaceAll("([A-Z])", " $1").trim();
+    private JasperReport createSubreport(String fieldName, ReportStructure structure, ReportConfig config) throws JRException {
+        String subreportTitle = (config.getTitle() != null && !config.getTitle().isEmpty())
+                ? config.getTitle()
+                : fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1);
 
         ReportBuilder subreportBuilder = new ReportBuilder("Subreport_" + fieldName)
-                .withMargins(0, 0, 0, 0)
+                .withTitle(subreportTitle)
                 .setForSubreport(true);
 
         addDefaultStyles(subreportBuilder);
 
-        for (String subfieldName : structure.getFields()) {
-            subreportBuilder.addColumn(createColumn(subfieldName, structure.getFieldTypes().get(subfieldName)));
+        boolean isSelectiveMode = !config.getColumns().isEmpty();
+
+        if (isSelectiveMode) {
+            for (ColumnDefinition colDef : config.getColumns()) {
+                if (colDef.getVisible() != null && !colDef.getVisible()) continue;
+
+                DataType dataType = structure.getFieldTypes().get(colDef.getField());
+                if (dataType == null) continue;
+
+                subreportBuilder.addColumn(new Column(
+                        colDef.getField(),
+                        colDef.getHeader(),
+                        colDef.getWidth() != null ? colDef.getWidth() : -1,
+                        dataType,
+                        colDef.getFormat(),
+                        colDef.getReportCalculation(),
+                        colDef.getGroupCalculation(),
+                        dataType.isNumeric() ? ReportStyles.NUMERIC_STYLE : ReportStyles.DATA_STYLE
+                ));
+            }
+        } else {
+            for (String subfieldName : structure.getFields()) {
+                subreportBuilder.addColumn(createColumn(subfieldName, structure.getFieldTypes().get(subfieldName)));
+            }
         }
 
         return subreportBuilder.build();
@@ -287,8 +311,8 @@ public class JsonReportGenerator {
         builder.addStyle(new Style(ReportStyles.HEADER_STYLE).withFont(ReportStyles.FONT_DEJAVU_SANS, 10, true).withColors(ReportStyles.COLOR_WHITE, ReportStyles.COLOR_PRIMARY_BACKGROUND).withAlignment("Center", "Middle").withBorders(1f, ReportStyles.COLOR_BLACK).withPadding(3))
                 .addStyle(new Style(ReportStyles.DATA_STYLE).withFont(ReportStyles.FONT_DEJAVU_SANS, 7, false).withColors(ReportStyles.COLOR_BLACK, null).withAlignment("Left", "Middle").withBorders(0.5f, ReportStyles.COLOR_TABLE_BORDER).withPadding(3))
                 .addStyle(new Style(ReportStyles.NUMERIC_STYLE).withFont(ReportStyles.FONT_DEJAVU_SANS, 7, false).withColors(ReportStyles.COLOR_BLACK, null).withAlignment("Right", "Middle").withBorders(0.5f, ReportStyles.COLOR_TABLE_BORDER).withPadding(3))
-                .addStyle(new Style(ReportStyles.GROUP_STYLE_1).withFont(ReportStyles.FONT_DEJAVU_SANS, 9, true).withColors(ReportStyles.COLOR_WHITE, ReportStyles.COLOR_SECONDARY_BACKGROUND).withAlignment("Left", "Middle").withBorders(0.5f, ReportStyles.COLOR_BLACK).withPadding(3))
-                .addStyle(new Style(ReportStyles.GROUP_STYLE_2).withFont(ReportStyles.FONT_DEJAVU_SANS, 8, false).withColors(ReportStyles.COLOR_BLACK, ReportStyles.COLOR_GROUP_BACKGROUND).withAlignment("Left", "Middle").withBorders(0.5f, ReportStyles.COLOR_BLACK).withPadding(3));
+                .addStyle(new Style(ReportStyles.GROUP_STYLE_1).withFont(ReportStyles.FONT_DEJAVU_SANS, 7, true).withColors(ReportStyles.COLOR_WHITE, ReportStyles.COLOR_SECONDARY_BACKGROUND).withAlignment("Left", "Middle").withBorders(0.5f, ReportStyles.COLOR_BLACK).withPadding(3))
+                .addStyle(new Style(ReportStyles.GROUP_STYLE_2).withFont(ReportStyles.FONT_DEJAVU_SANS, 7, false).withColors(ReportStyles.COLOR_BLACK, ReportStyles.COLOR_GROUP_BACKGROUND).withAlignment("Left", "Middle").withBorders(0.5f, ReportStyles.COLOR_BLACK).withPadding(3));
     }
 
     private List<Map<String, Object>> convertJsonArrayToList(JsonNode arrayNode) {

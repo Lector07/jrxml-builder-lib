@@ -5,13 +5,15 @@ public class Group {
     private final String headerExpression;
     private String styleName;
     private boolean showGroupFooter;
+    private final boolean showHeader;
 
 
-    public Group(String fieldName, String headerExpression, String styleName, boolean showGroupFooter) {
+    public Group(String fieldName, String headerExpression, String styleName, boolean showGroupFooter, boolean showHeader) {
         this.fieldName = fieldName;
         this.headerExpression = headerExpression;
         this.styleName = styleName;
         this.showGroupFooter = showGroupFooter;
+        this.showHeader = showHeader;
     }
 
     public Group withHeaderStyle(String styleName) {
@@ -45,6 +47,6 @@ public class Group {
     }
 
     public boolean isShowGroupHeader() {
-        return true;
+        return showHeader;
     }
 }

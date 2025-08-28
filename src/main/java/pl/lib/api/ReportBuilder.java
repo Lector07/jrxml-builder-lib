@@ -214,7 +214,6 @@ public class ReportBuilder {
 
     private void buildTitleBand() {
         if (isForSubreport) {
-            // Brak sekcji tytułu dla podraportów
             jasperDesign.setTitle(null);
             return;
         }
@@ -255,7 +254,7 @@ public class ReportBuilder {
         if (columns.stream().allMatch(c -> c.getWidth() == 0)) return;
 
         JRDesignBand columnHeaderBand = new JRDesignBand();
-        columnHeaderBand.setHeight(30);
+        columnHeaderBand.setHeight(25);
         int currentX = 0;
         for (Column column : columns) {
             if (column.getWidth() == 0) continue;
@@ -300,7 +299,7 @@ public class ReportBuilder {
 
         for (Subreport subreport : subreports) {
             JRDesignBand subreportBand = new JRDesignBand();
-            subreportBand.setHeight(40);
+            subreportBand.setHeight(0);
             JRDesignSubreport jrSubreport = new JRDesignSubreport(jasperDesign);
             jrSubreport.setX(0);
             jrSubreport.setY(0);
@@ -354,9 +353,9 @@ public class ReportBuilder {
 
             if (group.isShowGroupHeader()) {
                 JRDesignBand groupHeaderBand = new JRDesignBand();
-                groupHeaderBand.setHeight(22);
+                groupHeaderBand.setHeight(20);
                 int indentation = i * indentationStep;
-                JRDesignTextField groupHeaderField = createTextField(group.getHeaderExpression(), indentation, 0, jasperDesign.getColumnWidth() - indentation, 22, true, 8f);
+                JRDesignTextField groupHeaderField = createTextField(group.getHeaderExpression(), indentation, 0, jasperDesign.getColumnWidth() - indentation, 20, true, 8f);
                 groupHeaderField.setStyle((JRStyle) jasperDesign.getStylesMap().get(group.getStyleName()));
                 groupHeaderBand.addElement(groupHeaderField);
                 ((JRDesignSection) jrGroup.getGroupHeaderSection()).addBand(groupHeaderBand);
@@ -364,13 +363,13 @@ public class ReportBuilder {
 
             if (group.isShowGroupFooter()) {
                 JRDesignBand groupFooterBand = new JRDesignBand();
-                groupFooterBand.setHeight(22);
+                groupFooterBand.setHeight(20);
                 int currentX = 0;
                 for (Column column : columns) {
                     if (column.getWidth() == 0) continue;
                     if (column.hasGroupCalculation() && column.getGroupCalculation().isActive()) {
                         String variableName = column.getFieldName() + "_" + groupName + "_SUM";
-                        JRDesignTextField sumField = createTextField("$V{" + variableName + "}", currentX, 0, column.getWidth(), 22, true, 7f);
+                        JRDesignTextField sumField = createTextField("$V{" + variableName + "}", currentX, 0, column.getWidth(), 20, true, 7f);
                         sumField.setBackcolor(new Color(224, 224, 224, 150));
                         sumField.setMode(ModeEnum.OPAQUE);
                         sumField.setStyle((JRStyle) jasperDesign.getStylesMap().get(ReportStyles.NUMERIC_STYLE));
@@ -433,14 +432,14 @@ public class ReportBuilder {
         if (!hasReportCalculation) return;
 
         JRDesignBand summaryBand = new JRDesignBand();
-        summaryBand.setHeight(30);
+        summaryBand.setHeight(20);
 
         JRDesignStaticText summaryLabel = new JRDesignStaticText();
         summaryLabel.setText("Total Summary:");
         summaryLabel.setX(0);
-        summaryLabel.setY(5);
+        summaryLabel.setY(2);
         summaryLabel.setWidth(200);
-        summaryLabel.setHeight(20);
+        summaryLabel.setHeight(18);
         summaryLabel.setBold(true);
         summaryLabel.setFontSize(10f);
         summaryLabel.setHorizontalTextAlign(HorizontalTextAlignEnum.LEFT);
@@ -451,7 +450,7 @@ public class ReportBuilder {
             if (column.getWidth() == 0) continue;
             if (column.hasReportCalculation() && column.getReportCalculation().isActive()) {
                 String variableName = column.getFieldName() + "_REPORT_SUM";
-                JRDesignTextField summaryField = createTextField("$V{" + variableName + "}", currentX, 5, column.getWidth(), 20, true, 9f);
+                JRDesignTextField summaryField = createTextField("$V{" + variableName + "}", currentX, 2, column.getWidth(), 18, false, 7f);
                 summaryField.setBackcolor(Color.decode(ReportStyles.COLOR_TABLE_HEADER_BACKGROUND));
                 summaryField.setMode(ModeEnum.OPAQUE);
                 summaryField.setStyle((JRStyle) jasperDesign.getStylesMap().get(ReportStyles.NUMERIC_STYLE));

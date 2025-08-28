@@ -63,7 +63,7 @@ class ReportBuilderTest {
     @Test
     void testAddGroup_DeclaresGroupAndField() throws JRException {
         // Język raportu to Java, więc składamy napis operatorem + i używamy cudzysłowów.
-        reportBuilder.addGroup(new Group("category", "\"Category: \" + $F{category}", null, false));
+        reportBuilder.addGroup(new Group("category", "\"Category: \" + $F{category}", null, false, true));
         JasperReport report = reportBuilder.build();
 
         assertNotNull(findGroup(report, "Group_category"), "Group 'Group_category' should be created.");
@@ -131,7 +131,7 @@ class ReportBuilderTest {
     void testDeclareVariables_CreatesSumVariables() throws JRException {
         reportBuilder.addColumn(new Column("amount", "Amount", 100, DataType.BIG_DECIMAL, null, Calculation.SUM, Calculation.SUM));
         // Używamy stałego napisu jako prawidłowego wyrażenia Java.
-        reportBuilder.addGroup(new Group("category", "\"Category\"", null, true));
+        reportBuilder.addGroup(new Group("category", "\"Category\"", null, true, true));
 
         JasperReport report = reportBuilder.build();
 
