@@ -1,5 +1,7 @@
 package pl.lib.config;
 
+import pl.lib.model.Calculation;
+
 import java.util.Objects;
 
 public class ColumnDefinition {
@@ -7,12 +9,22 @@ public class ColumnDefinition {
     private final String header;
     private final Integer width;
     private final String format;
+    private final Calculation reportCalculation;
+    private final Calculation groupCalculation;
+    private final Boolean visible;
 
     private ColumnDefinition(Builder builder) {
         this.field = Objects.requireNonNull(builder.field, "field");
         this.header = builder.header != null ? builder.header : this.field;
         this.width = builder.width;
         this.format = builder.format;
+        this.reportCalculation = builder.reportCalculation;
+        this.groupCalculation = builder.groupCalculation;
+        this.visible = builder.visible;
+    }
+
+    public boolean isVisible() {
+        return visible;
     }
 
     public String getField() {
@@ -31,6 +43,18 @@ public class ColumnDefinition {
         return format;
     }
 
+    public Calculation getReportCalculation() {
+        return reportCalculation;
+    }
+
+    public Calculation getGroupCalculation() {
+        return groupCalculation;
+    }
+
+    public Boolean getVisible() {
+        return visible;
+    }
+
     public static Builder builder(String field) {
         return new Builder(field);
     }
@@ -40,6 +64,10 @@ public class ColumnDefinition {
         private String header;
         private Integer width;
         private String format;
+        private Calculation reportCalculation;
+        private Calculation groupCalculation;
+        private Boolean visible;
+
 
         public Builder(String field) {
             this.field = field;
@@ -57,6 +85,21 @@ public class ColumnDefinition {
 
         public Builder format(String format) {
             this.format = format;
+            return this;
+        }
+
+        public Builder reportCalculation(Calculation reportCalculation){
+            this.reportCalculation = reportCalculation;
+            return this;
+        }
+
+        public Builder groupCalculation(Calculation groupCalculation){
+            this.groupCalculation = groupCalculation;
+            return this;
+        }
+
+        public Builder visible(Boolean visible){
+            this.visible = visible;
             return this;
         }
 

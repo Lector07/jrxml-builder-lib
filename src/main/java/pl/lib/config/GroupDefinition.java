@@ -1,5 +1,7 @@
 package pl.lib.config;
 
+import pl.lib.model.Calculation;
+
 import java.util.Objects;
 
 
@@ -9,6 +11,10 @@ public class GroupDefinition {
     private final boolean ascending;
     private final boolean showHeader;
     private final boolean showFooter;
+    private final boolean showSummaryInHeader;
+    private final Calculation groupCalculation;
+
+
 
     private GroupDefinition(Builder builder) {
         this.field = Objects.requireNonNull(builder.field, "field");
@@ -16,6 +22,12 @@ public class GroupDefinition {
         this.ascending = builder.ascending;
         this.showHeader = builder.showHeader;
         this.showFooter = builder.showFooter;
+        this.showSummaryInHeader = builder.showSummaryInHeader;
+        this.groupCalculation = builder.groupCalculation;
+    }
+
+    public Calculation getGroupCalculation() {
+        return groupCalculation;
     }
 
     public String getField() {
@@ -38,6 +50,13 @@ public class GroupDefinition {
         return showFooter;
     }
 
+    public boolean isShowSummaryInHeader() {
+        return showSummaryInHeader;
+    }
+
+
+
+
     public static Builder builder(String field) {
         return new Builder(field);
     }
@@ -48,6 +67,9 @@ public class GroupDefinition {
         private boolean ascending = true;
         private boolean showHeader = true;
         private boolean showFooter = false;
+        private boolean showSummaryInHeader;
+        private Calculation groupCalculation;
+
 
         public Builder(String field) {
             this.field = field;
@@ -70,6 +92,16 @@ public class GroupDefinition {
 
         public Builder showFooter(boolean showFooter) {
             this.showFooter = showFooter;
+            return this;
+        }
+
+        public Builder showSummaryInHeader(boolean showSummaryInHeader) {
+            this.showSummaryInHeader = showSummaryInHeader;
+            return this;
+        }
+
+        public Builder groupCalculation(Calculation groupCalculation){
+            this.groupCalculation = groupCalculation;
             return this;
         }
 

@@ -3,33 +3,31 @@ package pl.lib.automation;
 import net.sf.jasperreports.engine.JRException;
 import net.sf.jasperreports.engine.JasperExportManager;
 import net.sf.jasperreports.engine.JasperPrint;
+import pl.lib.config.ReportConfig;
 
 import java.io.IOException;
 
 public class AutomatedReportService {
     private final JsonReportGenerator generator = new JsonReportGenerator();
 
-    public void generatePdfReportFromJson(String jsonContent, String reportTitle, String outputPath)
+    public void generatePdfReportFromJson(String jsonContent, ReportConfig config, String outputPath)
             throws JRException, IOException {
-        JasperPrint jasperPrint = generator.generateReportFromJson(jsonContent, reportTitle);
+        JasperPrint jasperPrint = generator.generateReportFromJson(jsonContent, config);
         JasperExportManager.exportReportToPdfFile(jasperPrint, outputPath);
     }
 
-    public void generatePdfReportFromJsonWithJrxml(String jsonContent, String reportTitle, String outputPath)
+
+    public void generatePdfReportFromJsonWithJrxml(String jsonContent, ReportConfig config, String outputPath)
             throws JRException, IOException {
         JsonReportGenerator generatorWithPrinting = new JsonReportGenerator().withJrxmlPrinting(true);
-        JasperPrint jasperPrint = generatorWithPrinting.generateReportFromJson(jsonContent, reportTitle);
+        JasperPrint jasperPrint = generatorWithPrinting.generateReportFromJson(jsonContent, config);
         JasperExportManager.exportReportToPdfFile(jasperPrint, outputPath);
     }
 
-    public JasperPrint generateReportFromJson(String jsonContent, String reportTitle)
+
+    public JasperPrint generateReportFromJson(String jsonContent, ReportConfig config)
             throws JRException, IOException {
-        return generator.generateReportFromJson(jsonContent, reportTitle);
+        return generator.generateReportFromJson(jsonContent, config);
     }
 
-    public JasperPrint generateReportFromJsonWithJrxml(String jsonContent, String reportTitle)
-            throws JRException, IOException {
-        JsonReportGenerator generatorWithPrinting = new JsonReportGenerator().withJrxmlPrinting(true);
-        return generatorWithPrinting.generateReportFromJson(jsonContent, reportTitle);
-    }
 }

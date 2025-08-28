@@ -43,4 +43,8 @@ public class Group {
     public boolean isShowGroupFooter() {
         return showGroupFooter;
     }
+
+    public boolean isShowGroupHeader() {
+        return true;
+    }
 }

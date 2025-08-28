@@ -1,3 +1,4 @@
+// Java
 package pl.lib.api;
 
 import net.sf.jasperreports.engine.*;
@@ -102,7 +103,6 @@ public class ReportBuilder {
 
     public JasperReport build() throws JRException {
         setupPage();
-        // FIX: Calculate final column widths before building any bands.
         calculateColumnWidths();
 
         buildStyles();
@@ -165,6 +165,7 @@ public class ReportBuilder {
 
     private void declareVariables() throws JRException {
         for (Column column : columns) {
+
             if (column.hasReportCalculation() && column.getReportCalculation().isActive()) {
                 String variableName = column.getFieldName() + "_REPORT_SUM";
                 if (jasperDesign.getVariablesMap().get(variableName) == null) {
@@ -177,16 +178,20 @@ public class ReportBuilder {
                     jasperDesign.addVariable(variable);
                 }
             }
-            for (Group group : this.groups) {
-                if (column.hasGroupCalculation() && column.getGroupCalculation().isActive()) {
+
+            if (column.hasGroupCalculation() && column.getGroupCalculation().isActive()) {
+                for (Group group : this.groups) {
                     String groupName = "Group_" + group.getFieldName();
                     String variableName = column.getFieldName() + "_" + groupName + "_SUM";
-                    if (jasperDesign.getVariablesMap().get(variableName) == null && jasperDesign.getGroupsMap().get(groupName) != null) {
+
+                    JRGroup jrGroup = jasperDesign.getGroupsMap().get(groupName);
+
+                    if (jrGroup != null && jasperDesign.getVariablesMap().get(variableName) == null) {
                         JRDesignVariable variable = new JRDesignVariable();
                         variable.setName(variableName);
                         variable.setValueClass(column.getType().getJavaClass());
                         variable.setResetType(ResetTypeEnum.GROUP);
-                        variable.setResetGroup((JRDesignGroup) jasperDesign.getGroupsMap().get(groupName));
+                        variable.setResetGroup(jrGroup);
                         variable.setCalculation(toJasperCalculation(column.getGroupCalculation()));
                         variable.setExpression(new JRDesignExpression("$F{" + column.getFieldName() + "}"));
                         jasperDesign.addVariable(variable);
@@ -201,31 +206,28 @@ public class ReportBuilder {
     }
 
     private void buildTitleBand() {
+        if (isForSubreport) {
+            // Brak sekcji tytułu dla podraportów
+            jasperDesign.setTitle(null);
+            return;
+        }
+
         int availableWidth = jasperDesign.getColumnWidth();
         JRDesignBand titleBand = new JRDesignBand();
+        titleBand.setHeight(80);
 
-        if (isForSubreport) {
-            titleBand.setHeight(40);
-            JRDesignTextField titleTextField = createTextField("$P{ReportTitle}", 0, 10, availableWidth, 25, true, 12f);
-            titleTextField.setForecolor(Color.decode(ReportStyles.COLOR_WHITE));
-            titleTextField.setBackcolor(Color.decode(ReportStyles.COLOR_PRIMARY_BACKGROUND));
-            titleTextField.setMode(ModeEnum.OPAQUE);
-            titleTextField.setHorizontalTextAlign(HorizontalTextAlignEnum.CENTER);
-            titleTextField.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
-            titleBand.addElement(titleTextField);
-        } else {
-            titleBand.setHeight(80);
-            titleBand.addElement(createTextField("$P{CompanyName}", 0, 0, availableWidth / 2, 18, true, 10f));
-            titleBand.addElement(createTextField("$P{CompanyAddress}", 0, 18, availableWidth / 2, 15, false, 9f));
-            titleBand.addElement(createTextField("$P{CompanyPostalCode} + \" \" + $P{CompanyCity}", 0, 33, availableWidth / 2, 15, false, 9f));
-            JRDesignTextField titleTextField = createTextField("$P{ReportTitle}", 0, 50, availableWidth, 25, true, 12f);
-            titleTextField.setForecolor(Color.decode(ReportStyles.COLOR_WHITE));
-            titleTextField.setBackcolor(Color.decode(ReportStyles.COLOR_PRIMARY_BACKGROUND));
-            titleTextField.setMode(ModeEnum.OPAQUE);
-            titleTextField.setHorizontalTextAlign(HorizontalTextAlignEnum.CENTER);
-            titleTextField.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
-            titleBand.addElement(titleTextField);
-        }
+        titleBand.addElement(createTextField("$P{CompanyName}", 0, 0, availableWidth / 2, 18, true, 10f));
+        titleBand.addElement(createTextField("$P{CompanyAddress}", 0, 18, availableWidth / 2, 15, false, 9f));
+        titleBand.addElement(createTextField("$P{CompanyPostalCode} + \" \" + $P{CompanyCity}", 0, 33, availableWidth / 2, 15, false, 9f));
+
+        JRDesignTextField titleTextField = createTextField("$P{ReportTitle}", 0, 50, availableWidth, 25, true, 12f);
+        titleTextField.setForecolor(Color.decode(ReportStyles.COLOR_WHITE));
+        titleTextField.setBackcolor(Color.decode(ReportStyles.COLOR_PRIMARY_BACKGROUND));
+        titleTextField.setMode(ModeEnum.OPAQUE);
+        titleTextField.setHorizontalTextAlign(HorizontalTextAlignEnum.CENTER);
+        titleTextField.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
+        titleBand.addElement(titleTextField);
+
         jasperDesign.setTitle(titleBand);
     }
 
@@ -329,7 +331,7 @@ public class ReportBuilder {
 
         if (!autoWidthColumns.isEmpty()) {
             int remainingWidth = availableWidth - fixedWidthTotal;
-            int autoColumnWidth = (remainingWidth > 0) ? remainingWidth / autoWidthColumns.size() : 100; // Default fallback width
+            int autoColumnWidth = (remainingWidth > 0) ? remainingWidth / autoWidthColumns.size() : 100;
             autoWidthColumns.forEach(c -> c.setWidth(autoColumnWidth));
         }
     }
@@ -343,13 +345,15 @@ public class ReportBuilder {
             jrGroup.setName(groupName);
             jrGroup.setExpression(new JRDesignExpression("$F{" + group.getFieldName() + "}"));
 
-            JRDesignBand groupHeaderBand = new JRDesignBand();
-            groupHeaderBand.setHeight(22);
-            int indentation = i * indentationStep;
-            JRDesignTextField groupHeaderField = createTextField(group.getHeaderExpression(), indentation, 0, jasperDesign.getColumnWidth() - indentation, 22, true, 8f);
-            groupHeaderField.setStyle((JRStyle) jasperDesign.getStylesMap().get(group.getStyleName()));
-            groupHeaderBand.addElement(groupHeaderField);
-            ((JRDesignSection) jrGroup.getGroupHeaderSection()).addBand(groupHeaderBand);
+            if (group.isShowGroupHeader()) {
+                JRDesignBand groupHeaderBand = new JRDesignBand();
+                groupHeaderBand.setHeight(22);
+                int indentation = i * indentationStep;
+                JRDesignTextField groupHeaderField = createTextField(group.getHeaderExpression(), indentation, 0, jasperDesign.getColumnWidth() - indentation, 22, true, 8f);
+                groupHeaderField.setStyle((JRStyle) jasperDesign.getStylesMap().get(group.getStyleName()));
+                groupHeaderBand.addElement(groupHeaderField);
+                ((JRDesignSection) jrGroup.getGroupHeaderSection()).addBand(groupHeaderBand);
+            }
 
             if (group.isShowGroupFooter()) {
                 JRDesignBand groupFooterBand = new JRDesignBand();
@@ -360,7 +364,7 @@ public class ReportBuilder {
                     if (column.hasGroupCalculation() && column.getGroupCalculation().isActive()) {
                         String variableName = column.getFieldName() + "_" + groupName + "_SUM";
                         JRDesignTextField sumField = createTextField("$V{" + variableName + "}", currentX, 0, column.getWidth(), 22, true, 7f);
-                        sumField.setBackcolor(ReportStyles.FOOTER_BACKGROUND_COLOR);
+                        sumField.setBackcolor(new Color(224, 224, 224, 150));
                         sumField.setMode(ModeEnum.OPAQUE);
                         sumField.setStyle((JRStyle) jasperDesign.getStylesMap().get(ReportStyles.NUMERIC_STYLE));
                         if (column.hasPattern()) {

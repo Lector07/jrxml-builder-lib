@@ -27,7 +27,6 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- Zależności JasperReports -->
         <dependency>
             <groupId>net.sf.jasperreports</groupId>
             <artifactId>jasperreports</artifactId>
@@ -39,7 +38,6 @@
             <version>${jasperreports.version}</version>
         </dependency>
 
-        <!-- Zależności Jackson (dla źródeł danych JSON w JasperReports) -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-core</artifactId>

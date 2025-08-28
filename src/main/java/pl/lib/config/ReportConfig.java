@@ -17,9 +17,6 @@ public class ReportConfig {
         this.columns = Collections.unmodifiableList(new ArrayList<>(builder.columns));
         this.groups = Collections.unmodifiableList(new ArrayList<>(builder.groups));
 
-        if (this.columns.isEmpty()) {
-            throw new IllegalStateException("ReportConfig musi zawierać co najmniej jedną kolumnę.");
-        }
     }
 
     public String getTitle() {
