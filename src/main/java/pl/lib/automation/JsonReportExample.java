@@ -25,6 +25,17 @@ public class JsonReportExample {
                     .taxId("8130335217")
                     .build();
 
+            ReportConfig subreportConfig = new ReportConfig.Builder()
+                    .title("Szczegóły zmian")
+                    .withSubreportBorders(true)
+                    .addColumn(ColumnDefinition.builder("resolutionName").header("Uchwała/Zarządzenie").build())
+                    .addColumn(ColumnDefinition.builder("resolutionDate").header("Data").format("yyyy-MM-dd").build())
+                    .addColumn(ColumnDefinition.builder("increaseAmount").header("Zwiększenie").format("#,##0.00").build())
+                    .addColumn(ColumnDefinition.builder("reductionAmount").header("Zmniejszenie").format("#,##0.00").build())
+                    .addColumn(ColumnDefinition.builder("isBoChange").visible(false).build())
+                    .addColumn(ColumnDefinition.builder("resolutionId").visible(false).build())
+                    .build();
+
             ReportConfig config = new ReportConfig.Builder()
                     .title("Plans")
 
@@ -33,6 +44,7 @@ public class JsonReportExample {
                     .addColumn(ColumnDefinition.builder("origin").visible(false).build())
                     .addColumn(ColumnDefinition.builder("financingSegment").visible(false).build())
                     .addColumn(ColumnDefinition.builder("paragraphGroup").visible(false).build())
+                    .addColumn(ColumnDefinition.builder("unitSymbol").header("Sekcja").visible(false).build())
 
 
                     .addColumn(ColumnDefinition.builder("classificationName").header("Nazwa").build())
@@ -55,14 +67,15 @@ public class JsonReportExample {
                             .groupCalculation(Calculation.SUM)
                             .build())
 
-                    .addGroup(GroupDefinition.builder("paragraphGroup").showFooter(true).build())
-                    .addGroup(GroupDefinition.builder("origin").showFooter(true).build())
                     .addGroup(GroupDefinition.builder("sectionSegment")
                             .label("\"Dział: \" + $F{sectionSegment}")
                             .showFooter(true)
                             .build())
                     .addGroup(GroupDefinition.builder("chapterSegment").showFooter(true).build())
+                    .addGroup(GroupDefinition.builder("paragraphGroup").showFooter(true).build())
+                    .addGroup(GroupDefinition.builder("origin").showFooter(true).build())
                     .companyInfo(companyInfo)
+                    .withSubreportConfig("resolutionElements", subreportConfig)
                     .build();
 
             System.out.println("Generating automatic report with JRXML in console...");

@@ -37,7 +37,6 @@ public final class Subreport {
         return new Subreport(this.targetBand, this.subreport, this.dataSourceExpression, this.subreportObjectParameterName, name);
     }
 
-    // Gettery
     public String getTargetBand() { return targetBand; }
     public JasperReport getSubreport() { return subreport; }
     public String getDataSourceExpression() { return dataSourceExpression; }

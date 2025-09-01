@@ -247,37 +247,34 @@ public class JsonReportGenerator {
         ReportBuilder subreportBuilder = new ReportBuilder("Subreport_" + fieldName)
                 .withTitle(subreportTitle)
                 .setForSubreport(true)
-                .withMargins(2, 0, 2, 0);
+                .withMargins(4, 0, 4, 0);
 
         addDefaultStyles(subreportBuilder);
 
-        boolean isSelectiveMode = !config.getColumns().isEmpty();
+        Map<String, ColumnDefinition> columnConfigMap = config.getColumns().stream()
+                .collect(Collectors.toMap(ColumnDefinition::getField, def -> def));
 
-        if (isSelectiveMode) {
-            for (ColumnDefinition colDef : config.getColumns()) {
-                if (colDef.getVisible() != null && !colDef.getVisible()) continue;
+        for (String subfieldName : structure.getFields()) {
+            ColumnDefinition colDef = columnConfigMap.get(subfieldName);
 
-                DataType dataType = structure.getFieldTypes().get(colDef.getField());
-                if (dataType == null) continue;
-
-                String styleName = dataType.isNumeric() ? ReportStyles.NUMERIC_STYLE : ReportStyles.DATA_STYLE;
-
-                subreportBuilder.addColumn(new Column(
-                        colDef.getField(),
-                        colDef.getHeader(),
-                        colDef.getWidth() != null ? colDef.getWidth() : -1,
-                        dataType,
-                        colDef.getFormat(),
-                        colDef.getReportCalculation(),
-                        colDef.getGroupCalculation(),
-                        styleName,
-                        config.isUseSubreportBorders()
-                ));
+            if (colDef != null && colDef.getVisible() != null && !colDef.getVisible()) {
+                continue;
             }
-        } else {
-            for (String subfieldName : structure.getFields()) {
-                subreportBuilder.addColumn(createColumn(subfieldName, structure.getFieldTypes().get(subfieldName)));
+
+            DataType dataType = structure.getFieldTypes().get(subfieldName);
+            if (dataType == null) {
+                continue;
             }
+
+            Column defaultColumn = createColumn(subfieldName, dataType);
+
+            String header = (colDef != null && colDef.getHeader() != null) ? colDef.getHeader() : defaultColumn.getTitle();
+            int width = (colDef != null && colDef.getWidth() != null) ? colDef.getWidth() : defaultColumn.getWidth();
+            String format = (colDef != null && colDef.getFormat() != null) ? colDef.getFormat() : defaultColumn.getPattern();
+            Calculation reportCalc = (colDef != null && colDef.getReportCalculation() != null) ? colDef.getReportCalculation() : defaultColumn.getReportCalculation();
+            Calculation groupCalc = (colDef != null && colDef.getGroupCalculation() != null) ? colDef.getGroupCalculation() : defaultColumn.getGroupCalculation();
+
+            subreportBuilder.addColumn(new Column(subfieldName, header, width, dataType, format, reportCalc, groupCalc, defaultColumn.getStyleName(), config.isUseSubreportBorders()));
         }
 
         return subreportBuilder.build();
@@ -296,7 +293,7 @@ public class JsonReportGenerator {
             styleName = ReportStyles.NUMERIC_STYLE;
             reportCalc = Calculation.SUM;
             groupCalc = Calculation.SUM;
-            width = 80;
+            width = 82;
         } else if (dataType == DataType.DATE) {
             pattern = ReportStyles.DATE_PATTERN;
             width = 70;
@@ -308,11 +305,17 @@ public class JsonReportGenerator {
     }
 
     private void addDefaultStyles(ReportBuilder builder) {
-        builder.addStyle(new Style(ReportStyles.HEADER_STYLE).withFont(ReportStyles.FONT_DEJAVU_SANS, 8, true).withColors(ReportStyles.COLOR_WHITE, ReportStyles.COLOR_PRIMARY_BACKGROUND).withAlignment("Center", "Middle").withBorders(1f, ReportStyles.COLOR_BLACK).withPadding(3))
-                .addStyle(new Style(ReportStyles.DATA_STYLE).withFont(ReportStyles.FONT_DEJAVU_SANS, 7, false).withColors(ReportStyles.COLOR_BLACK, null).withAlignment("Left", "Middle").withBorders(0.5f, ReportStyles.COLOR_TABLE_BORDER).withPadding(3))
-                .addStyle(new Style(ReportStyles.NUMERIC_STYLE).withFont(ReportStyles.FONT_DEJAVU_SANS, 7, false).withColors(ReportStyles.COLOR_BLACK, null).withAlignment("Right", "Middle").withBorders(0.5f, ReportStyles.COLOR_TABLE_BORDER).withPadding(3))
-                .addStyle(new Style(ReportStyles.GROUP_STYLE_1).withFont(ReportStyles.FONT_DEJAVU_SANS, 7, true).withColors(ReportStyles.COLOR_WHITE, ReportStyles.COLOR_SECONDARY_BACKGROUND).withAlignment("Left", "Middle").withBorders(0.5f, ReportStyles.COLOR_BLACK).withPadding(3))
-                .addStyle(new Style(ReportStyles.GROUP_STYLE_2).withFont(ReportStyles.FONT_DEJAVU_SANS, 7, false).withColors(ReportStyles.COLOR_BLACK, ReportStyles.COLOR_GROUP_BACKGROUND).withAlignment("Left", "Middle").withBorders(0.5f, ReportStyles.COLOR_BLACK).withPadding(3));
+        String COLOR_HEADER_BACK = "#C6D8E4";
+        String COLOR_GROUP_BACK = "#F0F0F0";
+        String COLOR_HEADER_BORDER = "#DDDDDD";
+        String COLOR_CELL_BORDER = "#D6D6D6";
+        String COLOR_TEXT_BLACK = "#000000";
+
+        builder.addStyle(new Style(ReportStyles.HEADER_STYLE).withFont(ReportStyles.FONT_DEJAVU_SANS, 7, true).withColors(COLOR_TEXT_BLACK, COLOR_HEADER_BACK).withAlignment("Center", "Middle").withBorders(1f, COLOR_HEADER_BORDER).withPadding(3))
+                .addStyle(new Style(ReportStyles.DATA_STYLE).withFont(ReportStyles.FONT_DEJAVU_SANS, 7, false).withColors(COLOR_TEXT_BLACK, null).withAlignment("Left", "Middle").withBorders(0.5f, COLOR_CELL_BORDER).withPadding(3))
+                .addStyle(new Style(ReportStyles.NUMERIC_STYLE).withFont(ReportStyles.FONT_DEJAVU_SANS, 7, false).withColors(COLOR_TEXT_BLACK, null).withAlignment("Right", "Middle").withBorders(0.5f, COLOR_CELL_BORDER).withPadding(3))
+                .addStyle(new Style(ReportStyles.GROUP_STYLE_1).withFont(ReportStyles.FONT_DEJAVU_SANS, 7, true).withColors(COLOR_TEXT_BLACK, COLOR_GROUP_BACK).withAlignment("Left", "Middle").withBorders(0.5f, COLOR_CELL_BORDER).withPadding(3))
+                .addStyle(new Style(ReportStyles.GROUP_STYLE_2).withFont(ReportStyles.FONT_DEJAVU_SANS, 7, false).withColors(COLOR_TEXT_BLACK, COLOR_GROUP_BACK).withAlignment("Left", "Middle").withBorders(0.5f, COLOR_CELL_BORDER).withPadding(3));
     }
 
     private List<Map<String, Object>> convertJsonArrayToList(JsonNode arrayNode) {
