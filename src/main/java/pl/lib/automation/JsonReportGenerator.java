@@ -145,15 +145,11 @@ public class JsonReportGenerator {
     private JasperReport createMainReport(ReportBuilder builder, ReportStructure structure,
                                           Map<String, JasperReport> compiledSubreports, ReportConfig config) throws JRException {
 
-        CompanyInfo companyInfo = new CompanyInfo("BIURO USŁUG KOMPUTEROWYCH \"SOFTRES\" SP Z O.O")
-                .withAddress("ul. Zaciszna 44")
-                .withLocation("35-326", "Rzeszów")
-                .withTaxId("8130335217");
-
         builder.withTitle(config.getTitle())
                 .withHorizontalLayout()
                 .withMargins(20, 20, 20, 20)
-                .withCompanyInfo(companyInfo).withPageFooter(true);
+                .withCompanyInfo(config.getCompanyInfo())
+                .withPageFooter(true);
 
         addDefaultStyles(builder);
 
@@ -250,7 +246,8 @@ public class JsonReportGenerator {
 
         ReportBuilder subreportBuilder = new ReportBuilder("Subreport_" + fieldName)
                 .withTitle(subreportTitle)
-                .setForSubreport(true);
+                .setForSubreport(true)
+                .withMargins(2, 0, 2, 0);
 
         addDefaultStyles(subreportBuilder);
 
@@ -263,6 +260,8 @@ public class JsonReportGenerator {
                 DataType dataType = structure.getFieldTypes().get(colDef.getField());
                 if (dataType == null) continue;
 
+                String styleName = dataType.isNumeric() ? ReportStyles.NUMERIC_STYLE : ReportStyles.DATA_STYLE;
+
                 subreportBuilder.addColumn(new Column(
                         colDef.getField(),
                         colDef.getHeader(),
@@ -271,7 +270,8 @@ public class JsonReportGenerator {
                         colDef.getFormat(),
                         colDef.getReportCalculation(),
                         colDef.getGroupCalculation(),
-                        dataType.isNumeric() ? ReportStyles.NUMERIC_STYLE : ReportStyles.DATA_STYLE
+                        styleName,
+                        config.isUseSubreportBorders()
                 ));
             }
         } else {
@@ -308,7 +308,7 @@ public class JsonReportGenerator {
     }
 
     private void addDefaultStyles(ReportBuilder builder) {
-        builder.addStyle(new Style(ReportStyles.HEADER_STYLE).withFont(ReportStyles.FONT_DEJAVU_SANS, 10, true).withColors(ReportStyles.COLOR_WHITE, ReportStyles.COLOR_PRIMARY_BACKGROUND).withAlignment("Center", "Middle").withBorders(1f, ReportStyles.COLOR_BLACK).withPadding(3))
+        builder.addStyle(new Style(ReportStyles.HEADER_STYLE).withFont(ReportStyles.FONT_DEJAVU_SANS, 8, true).withColors(ReportStyles.COLOR_WHITE, ReportStyles.COLOR_PRIMARY_BACKGROUND).withAlignment("Center", "Middle").withBorders(1f, ReportStyles.COLOR_BLACK).withPadding(3))
                 .addStyle(new Style(ReportStyles.DATA_STYLE).withFont(ReportStyles.FONT_DEJAVU_SANS, 7, false).withColors(ReportStyles.COLOR_BLACK, null).withAlignment("Left", "Middle").withBorders(0.5f, ReportStyles.COLOR_TABLE_BORDER).withPadding(3))
                 .addStyle(new Style(ReportStyles.NUMERIC_STYLE).withFont(ReportStyles.FONT_DEJAVU_SANS, 7, false).withColors(ReportStyles.COLOR_BLACK, null).withAlignment("Right", "Middle").withBorders(0.5f, ReportStyles.COLOR_TABLE_BORDER).withPadding(3))
                 .addStyle(new Style(ReportStyles.GROUP_STYLE_1).withFont(ReportStyles.FONT_DEJAVU_SANS, 7, true).withColors(ReportStyles.COLOR_WHITE, ReportStyles.COLOR_SECONDARY_BACKGROUND).withAlignment("Left", "Middle").withBorders(0.5f, ReportStyles.COLOR_BLACK).withPadding(3))

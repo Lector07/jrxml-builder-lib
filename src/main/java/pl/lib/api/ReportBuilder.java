@@ -279,32 +279,39 @@ public class ReportBuilder {
     private void buildDetailBand() throws JRException {
         JRDesignSection detailSection = (JRDesignSection) jasperDesign.getDetailSection();
 
-        JRDesignBand dataBand = new JRDesignBand();
-        dataBand.setHeight(20);
-        int currentX = 0;
-        for (Column column : columns) {
-            if (column.getWidth() == 0) continue;
-            JRDesignTextField dataField = createTextField("$F{" + column.getFieldName() + "}", currentX, 0, column.getWidth(), 20, false, 7f);
-            dataField.setStyle((JRStyle) jasperDesign.getStylesMap().get(column.getStyleName()));
-            dataField.setStretchWithOverflow(true);
-            dataField.setStretchType(StretchTypeEnum.RELATIVE_TO_TALLEST_OBJECT);
-            dataField.setBlankWhenNull(true);
-            if (column.hasPattern()) {
-                dataField.setPattern(column.getPattern());
+        // Only add data band if there are visible columns
+        if (columns.stream().anyMatch(c -> c.getWidth() != 0)) {
+            JRDesignBand dataBand = new JRDesignBand();
+            dataBand.setHeight(20);
+            int currentX = 0;
+            for (Column column : columns) {
+                if (column.getWidth() == 0) continue;
+                JRDesignTextField dataField = createTextField("$F{" + column.getFieldName() + "}", currentX, 0, column.getWidth(), 20, false, 7f);
+                dataField.setStyle((JRStyle) jasperDesign.getStylesMap().get(column.getStyleName()));
+                dataField.setStretchWithOverflow(true);
+                dataField.setStretchType(StretchTypeEnum.RELATIVE_TO_TALLEST_OBJECT);
+                dataField.setBlankWhenNull(true);
+                if (column.hasPattern()) {
+                    dataField.setPattern(column.getPattern());
+                }
+                dataBand.addElement(dataField);
+                currentX += column.getWidth();
             }
-            dataBand.addElement(dataField);
-            currentX += column.getWidth();
+            detailSection.addBand(dataBand);
         }
-        detailSection.addBand(dataBand);
 
         for (Subreport subreport : subreports) {
             JRDesignBand subreportBand = new JRDesignBand();
-            subreportBand.setHeight(0);
+            subreportBand.setHeight(1);
             JRDesignSubreport jrSubreport = new JRDesignSubreport(jasperDesign);
-            jrSubreport.setX(0);
+
+            int mainReportWidth = jasperDesign.getColumnWidth();
+            int subreportWidth = subreport.getSubreport().getColumnWidth();
+
+            jrSubreport.setX(mainReportWidth - subreportWidth);
             jrSubreport.setY(0);
-            jrSubreport.setWidth(jasperDesign.getColumnWidth());
-            jrSubreport.setHeight(subreportBand.getHeight());
+            jrSubreport.setWidth(subreportWidth);
+            jrSubreport.setHeight(1);
             jrSubreport.setExpression(new JRDesignExpression("$P{" + subreport.getSubreportObjectParameterName() + "}"));
 
             try {
@@ -329,16 +336,53 @@ public class ReportBuilder {
         return param;
     }
 
-    private void calculateColumnWidths() {
-        int availableWidth = jasperDesign.getColumnWidth();
-        List<Column> visibleColumns = columns.stream().filter(c -> c.getWidth() != 0).collect(Collectors.toList());
-        List<Column> autoWidthColumns = visibleColumns.stream().filter(c -> c.getWidth() < 0).collect(Collectors.toList());
-        int fixedWidthTotal = visibleColumns.stream().filter(c -> c.getWidth() > 0).mapToInt(Column::getWidth).sum();
 
-        if (!autoWidthColumns.isEmpty()) {
-            int remainingWidth = availableWidth - fixedWidthTotal;
-            int autoColumnWidth = (remainingWidth > 0) ? remainingWidth / autoWidthColumns.size() : 100;
-            autoWidthColumns.forEach(c -> c.setWidth(autoColumnWidth));
+    private void calculateColumnWidths() {
+        if (isForSubreport) {
+            List<Column> updatedColumns = new ArrayList<>();
+            int totalWidth = 0;
+            for (Column c : this.columns) {
+                if (c.getWidth() == 0) { // skip invisible
+                    updatedColumns.add(c);
+                    continue;
+                }
+                int colWidth = c.getWidth();
+                if (colWidth < 0) { // auto-width
+                    DataType type = c.getType();
+                    if (type.isNumeric()) colWidth = 80;
+                    else if (type == DataType.DATE) colWidth = 70;
+                    else if (type == DataType.BOOLEAN) colWidth = 50;
+                    else colWidth = 100; // default for string
+                }
+                totalWidth += colWidth;
+                updatedColumns.add(c.withWidth(colWidth));
+            }
+            this.columns.clear();
+            this.columns.addAll(updatedColumns);
+
+            jasperDesign.setPageWidth(totalWidth);
+            jasperDesign.setColumnWidth(totalWidth);
+        } else {
+            int availableWidth = jasperDesign.getColumnWidth();
+            List<Column> visibleColumns = columns.stream().filter(c -> c.getWidth() != 0).collect(Collectors.toList());
+            List<Column> autoWidthColumns = visibleColumns.stream().filter(c -> c.getWidth() < 0).collect(Collectors.toList());
+            int fixedWidthTotal = visibleColumns.stream().filter(c -> c.getWidth() > 0).mapToInt(Column::getWidth).sum();
+
+            if (!autoWidthColumns.isEmpty()) {
+                int remainingWidth = availableWidth - fixedWidthTotal;
+                int autoColumnWidth = (remainingWidth > 0) ? remainingWidth / autoWidthColumns.size() : 100;
+
+                List<Column> updatedColumns = new ArrayList<>();
+                for (Column c : this.columns) {
+                    if (c.getWidth() < 0) {
+                        updatedColumns.add(c.withWidth(autoColumnWidth));
+                    } else {
+                        updatedColumns.add(c);
+                    }
+                }
+                this.columns.clear();
+                this.columns.addAll(updatedColumns);
+            }
         }
     }
 
@@ -351,37 +395,52 @@ public class ReportBuilder {
             jrGroup.setName(groupName);
             jrGroup.setExpression(new JRDesignExpression("$F{" + group.getFieldName() + "}"));
 
+            jrGroup.setMinHeightToStartNewPage(21);
+
             if (group.isShowGroupHeader()) {
                 JRDesignBand groupHeaderBand = new JRDesignBand();
                 groupHeaderBand.setHeight(20);
                 int indentation = i * indentationStep;
-                JRDesignTextField groupHeaderField = createTextField(group.getHeaderExpression(), indentation, 0, jasperDesign.getColumnWidth() - indentation, 20, true, 8f);
-                groupHeaderField.setStyle((JRStyle) jasperDesign.getStylesMap().get(group.getStyleName()));
-                groupHeaderBand.addElement(groupHeaderField);
-                ((JRDesignSection) jrGroup.getGroupHeaderSection()).addBand(groupHeaderBand);
-            }
 
-            if (group.isShowGroupFooter()) {
-                JRDesignBand groupFooterBand = new JRDesignBand();
-                groupFooterBand.setHeight(20);
+                int firstSumColumnX = jasperDesign.getColumnWidth();
                 int currentX = 0;
                 for (Column column : columns) {
                     if (column.getWidth() == 0) continue;
                     if (column.hasGroupCalculation() && column.getGroupCalculation().isActive()) {
-                        String variableName = column.getFieldName() + "_" + groupName + "_SUM";
-                        JRDesignTextField sumField = createTextField("$V{" + variableName + "}", currentX, 0, column.getWidth(), 20, true, 7f);
-                        sumField.setBackcolor(new Color(224, 224, 224, 150));
-                        sumField.setMode(ModeEnum.OPAQUE);
-                        sumField.setStyle((JRStyle) jasperDesign.getStylesMap().get(ReportStyles.NUMERIC_STYLE));
-                        if (column.hasPattern()) {
-                            sumField.setPattern(column.getPattern());
-                        }
-                        groupFooterBand.addElement(sumField);
+                        firstSumColumnX = currentX;
+                        break;
                     }
                     currentX += column.getWidth();
                 }
-                ((JRDesignSection) jrGroup.getGroupFooterSection()).addBand(groupFooterBand);
+
+                int labelWidth = Math.max(0, firstSumColumnX - indentation);
+                if (labelWidth > 0) {
+                    JRDesignTextField groupHeaderField = createTextField(group.getHeaderExpression(), indentation, 0, labelWidth, 20, true, 8f);
+                    groupHeaderField.setStyle((JRStyle) jasperDesign.getStylesMap().get(group.getStyleName()));
+                    groupHeaderBand.addElement(groupHeaderField);
+                }
+
+                if (group.isShowGroupFooter()) {
+                    currentX = 0;
+                    for (Column column : columns) {
+                        if (column.getWidth() == 0) continue;
+                        if (column.hasGroupCalculation() && column.getGroupCalculation().isActive()) {
+                            String variableName = column.getFieldName() + "_" + groupName + "_SUM";
+                            JRDesignTextField sumField = createTextField("$V{" + variableName + "}", currentX, 0, column.getWidth(), 20, true, 7f);
+                            sumField.setStyle((JRStyle) jasperDesign.getStylesMap().get(ReportStyles.NUMERIC_STYLE));
+                            if (column.hasPattern()) {
+                                sumField.setPattern(column.getPattern());
+                            }
+                            sumField.setEvaluationTime(EvaluationTimeEnum.GROUP);
+                            sumField.setEvaluationGroup(jrGroup);
+                            groupHeaderBand.addElement(sumField);
+                        }
+                        currentX += column.getWidth();
+                    }
+                }
+                ((JRDesignSection) jrGroup.getGroupHeaderSection()).addBand(groupHeaderBand);
             }
+
             jasperDesign.addGroup(jrGroup);
         }
     }

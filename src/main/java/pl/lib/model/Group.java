@@ -1,12 +1,11 @@
 package pl.lib.model;
 
-public class Group {
+public final class Group {
     private final String fieldName;
     private final String headerExpression;
-    private String styleName;
-    private boolean showGroupFooter;
+    private final String styleName;
+    private final boolean showGroupFooter;
     private final boolean showHeader;
-
 
     public Group(String fieldName, String headerExpression, String styleName, boolean showGroupFooter, boolean showHeader) {
         this.fieldName = fieldName;
@@ -17,36 +16,18 @@ public class Group {
     }
 
     public Group withHeaderStyle(String styleName) {
-        this.styleName = styleName;
-        return this;
-    }
-
-    public String getFieldName() {
-        return fieldName;
-    }
-
-    public String getHeaderExpression() {
-        return headerExpression;
-    }
-
-    public String getStyleName() {
-        return styleName;
-    }
-
-    public boolean hasStyle() {
-        return this.styleName != null && !this.styleName.isEmpty();
+        return new Group(this.fieldName, this.headerExpression, styleName, this.showGroupFooter, this.showHeader);
     }
 
     public Group withShowGroupFooter(boolean show) {
-        this.showGroupFooter = show;
-        return this;
+        return new Group(this.fieldName, this.headerExpression, this.styleName, show, this.showHeader);
     }
 
-    public boolean isShowGroupFooter() {
-        return showGroupFooter;
-    }
-
-    public boolean isShowGroupHeader() {
-        return showHeader;
-    }
+    // Gettery
+    public String getFieldName() { return fieldName; }
+    public String getHeaderExpression() { return headerExpression; }
+    public String getStyleName() { return styleName; }
+    public boolean hasStyle() { return this.styleName != null && !this.styleName.isEmpty(); }
+    public boolean isShowGroupFooter() { return showGroupFooter; }
+    public boolean isShowGroupHeader() { return showHeader; }
 }

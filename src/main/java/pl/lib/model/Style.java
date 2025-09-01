@@ -1,59 +1,73 @@
 package pl.lib.model;
 
-public class Style {
+public final class Style {
     private final String name;
-    private String fontName = "DejaVu Sans";
-    private float fontSize = 8;
-    private boolean isBold = false;
-    private String fontColor = "#000000";
-    private String backColor;
-    private String horizontalAlignment = "Left";
-    private String verticalAlignment = "Middle";
-    private boolean hasBox = false;
-    private Integer padding = null;
-
-    private float borderWidth = 0f;
-    private String borderColor = "#000000";
+    private final String fontName;
+    private final float fontSize;
+    private final boolean isBold;
+    private final String fontColor;
+    private final String backColor;
+    private final String horizontalAlignment;
+    private final String verticalAlignment;
+    private final Integer padding;
+    private final float borderWidth;
+    private final String borderColor;
 
     public Style(String name) {
         this.name = name;
+        this.fontName = "DejaVu Sans";
+        this.fontSize = 8;
+        this.isBold = false;
+        this.fontColor = "#000000";
+        this.backColor = null;
+        this.horizontalAlignment = "Left";
+        this.verticalAlignment = "Middle";
+        this.padding = null;
+        this.borderWidth = 0f;
+        this.borderColor = "#000000";
+    }
+
+    private Style(String name, String fontName, float fontSize, boolean isBold, String fontColor, String backColor,
+                  String horizontalAlignment, String verticalAlignment, Integer padding, float borderWidth, String borderColor) {
+        this.name = name;
+        this.fontName = fontName;
+        this.fontSize = fontSize;
+        this.isBold = isBold;
+        this.fontColor = fontColor;
+        this.backColor = backColor;
+        this.horizontalAlignment = horizontalAlignment;
+        this.verticalAlignment = verticalAlignment;
+        this.padding = padding;
+        this.borderWidth = borderWidth;
+        this.borderColor = borderColor;
     }
 
     public Style withFont(String fontName, int size, boolean isBold) {
-        this.fontName = fontName;
-        this.fontSize = size;
-        this.isBold = isBold;
-        return this;
+        return new Style(this.name, fontName, size, isBold, this.fontColor, this.backColor, this.horizontalAlignment,
+                this.verticalAlignment, this.padding, this.borderWidth, this.borderColor);
     }
 
     public Style withColors(String fontColor, String backColor) {
-        if (fontColor != null) this.fontColor = fontColor;
-        this.backColor = backColor;
-        return this;
+        return new Style(this.name, this.fontName, this.fontSize, this.isBold, fontColor != null ? fontColor : this.fontColor,
+                backColor, this.horizontalAlignment, this.verticalAlignment, this.padding, this.borderWidth, this.borderColor);
     }
 
     public Style withAlignment(String horizontalAlignment, String verticalAlignment) {
-        this.horizontalAlignment = horizontalAlignment;
-        this.verticalAlignment = verticalAlignment;
-        return this;
-    }
-
-    public Style withBox(boolean enabled) {
-        this.hasBox = enabled;
-        return this;
+        return new Style(this.name, this.fontName, this.fontSize, this.isBold, this.fontColor, this.backColor,
+                horizontalAlignment, verticalAlignment, this.padding, this.borderWidth, this.borderColor);
     }
 
     public Style withBorders(float width, String color) {
-        this.borderWidth = width;
-        if (color != null) this.borderColor = color;
-        return this;
+        return new Style(this.name, this.fontName, this.fontSize, this.isBold, this.fontColor, this.backColor,
+                this.horizontalAlignment, this.verticalAlignment, this.padding, width, color != null ? color : this.borderColor);
     }
 
     public Style withPadding(int padding) {
-        this.padding = padding;
-        return this;
+        return new Style(this.name, this.fontName, this.fontSize, this.isBold, this.fontColor, this.backColor,
+                this.horizontalAlignment, this.verticalAlignment, padding, this.borderWidth, this.borderColor);
     }
 
+    // Gettery
     public String getName() { return name; }
     public String getFontName() { return fontName; }
     public float getFontSize() { return fontSize; }
@@ -64,12 +78,5 @@ public class Style {
     public String getVerticalAlignment() { return verticalAlignment; }
     public float getBorderWidth() { return borderWidth; }
     public String getBorderColor() { return borderColor; }
-
-    public Integer getPadding() {
-        return padding;
-    }
-
-    public void setPadding(Integer padding) {
-        this.padding = padding;
-    }
+    public Integer getPadding() { return padding; }
 }
