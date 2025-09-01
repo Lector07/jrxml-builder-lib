@@ -62,6 +62,57 @@ public class JsonReportGenerator {
         }
 
         List<Map<String, Object>> mainData = convertJsonArrayToList(arrayNode);
+
+        List<String> groupFields = config.getGroups().stream()
+                .map(GroupDefinition::getField)
+                .collect(Collectors.toList());
+
+        if (!groupFields.isEmpty()) {
+            mainData.sort(new Comparator<Map<String, Object>>() {
+                private final java.util.regex.Pattern leadingDigits = java.util.regex.Pattern.compile("^\\d+");
+
+                @Override
+                public int compare(Map<String, Object> map1, Map<String, Object> map2) {
+                    for (String field : groupFields) {
+                        Object val1 = map1.get(field);
+                        Object val2 = map2.get(field);
+
+                        if (val1 == null && val2 == null) continue;
+                        if (val1 == null) return -1;
+                        if (val2 == null) return 1;
+
+                        int comparison;
+                        if (val1 instanceof String && val2 instanceof String) {
+                            String s1 = (String) val1;
+                            String s2 = (String) val2;
+                            java.util.regex.Matcher m1 = leadingDigits.matcher(s1);
+                            java.util.regex.Matcher m2 = leadingDigits.matcher(s2);
+
+                            if (m1.find() && m2.find()) {
+                                comparison = Long.compare(Long.parseLong(m1.group()), Long.parseLong(m2.group()));
+                                if (comparison == 0) {
+                                    comparison = s1.compareTo(s2);
+                                }
+                            } else {
+                                comparison = s1.compareTo(s2);
+                            }
+                        } else if (val1 instanceof Comparable) {
+                            @SuppressWarnings("unchecked")
+                            int result = ((Comparable<Object>) val1).compareTo(val2);
+                            comparison = result;
+                        } else {
+                            comparison = 0;
+                        }
+
+                        if (comparison != 0) {
+                            return comparison;
+                        }
+                    }
+                    return 0;
+                }
+            });
+        }
+
         JRDataSource dataSource = new JRBeanCollectionDataSource(mainData);
 
         Map<String, Object> parameters = reportBuilder.getParameters();
@@ -232,7 +283,7 @@ public class JsonReportGenerator {
                                 .withSubreportObjectParameterName(subreportObjectName)
                 );
 
-                builder.addColumn(new Column(fieldName, "", 0, DataType.JR_DATA_SOURCE, null, Calculation.NONE, null, null));
+                builder.addColumn(new Column(fieldName, "", 0, DataType.JR_DATA_SOURCE, null, Calculation.NONE, Calculation.NONE, null));
             }
         }
 
@@ -282,7 +333,7 @@ public class JsonReportGenerator {
 
     private Column createColumn(String fieldName, DataType dataType) {
         String title = fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1).replaceAll("([A-Z])", " $1").trim();
-        int width = -1; 
+        int width = -1;
         String pattern = null;
         Calculation reportCalc = Calculation.NONE;
         Calculation groupCalc = Calculation.NONE;
@@ -311,10 +362,10 @@ public class JsonReportGenerator {
         String COLOR_CELL_BORDER = "#D6D6D6";
         String COLOR_TEXT_BLACK = "#000000";
 
-        builder.addStyle(new Style(ReportStyles.HEADER_STYLE).withFont(ReportStyles.FONT_DEJAVU_SANS, 7, true).withColors(COLOR_TEXT_BLACK, COLOR_HEADER_BACK).withAlignment("Center", "Middle").withBorders(1f, COLOR_HEADER_BORDER).withPadding(3))
+        builder.addStyle(new Style(ReportStyles.HEADER_STYLE).withFont(ReportStyles.FONT_DEJAVU_SANS, 7, false).withColors(COLOR_TEXT_BLACK, COLOR_HEADER_BACK).withAlignment("Center", "Middle").withBorders(1f, COLOR_HEADER_BORDER).withPadding(3))
                 .addStyle(new Style(ReportStyles.DATA_STYLE).withFont(ReportStyles.FONT_DEJAVU_SANS, 7, false).withColors(COLOR_TEXT_BLACK, null).withAlignment("Left", "Middle").withBorders(0.5f, COLOR_CELL_BORDER).withPadding(3))
                 .addStyle(new Style(ReportStyles.NUMERIC_STYLE).withFont(ReportStyles.FONT_DEJAVU_SANS, 7, false).withColors(COLOR_TEXT_BLACK, null).withAlignment("Right", "Middle").withBorders(0.5f, COLOR_CELL_BORDER).withPadding(3))
-                .addStyle(new Style(ReportStyles.GROUP_STYLE_1).withFont(ReportStyles.FONT_DEJAVU_SANS, 7, true).withColors(COLOR_TEXT_BLACK, COLOR_GROUP_BACK).withAlignment("Left", "Middle").withBorders(0.5f, COLOR_CELL_BORDER).withPadding(3))
+                .addStyle(new Style(ReportStyles.GROUP_STYLE_1).withFont(ReportStyles.FONT_DEJAVU_SANS, 7, false).withColors(COLOR_TEXT_BLACK, COLOR_GROUP_BACK).withAlignment("Left", "Middle").withBorders(0.5f, COLOR_CELL_BORDER).withPadding(3))
                 .addStyle(new Style(ReportStyles.GROUP_STYLE_2).withFont(ReportStyles.FONT_DEJAVU_SANS, 7, false).withColors(COLOR_TEXT_BLACK, COLOR_GROUP_BACK).withAlignment("Left", "Middle").withBorders(0.5f, COLOR_CELL_BORDER).withPadding(3));
     }
 
