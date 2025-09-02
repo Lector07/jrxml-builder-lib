@@ -130,18 +130,25 @@ public class ReportBuilder {
 
     private void declareFields() throws JRException {
         for (Column column : columns) {
-            if (jasperDesign.getFieldsMap().get(column.getFieldName()) == null) {
+            String fieldName = column.getFieldName();
+            String jrFieldName = fieldName.replace('.', '_');
+
+            if (jasperDesign.getFieldsMap().get(jrFieldName) == null) {
                 JRDesignField field = new JRDesignField();
-                field.setName(column.getFieldName());
+                field.setName(jrFieldName);
                 field.setValueClass(column.getType().getJavaClass());
+                field.setDescription(fieldName);
                 this.jasperDesign.addField(field);
             }
         }
         for (Group group : groups) {
-            if (jasperDesign.getFieldsMap().get(group.getFieldName()) == null) {
+            String fieldName = group.getFieldName();
+            String jrFieldName = fieldName.replace('.', '_');
+            if (jasperDesign.getFieldsMap().get(jrFieldName) == null) {
                 JRDesignField field = new JRDesignField();
-                field.setName(group.getFieldName());
+                field.setName(jrFieldName);
                 field.setValueClass(String.class);
+                field.setDescription(fieldName);
                 this.jasperDesign.addField(field);
             }
         }
@@ -172,36 +179,37 @@ public class ReportBuilder {
 
     private void declareVariables() throws JRException {
         for (Column column : columns) {
-
-            if (column.hasReportCalculation() && column.getReportCalculation().isActive()) {
-                String variableName = column.getFieldName() + "_REPORT_SUM";
+            if (column.hasReportCalculation()) {
+                String jrFieldName = column.getFieldName().replace('.', '_');
+                String variableName = jrFieldName + "_REPORT_SUM";
                 if (jasperDesign.getVariablesMap().get(variableName) == null) {
                     JRDesignVariable variable = new JRDesignVariable();
                     variable.setName(variableName);
                     variable.setValueClass(column.getType().getJavaClass());
                     variable.setResetType(ResetTypeEnum.REPORT);
                     variable.setCalculation(toJasperCalculation(column.getReportCalculation()));
-                    variable.setExpression(new JRDesignExpression("$F{" + column.getFieldName() + "}"));
+                    variable.setExpression(new JRDesignExpression("$F{" + jrFieldName + "}"));
                     jasperDesign.addVariable(variable);
                 }
             }
-
-            if (column.hasGroupCalculation() && column.getGroupCalculation().isActive()) {
+            if (column.hasGroupCalculation()) {
                 for (Group group : this.groups) {
-                    String groupName = "Group_" + group.getFieldName();
-                    String variableName = column.getFieldName() + "_" + groupName + "_SUM";
-
+                    String jrGroupFieldName = group.getFieldName().replace('.', '_');
+                    String groupName = "Group_" + jrGroupFieldName;
                     JRGroup jrGroup = jasperDesign.getGroupsMap().get(groupName);
-
-                    if (jrGroup != null && jasperDesign.getVariablesMap().get(variableName) == null) {
-                        JRDesignVariable variable = new JRDesignVariable();
-                        variable.setName(variableName);
-                        variable.setValueClass(column.getType().getJavaClass());
-                        variable.setResetType(ResetTypeEnum.GROUP);
-                        variable.setResetGroup(jrGroup);
-                        variable.setCalculation(toJasperCalculation(column.getGroupCalculation()));
-                        variable.setExpression(new JRDesignExpression("$F{" + column.getFieldName() + "}"));
-                        jasperDesign.addVariable(variable);
+                    if (jrGroup != null) {
+                        String jrFieldName = column.getFieldName().replace('.', '_');
+                        String variableName = jrFieldName + "_" + groupName + "_SUM";
+                        if (jasperDesign.getVariablesMap().get(variableName) == null) {
+                            JRDesignVariable variable = new JRDesignVariable();
+                            variable.setName(variableName);
+                            variable.setValueClass(column.getType().getJavaClass());
+                            variable.setResetType(ResetTypeEnum.GROUP);
+                            variable.setResetGroup(jrGroup);
+                            variable.setCalculation(toJasperCalculation(column.getGroupCalculation()));
+                            variable.setExpression(new JRDesignExpression("$F{" + jrFieldName + "}"));
+                            jasperDesign.addVariable(variable);
+                        }
                     }
                 }
             }
@@ -298,7 +306,8 @@ public class ReportBuilder {
             int currentX = 0;
             for (Column column : columns) {
                 if (column.getWidth() == 0) continue;
-                JRDesignTextField dataField = createTextField("$F{" + column.getFieldName() + "}", currentX, 0, column.getWidth(), 20, false, 7f);
+                String jrFieldName = column.getFieldName().replace('.', '_');
+                JRDesignTextField dataField = createTextField("$F{" + jrFieldName + "}", currentX, 0, column.getWidth(), 20, false, 7f);
                 dataField.setStyle((JRStyle) jasperDesign.getStylesMap().get(column.getStyleName()));
                 dataField.setStretchWithOverflow(true);
                 dataField.setStretchType(StretchTypeEnum.RELATIVE_TO_TALLEST_OBJECT);
@@ -393,10 +402,14 @@ public class ReportBuilder {
         int indentationStep = 20;
         for (int i = 0; i < this.groups.size(); i++) {
             Group group = this.groups.get(i);
-            String groupName = "Group_" + group.getFieldName();
+            String jrFieldName = group.getFieldName().replace('.', '_');
+            String groupName = "Group_" + jrFieldName;
+
+            if (jasperDesign.getGroupsMap().get(groupName) != null) continue;
+
             JRDesignGroup jrGroup = new JRDesignGroup();
             jrGroup.setName(groupName);
-            jrGroup.setExpression(new JRDesignExpression("$F{" + group.getFieldName() + "}"));
+            jrGroup.setExpression(new JRDesignExpression("$F{" + jrFieldName + "}"));
 
             jrGroup.setMinHeightToStartNewPage(21);
 
