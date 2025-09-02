@@ -3,15 +3,18 @@ package pl.lib.model;
 import java.util.Objects;
 
 public final class CompanyInfo {
-    private final String name;
-    private final String address;
-    private final String postalCode;
-    private final String city;
-    private final String taxId;
-    private final String phone;
-    private final String email;
-    private final String website;
-    private final String logoPath;
+    private String name;
+    private String address;
+    private  String postalCode;
+    private  String city;
+    private  String taxId;
+    private  String phone;
+    private String email;
+    private String website;
+    private String logoPath;
+
+    public CompanyInfo() {
+    }
 
     private CompanyInfo(Builder builder) {
         this.name = builder.name;

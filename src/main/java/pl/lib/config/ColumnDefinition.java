@@ -5,13 +5,17 @@ import pl.lib.model.Calculation;
 import java.util.Objects;
 
 public class ColumnDefinition {
-    private final String field;
-    private final String header;
+    private String field;
+    private String header;
     private Integer width = -1;
-    private final String format;
-    private final Calculation reportCalculation;
-    private final Calculation groupCalculation;
-    private final Boolean visible;
+    private String format;
+    private Calculation reportCalculation;
+    private Calculation groupCalculation;
+    private Boolean visible;
+
+    public ColumnDefinition(){
+
+    }
 
     private ColumnDefinition(Builder builder) {
         this.field = Objects.requireNonNull(builder.field, "field");

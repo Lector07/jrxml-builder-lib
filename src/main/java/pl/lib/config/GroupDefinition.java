@@ -6,13 +6,18 @@ import java.util.Objects;
 
 
 public class GroupDefinition {
-    private final String field;
-    private final String label;
-    private final boolean ascending;
-    private final boolean showHeader;
-    private final boolean showFooter;
-    private final boolean showSummaryInHeader;
-    private final Calculation groupCalculation;
+    private  String field;
+    private  String label;
+    private  boolean ascending;
+    private  boolean showHeader;
+    private  boolean showFooter;
+    private  boolean showSummaryInHeader;
+    private  Calculation groupCalculation;
+
+
+    public GroupDefinition(){
+
+    }
 
 
 

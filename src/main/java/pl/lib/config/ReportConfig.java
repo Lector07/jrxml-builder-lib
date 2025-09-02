@@ -6,12 +6,14 @@ import pl.lib.model.CompanyInfo;
 import java.util.*;
 
 public class ReportConfig {
-    private final String title;
-    private final List<ColumnDefinition> columns;
-    private final List<GroupDefinition> groups;
-    private final Map<String, ReportConfig> subreportConfigs;
-    private final CompanyInfo companyInfo;
-    private final boolean useSubreportBorders;
+    private String title;
+    private List<ColumnDefinition> columns;
+    private List<GroupDefinition> groups;
+    private Map<String, ReportConfig> subreportConfigs;
+    private CompanyInfo companyInfo;
+    private boolean useSubreportBorders;
+
+
 
     private ReportConfig(Builder builder) {
         this.title = builder.title;
@@ -20,6 +22,10 @@ public class ReportConfig {
         this.subreportConfigs = builder.subreportConfigs;
         this.companyInfo = builder.companyInfo;
         this.useSubreportBorders = builder.subreportBorders;
+
+    }
+
+    public ReportConfig() {
 
     }
 

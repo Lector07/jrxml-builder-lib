@@ -208,7 +208,6 @@ public class JsonReportGenerator {
             if (!groupDef.isShowHeader()) {
                 continue;
             }
-
             String labelExpression = (groupDef.getLabel() != null && !groupDef.getLabel().isEmpty())
                     ? groupDef.getLabel()
                     : "\"" + groupDef.getField() + ": \" + $F{" + groupDef.getField() + "}";
@@ -217,75 +216,49 @@ public class JsonReportGenerator {
                     groupDef.getField(),
                     labelExpression,
                     ReportStyles.GROUP_STYLE_1,
-                    groupDef.isShowFooter()
-                    , groupDef.isShowHeader()
+                    groupDef.isShowFooter(),
+                    groupDef.isShowHeader()
             ));
         }
 
-        Map<String, ColumnDefinition> columnConfigMap = config.getColumns().stream()
-                .collect(Collectors.toMap(ColumnDefinition::getField, def -> def));
+        for (ColumnDefinition colDef : config.getColumns()) {
 
-        Set<String> groupFields = config.getGroups().stream()
-                .map(GroupDefinition::getField)
-                .collect(Collectors.toSet());
-
-        for (String fieldName : structure.getFields()) {
-            if (groupFields.contains(fieldName)) {
+            if (colDef.getVisible() != null && !colDef.getVisible()) {
                 continue;
             }
 
-            ColumnDefinition colDef = columnConfigMap.get(fieldName);
-
-            Boolean visible = (colDef != null) ? colDef.getVisible() : null;
-            if (Boolean.FALSE.equals(visible)) {
-                continue;
-            }
-
+            String fieldName = colDef.getField();
             DataType dataType = structure.getFieldTypes().get(fieldName);
+
             if (dataType == null) {
-                continue;
+                dataType = DataType.STRING;
             }
 
             boolean isSubreport = structure.getNestedStructures().containsKey(fieldName);
             if (!isSubreport) {
-                String header = (colDef != null && colDef.getHeader() != null)
-                        ? colDef.getHeader()
-                        : fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1);
-
-                Integer width = (colDef != null && colDef.getWidth() != null) ? colDef.getWidth() : -1;
-                String format = (colDef != null) ? colDef.getFormat() : null;
-                Calculation reportCalc = (colDef != null && colDef.getReportCalculation() != null)
-                        ? colDef.getReportCalculation() : Calculation.NONE;
-                Calculation groupCalc = (colDef != null && colDef.getGroupCalculation() != null)
-                        ? colDef.getGroupCalculation() : Calculation.NONE;
+                String header = colDef.getHeader();
+                Integer width = colDef.getWidth() != null ? colDef.getWidth() : -1;
+                String format = colDef.getFormat();
+                Calculation reportCalc = colDef.getReportCalculation() != null ? colDef.getReportCalculation() : Calculation.NONE;
+                Calculation groupCalc = colDef.getGroupCalculation() != null ? colDef.getGroupCalculation() : Calculation.NONE;
                 String style = dataType.isNumeric() ? ReportStyles.NUMERIC_STYLE : ReportStyles.DATA_STYLE;
 
                 builder.addColumn(new Column(fieldName, header, width, dataType, format, reportCalc, groupCalc, style));
             } else {
                 ReportStructure subreportStructure = structure.getNestedStructures().get(fieldName);
-
-                ReportConfig subConfig = null;
-                if (config.getSubreportConfigs() != null) {
-                    subConfig = config.getSubreportConfigs().get(fieldName);
-                }
+                ReportConfig subConfig = (config.getSubreportConfigs() != null) ? config.getSubreportConfigs().get(fieldName) : null;
                 if (subConfig == null) {
                     subConfig = new ReportConfig.Builder().title("").build();
                 }
-
                 JasperReport subreport = createSubreport(fieldName, subreportStructure, subConfig);
                 compiledSubreports.put(fieldName, subreport);
-
                 String subreportObjectName = "SUBREPORT_OBJECT_" + fieldName;
                 String dataSourceExpression = "$F{" + fieldName + "}";
-
-                builder.addSubreport(
-                        new Subreport("DETAIL", subreport, dataSourceExpression)
-                                .withSubreportObjectParameterName(subreportObjectName)
-                );
-
+                builder.addSubreport(new Subreport("DETAIL", subreport, dataSourceExpression).withSubreportObjectParameterName(subreportObjectName));
                 builder.addColumn(new Column(fieldName, "", 0, DataType.JR_DATA_SOURCE, null, Calculation.NONE, Calculation.NONE, null));
             }
         }
+
 
         return builder.build();
     }

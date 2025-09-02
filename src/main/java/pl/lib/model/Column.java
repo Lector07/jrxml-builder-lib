@@ -1,15 +1,19 @@
 package pl.lib.model;
 
 public final class Column {
-    private final String fieldName;
-    private final String title;
-    private final int width;
-    private final DataType type;
-    private final String pattern;
-    private final Calculation reportCalculation;
-    private final Calculation groupCalculation;
-    private final String styleName;
-    private final boolean hasBox;
+    private String fieldName;
+    private String title;
+    private int width;
+    private DataType type;
+    private String pattern;
+    private  Calculation reportCalculation;
+    private  Calculation groupCalculation;
+    private  String styleName;
+    private  boolean hasBox;
+
+    public Column(){
+
+    }
 
     public Column(String fieldName, String title, int width, DataType type, String pattern,
                   Calculation reportCalculation, Calculation groupCalculation, String styleName, boolean hasBox) {
