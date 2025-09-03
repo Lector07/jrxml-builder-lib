@@ -180,20 +180,18 @@ public class JsonReportGenerator {
         addDefaultStyles(builder);
 
         for (GroupDefinition groupDef : config.getGroups()) {
-            if (groupDef.isShowHeader() || groupDef.isShowFooter()) {
 
-                String labelExpression = (groupDef.getLabel() != null && !groupDef.getLabel().isEmpty())
-                        ? groupDef.getLabel()
-                        : "\"" + groupDef.getField() + ": \" + $F{" + groupDef.getField().replace('.', '_') + "}";
+            String labelExpression = (groupDef.getLabel() != null && !groupDef.getLabel().isEmpty())
+                    ? groupDef.getLabel()
+                    : "\"" + groupDef.getField() + ": \" + $F{" + groupDef.getField().replace('.', '_') + "}";
 
-                builder.addGroup(new Group(
-                        groupDef.getField(),
-                        labelExpression,
-                        ReportStyles.GROUP_STYLE_1,
-                        groupDef.isShowFooter(), // To jest showSummaryInHeader
-                        groupDef.isShowHeader()
-                ));
-            }
+            builder.addGroup(new Group(
+                    groupDef.getField(),
+                    labelExpression,
+                    ReportStyles.GROUP_STYLE_1,
+                    groupDef.isShowFooter(),
+                    true
+            ));
         }
 
         for (ColumnDefinition colDef : config.getColumns()) {
