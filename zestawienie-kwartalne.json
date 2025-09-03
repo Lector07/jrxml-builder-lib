@@ -1,0 +1,41 @@
+{
+  "reportType": "INCOMES_QUARTERLY",
+  "id": 299,
+  "reportId": 5,
+  "classificationSymbol": "600-60020-0490-UMGK-00-00-W",
+  "classificationName": "Wpływy z innych lokalnych opłat pobieranych przez jednostki samorządu terytorialnego na podstawie odrębnych ustaw/UMGK/Ogólne/WŁ/Własne",
+  "planAmount": 4000.00,
+  "realizationAmount": 727.46,
+  "reportType": "INCOMES_QUARTERLY",
+  "keepBackAmount": 0.00,
+  "dutyAmount": 35.39,
+  "dueToBePaidAmount": -685.17,
+  "nettoDueToBePaidAmount": 63.98,
+  "overpaymentAmount": 6.90,
+  "taxCutsAmount": 0.00,
+  "taxReliefAmount": 0.00,
+  "redemptionAmount": 0.00,
+  "installmentAmount": 0.00,
+  "analytics": [
+    {
+      "id": 299,
+      "elementId": 299,
+      "classificationSymbol": "600-60020-049-0-UMGK-00-00-W",
+      "classificationName": "Wpływy z innych lokalnych opłat pobieranych przez jednostki samorządu terytorialnego na podstawie odrębnych ustaw/UMGK/Ogólne/WŁ/Własne",
+      "planAmount": 4000.00,
+      "realizationAmount": 727.46,
+      "systemElement": true,
+      "keepBackAmount": 0.00,
+      "dutyAmount": 35.39,
+      "dueToBePaidAmount": -685.17,
+      "nettoDueToBePaidAmount": 63.98,
+      "overpaymentAmount": 6.90,
+      "taxCutsAmount": 0.00,
+      "taxReliefAmount": 0.00,
+      "redemptionAmount": 0.00,
+      "installmentAmount": 0.00
+    }
+  ]
+}
+
+

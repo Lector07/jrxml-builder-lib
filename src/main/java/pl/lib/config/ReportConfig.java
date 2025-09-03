@@ -1,9 +1,11 @@
 package pl.lib.config;
 
-import pl.lib.api.ReportBuilder;
 import pl.lib.model.CompanyInfo;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class ReportConfig {
     private String title;
@@ -13,7 +15,12 @@ public class ReportConfig {
     private CompanyInfo companyInfo;
     private boolean useSubreportBorders;
 
+    // To pole jest deserializowane z JSON, ale nie było metody do jego odczytu
+    private boolean pageFooterEnabled;
 
+    // Pusty konstruktor jest potrzebny dla deserializacji
+    public ReportConfig() {
+    }
 
     private ReportConfig(Builder builder) {
         this.title = builder.title;
@@ -22,11 +29,7 @@ public class ReportConfig {
         this.subreportConfigs = builder.subreportConfigs;
         this.companyInfo = builder.companyInfo;
         this.useSubreportBorders = builder.subreportBorders;
-
-    }
-
-    public ReportConfig() {
-
+        this.pageFooterEnabled = builder.pageFooterEnabled; // Przypisz wartość z buildera
     }
 
     public String getTitle() {
@@ -45,10 +48,19 @@ public class ReportConfig {
         return subreportConfigs;
     }
 
-    public CompanyInfo getCompanyInfo() { return companyInfo; }
+    public CompanyInfo getCompanyInfo() {
+        return companyInfo;
+    }
 
     public boolean isUseSubreportBorders() {
         return useSubreportBorders;
+    }
+
+    // =========================================================
+    // === DODAJ TĘ METODĘ - ROZWIĄŻE ONA BŁĄD KOMPILACJI ===
+    // =========================================================
+    public boolean isPageFooterEnabled() {
+        return pageFooterEnabled;
     }
 
     public static class Builder {
@@ -58,6 +70,7 @@ public class ReportConfig {
         private Map<String, ReportConfig> subreportConfigs = new HashMap<>();
         private CompanyInfo companyInfo;
         private boolean subreportBorders = false;
+        private boolean pageFooterEnabled = true; // Ustaw domyślną wartość
 
         public Builder title(String title) {
             this.title = title;
@@ -66,6 +79,11 @@ public class ReportConfig {
 
         public Builder addColumn(ColumnDefinition column) {
             columns.add(column);
+            return this;
+        }
+
+        public Builder withPageFooterEnabled(boolean enabled) {
+            this.pageFooterEnabled = enabled;
             return this;
         }
 
@@ -102,7 +120,5 @@ public class ReportConfig {
         public ReportConfig build() {
             return new ReportConfig(this);
         }
-
-
     }
 }

@@ -399,9 +399,7 @@ public class ReportBuilder {
     }
 
     private void buildGroups() throws JRException {
-        int indentationStep = 20;
-        for (int i = 0; i < this.groups.size(); i++) {
-            Group group = this.groups.get(i);
+        for (Group group : this.groups) {
             String jrFieldName = group.getFieldName().replace('.', '_');
             String groupName = "Group_" + jrFieldName;
 
@@ -411,69 +409,61 @@ public class ReportBuilder {
             jrGroup.setName(groupName);
             jrGroup.setExpression(new JRDesignExpression("$F{" + jrFieldName + "}"));
 
-            jrGroup.setMinHeightToStartNewPage(21);
-
-            if (group.isShowGroupHeader()) {
+            // KLUCZOWA ZMIANA: Nagłówek grupy jest tworzony, jeśli showHeader jest true LUB showFooter jest true
+            // (ponieważ podsumowanie 'footer' jest wyświetlane w nagłówku)
+            if (group.isShowGroupHeader() || group.isShowGroupFooter()) {
                 JRDesignBand groupHeaderBand = new JRDesignBand();
                 groupHeaderBand.setHeight(20);
-                int indentation = i * indentationStep;
 
-                boolean isSummaryRow = group.isShowGroupFooter();
+                boolean showSummaryInHeader = group.isShowGroupFooter();
 
-                if (isSummaryRow) {
+                if (showSummaryInHeader) {
+                    // --- SCENARIUSZ: NAGŁÓWEK Z PODSUMOWANIEM ---
+
                     JRDesignStaticText background = new JRDesignStaticText();
-                    background.setX(0);
-                    background.setY(0);
+                    background.setX(0); background.setY(0);
                     background.setWidth(jasperDesign.getColumnWidth());
                     background.setHeight(20);
                     background.setStyle((JRStyle) jasperDesign.getStylesMap().get(group.getStyleName()));
                     groupHeaderBand.addElement(background);
-                }
 
-                int firstSumColumnX = jasperDesign.getColumnWidth();
-                int currentX = 0;
-                for (Column column : columns) {
-                    if (column.getWidth() == 0) continue;
-                    if (column.hasGroupCalculation() && column.getGroupCalculation().isActive()) {
-                        firstSumColumnX = currentX;
-                        break;
+                    int firstSumColumnX = jasperDesign.getColumnWidth();
+                    int currentX = 0;
+                    for (Column column : columns) {
+                        if (column.getWidth() > 0 && column.hasGroupCalculation() && column.getGroupCalculation().isActive()) {
+                            firstSumColumnX = currentX;
+                            break;
+                        }
+                        if (column.getWidth() > 0) currentX += column.getWidth();
                     }
-                    currentX += column.getWidth();
-                }
 
-                int labelWidth = Math.max(0, firstSumColumnX - indentation);
-                if (labelWidth > 0) {
-                    JRDesignTextField groupHeaderField = createTextField(group.getHeaderExpression(), indentation, 0, labelWidth, 20, false, 7f);
-                    if (isSummaryRow) {
+                    int labelWidth = firstSumColumnX;
+                    if (labelWidth > 0) {
+                        JRDesignTextField groupHeaderField = createTextField(group.getHeaderExpression(), 0, 0, labelWidth, 20, false, 7f);
                         groupHeaderField.setStyle(getTransparentStyle(group.getStyleName()));
-                    } else {
-                        groupHeaderField.setStyle((JRStyle) jasperDesign.getStylesMap().get(group.getStyleName()));
+                        groupHeaderBand.addElement(groupHeaderField);
                     }
-                    groupHeaderBand.addElement(groupHeaderField);
-                }
 
-                if (isSummaryRow) {
-                    JRStyle transparentNumericStyle = getTransparentStyle(ReportStyles.NUMERIC_STYLE);
                     currentX = 0;
                     for (Column column : columns) {
-                        if (column.getWidth() == 0) continue;
+                        if (column.getWidth() <= 0) continue;
                         if (column.hasGroupCalculation() && column.getGroupCalculation().isActive()) {
-                            String variableName = column.getFieldName() + "_" + groupName + "_SUM";
-                            JRDesignTextField sumField = createTextField("$V{" + variableName + "}", currentX, 0, column.getWidth(), 20, false, 7f);
-                            sumField.setStyle(transparentNumericStyle);
-                            JRStyle groupStyle = (JRStyle) jasperDesign.getStylesMap().get(group.getStyleName());
-                            if (groupStyle != null && groupStyle.getForecolor() != null) {
-                                sumField.setForecolor(groupStyle.getForecolor());
-                            }
-                            if (column.hasPattern()) {
-                                sumField.setPattern(column.getPattern());
-                            }
+                            String variableName = column.getFieldName().replace('.', '_') + "_" + groupName + "_SUM";
+                            JRDesignTextField sumField = createTextField("$V{" + variableName + "}", currentX, 0, column.getWidth(), 20, true, 7f);
+                            sumField.setStyle(getTransparentStyle(ReportStyles.NUMERIC_STYLE));
+                            if (column.hasPattern()) sumField.setPattern(column.getPattern());
                             sumField.setEvaluationTime(EvaluationTimeEnum.GROUP);
                             sumField.setEvaluationGroup(jrGroup);
                             groupHeaderBand.addElement(sumField);
                         }
                         currentX += column.getWidth();
                     }
+
+                } else {
+                    // --- SCENARIUSZ: PROSTY NAGŁÓWEK ---
+                    JRDesignTextField groupHeaderField = createTextField(group.getHeaderExpression(), 0, 0, jasperDesign.getColumnWidth(), 20, false, 7f);
+                    groupHeaderField.setStyle((JRStyle) jasperDesign.getStylesMap().get(group.getStyleName()));
+                    groupHeaderBand.addElement(groupHeaderField);
                 }
                 ((JRDesignSection) jrGroup.getGroupHeaderSection()).addBand(groupHeaderBand);
             }
@@ -481,6 +471,7 @@ public class ReportBuilder {
             jasperDesign.addGroup(jrGroup);
         }
     }
+
 
     private void buildPageFooterBand() throws JRException {
         if (!pageFooterEnabled || isForSubreport) {return;}

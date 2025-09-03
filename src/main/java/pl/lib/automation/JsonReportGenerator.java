@@ -169,16 +169,19 @@ public class JsonReportGenerator {
         return DataType.STRING;
     }
 
+
     private JasperReport createMainReport(ReportBuilder builder, ReportStructure structure, Map<String, JasperReport> compiledSubreports, ReportConfig config) throws JRException {
         builder.withTitle(config.getTitle())
                 .withHorizontalLayout()
                 .withMargins(20, 20, 20, 20)
-                .withCompanyInfo(config.getCompanyInfo());
+                .withCompanyInfo(config.getCompanyInfo())
+                .withPageFooter(config.isPageFooterEnabled());
 
         addDefaultStyles(builder);
 
         for (GroupDefinition groupDef : config.getGroups()) {
-            if (groupDef.isShowHeader()) {
+            if (groupDef.isShowHeader() || groupDef.isShowFooter()) {
+
                 String labelExpression = (groupDef.getLabel() != null && !groupDef.getLabel().isEmpty())
                         ? groupDef.getLabel()
                         : "\"" + groupDef.getField() + ": \" + $F{" + groupDef.getField().replace('.', '_') + "}";
@@ -187,7 +190,7 @@ public class JsonReportGenerator {
                         groupDef.getField(),
                         labelExpression,
                         ReportStyles.GROUP_STYLE_1,
-                        groupDef.isShowFooter(),
+                        groupDef.isShowFooter(), // To jest showSummaryInHeader
                         groupDef.isShowHeader()
                 ));
             }
@@ -213,7 +216,6 @@ public class JsonReportGenerator {
                         colDef.getGroupCalculation() != null ? colDef.getGroupCalculation() : Calculation.NONE,
                         dataType.isNumeric() ? ReportStyles.NUMERIC_STYLE : ReportStyles.DATA_STYLE
                 ));
-            } else {
             }
         }
 

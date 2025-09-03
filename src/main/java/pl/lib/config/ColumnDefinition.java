@@ -63,6 +63,34 @@ public class ColumnDefinition {
         return new Builder(field);
     }
 
+    public void setField(String field) {
+        this.field = field;
+    }
+
+    public void setHeader(String header) {
+        this.header = header;
+    }
+
+    public void setWidth(Integer width) {
+        this.width = width;
+    }
+
+    public void setFormat(String format) {
+        this.format = format;
+    }
+
+    public void setReportCalculation(Calculation reportCalculation) {
+        this.reportCalculation = reportCalculation;
+    }
+
+    public void setGroupCalculation(Calculation groupCalculation) {
+        this.groupCalculation = groupCalculation;
+    }
+
+    public void setVisible(Boolean visible) {
+        this.visible = visible;
+    }
+
     public static class Builder {
         private final String field;
         private String header;
