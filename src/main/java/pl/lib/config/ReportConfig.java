@@ -15,10 +15,9 @@ public class ReportConfig {
     private CompanyInfo companyInfo;
     private boolean useSubreportBorders;
 
-    // To pole jest deserializowane z JSON, ale nie było metody do jego odczytu
     private boolean pageFooterEnabled;
+    private String footerLeftText;
 
-    // Pusty konstruktor jest potrzebny dla deserializacji
     public ReportConfig() {
     }
 
@@ -29,7 +28,8 @@ public class ReportConfig {
         this.subreportConfigs = builder.subreportConfigs;
         this.companyInfo = builder.companyInfo;
         this.useSubreportBorders = builder.subreportBorders;
-        this.pageFooterEnabled = builder.pageFooterEnabled; // Przypisz wartość z buildera
+        this.pageFooterEnabled = builder.pageFooterEnabled;
+        this.footerLeftText = builder.footerLeftText;
     }
 
     public String getTitle() {
@@ -56,11 +56,12 @@ public class ReportConfig {
         return useSubreportBorders;
     }
 
-    // =========================================================
-    // === DODAJ TĘ METODĘ - ROZWIĄŻE ONA BŁĄD KOMPILACJI ===
-    // =========================================================
     public boolean isPageFooterEnabled() {
         return pageFooterEnabled;
+    }
+
+    public String getFooterLeftText(){
+        return footerLeftText;
     }
 
     public static class Builder {
@@ -70,7 +71,8 @@ public class ReportConfig {
         private Map<String, ReportConfig> subreportConfigs = new HashMap<>();
         private CompanyInfo companyInfo;
         private boolean subreportBorders = false;
-        private boolean pageFooterEnabled = true; // Ustaw domyślną wartość
+        private boolean pageFooterEnabled = true;
+        private String footerLeftText = ""; // Ustaw domyślną wartość
 
         public Builder title(String title) {
             this.title = title;
@@ -114,6 +116,11 @@ public class ReportConfig {
 
         public Builder addGroups(List<GroupDefinition> groups) {
             this.groups.addAll(groups);
+            return this;
+        }
+
+        public Builder addFooterLeftText(String footerLeftText){
+            this.footerLeftText = footerLeftText;
             return this;
         }
 

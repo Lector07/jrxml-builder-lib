@@ -11,11 +11,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import net.sf.jasperreports.engine.type.OrientationEnum;
 
-/**
- * OSTATECZNA, KOMPLETNA I W PEŁNI POPRAWNA WERSJA ReportBuilder.
- * Zawiera poprawki wcięć, wyrównania ORAZ synchronizacji wysokości wierszy.
- */
+
 public class ReportBuilder {
     private final List<Column> columns = new ArrayList<>();
     private final List<Style> styles = new ArrayList<>();
@@ -42,7 +40,11 @@ public class ReportBuilder {
     }
 
     public ReportBuilder withHorizontalLayout() {
-        return this;
+        if(isLandscape){
+            jasperDesign.setOrientation(OrientationEnum.LANDSCAPE);
+        } else {
+            jasperDesign.setOrientation(OrientationEnum.PORTRAIT);
+        }
     }
 
     public ReportBuilder withMargins(int top, int right, int bottom, int left) {
@@ -138,6 +140,8 @@ public class ReportBuilder {
         addParameterIfNotExists("CompanyAddress", String.class);
         addParameterIfNotExists("CompanyPostalCode", String.class);
         addParameterIfNotExists("CompanyCity", String.class);
+        addParameterIfNotExists("FooterLeftText", String.class);
+
     }
 
     private void addParameterIfNotExists(String name, Class<?> type) throws JRException {
@@ -347,17 +351,26 @@ public class ReportBuilder {
         if (!pageFooterEnabled) return;
         JRDesignBand pageFooterBand = new JRDesignBand();
         pageFooterBand.setHeight(35);
+
+        JRDesignTextField leftText = createTextField("$P{FooterLeftText}", 0, 2, 200, 30, false, 8f);
+        leftText.setVerticalTextAlign(VerticalTextAlignEnum.BOTTOM);
+        leftText.setHorizontalTextAlign(HorizontalTextAlignEnum.LEFT);
+        leftText.setFontName(ReportStyles.FONT_DEJAVU_SANS_CONDENSED);
+        pageFooterBand.addElement(leftText);
+
         JRDesignTextField pageNumberField = new JRDesignTextField();
         pageNumberField.setX(0); pageNumberField.setY(12);
         pageNumberField.setWidth(jasperDesign.getColumnWidth()); pageNumberField.setHeight(20);
-        pageNumberField.setExpression(new JRDesignExpression("\"Strona \" + $V{PAGE_NUMBER} + \" z \" + $V{PAGE_COUNT}"));
+        pageNumberField.setExpression(new JRDesignExpression("\"Strona \" + $V{PAGE_NUMBER}"));
         pageNumberField.setHorizontalTextAlign(HorizontalTextAlignEnum.RIGHT);
         pageNumberField.setVerticalTextAlign(VerticalTextAlignEnum.BOTTOM);
         pageNumberField.setFontName(ReportStyles.FONT_DEJAVU_SANS_CONDENSED);
         pageNumberField.setFontSize(8f);
         pageFooterBand.addElement(pageNumberField);
+
         jasperDesign.setPageFooter(pageFooterBand);
     }
+
 
     private void buildSummaryBand() {
         // Logika podsumowania, jeśli jest potrzebna

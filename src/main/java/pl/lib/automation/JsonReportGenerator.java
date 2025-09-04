@@ -172,7 +172,7 @@ public class JsonReportGenerator {
 
     private JasperReport createMainReport(ReportBuilder builder, ReportStructure structure, Map<String, JasperReport> compiledSubreports, ReportConfig config) throws JRException {
         builder.withTitle(config.getTitle())
-                .withHorizontalLayout()
+                .withHorizontalLayout("LANDSCAPE".equalsIgnoreCase(config.getOrientation()))
                 .withMargins(20, 20, 20, 20)
                 .withCompanyInfo(config.getCompanyInfo())
                 .withPageFooter(config.isPageFooterEnabled());
