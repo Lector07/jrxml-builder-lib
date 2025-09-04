@@ -37,10 +37,9 @@ public class JsonReportGenerator {
 
     private JasperPrint generateReportFromArray(JsonNode arrayNode, ReportConfig config) throws JRException {
         ReportStructure structure = analyzeArrayStructure(arrayNode);
-        Map<String, JasperReport> compiledSubreports = new HashMap<>();
 
         ReportBuilder reportBuilder = new ReportBuilder();
-        JasperReport mainReport = createMainReport(reportBuilder, structure, compiledSubreports, config);
+        JasperReport mainReport = createMainReport(reportBuilder, structure, config);
 
         if (printJrxmlToConsole) {
             printJrxmlToConsole(mainReport, "MAIN REPORT: " + config.getTitle());
@@ -48,13 +47,11 @@ public class JsonReportGenerator {
 
         List<Map<String, Object>> mainData = convertJsonArrayToList(arrayNode);
 
-        List<String> groupFields = config.getGroups().stream()
-                .map(GroupDefinition::getField)
-                .collect(Collectors.toList());
-
-        if (!groupFields.isEmpty()) {
+        // Sortowanie danych, jeśli zdefiniowano grupy
+        if (config.getGroups() != null && !config.getGroups().isEmpty()) {
             mainData.sort((map1, map2) -> {
-                for (String field : groupFields) {
+                for (GroupDefinition groupDef : config.getGroups()) {
+                    String field = groupDef.getField();
                     Object val1 = map1.get(field);
                     Object val2 = map2.get(field);
                     if (val1 == null && val2 == null) continue;
@@ -70,12 +67,17 @@ public class JsonReportGenerator {
             });
         }
 
-        JRDataSource dataSource = new JRMapCollectionDataSource(new ArrayList<>(mainData));
+        JRDataSource dataSource = new JRMapCollectionDataSource((Collection<Map<String, ?>>) (Collection<?>) mainData);
+
         Map<String, Object> parameters = reportBuilder.getParameters();
         parameters.put("ReportTitle", config.getTitle());
+        parameters.put("FooterLeftText", config.getFooterLeftText());
 
-        for (Map.Entry<String, JasperReport> entry : compiledSubreports.entrySet()) {
-            parameters.put("SUBREPORT_OBJECT_" + entry.getKey(), entry.getValue());
+        if (config.getCompanyInfo() != null) {
+            parameters.put("CompanyName", config.getCompanyInfo().getName());
+            parameters.put("CompanyAddress", config.getCompanyInfo().getAddress());
+            parameters.put("CompanyPostalCode", config.getCompanyInfo().getPostalCode());
+            parameters.put("CompanyCity", config.getCompanyInfo().getCity());
         }
 
         return JasperFillManager.fillReport(mainReport, parameters, dataSource);
@@ -170,7 +172,7 @@ public class JsonReportGenerator {
     }
 
 
-    private JasperReport createMainReport(ReportBuilder builder, ReportStructure structure, Map<String, JasperReport> compiledSubreports, ReportConfig config) throws JRException {
+    private JasperReport createMainReport(ReportBuilder builder, ReportStructure structure, ReportConfig config) throws JRException {
         builder.withTitle(config.getTitle())
                 .withHorizontalLayout("LANDSCAPE".equalsIgnoreCase(config.getOrientation()))
                 .withMargins(20, 20, 20, 20)
@@ -179,31 +181,29 @@ public class JsonReportGenerator {
 
         addDefaultStyles(builder);
 
-        for (GroupDefinition groupDef : config.getGroups()) {
+        if (config.getGroups() != null) {
+            for (GroupDefinition groupDef : config.getGroups()) {
+                String labelExpression = (groupDef.getLabel() != null && !groupDef.getLabel().isEmpty())
+                        ? groupDef.getLabel()
+                        : "\"" + groupDef.getField() + ": \" + $F{" + groupDef.getField().replace('.', '_') + "}";
 
-            String labelExpression = (groupDef.getLabel() != null && !groupDef.getLabel().isEmpty())
-                    ? groupDef.getLabel()
-                    : "\"" + groupDef.getField() + ": \" + $F{" + groupDef.getField().replace('.', '_') + "}";
-
-            builder.addGroup(new Group(
-                    groupDef.getField(),
-                    labelExpression,
-                    ReportStyles.GROUP_STYLE_1,
-                    groupDef.isShowFooter(),
-                    true
-            ));
+                builder.addGroup(new Group(
+                        groupDef.getField(),
+                        labelExpression,
+                        ReportStyles.GROUP_STYLE_1,
+                        groupDef.isShowFooter(),
+                        true
+                ));
+            }
         }
 
-        for (ColumnDefinition colDef : config.getColumns()) {
-            if (colDef.getVisible() != null && !colDef.getVisible()) {
-                continue;
-            }
-
-            String fieldName = colDef.getField();
-            DataType dataType = structure.getFieldTypes().getOrDefault(fieldName, DataType.STRING);
-
-            boolean isSubreport = structure.getNestedStructures().containsKey(fieldName);
-            if (!isSubreport) {
+        if (config.getColumns() != null) {
+            for (ColumnDefinition colDef : config.getColumns()) {
+                if (colDef.getVisible() != null && !colDef.getVisible()) {
+                    continue;
+                }
+                String fieldName = colDef.getField();
+                DataType dataType = structure.getFieldTypes().getOrDefault(fieldName, DataType.STRING);
                 builder.addColumn(new Column(
                         fieldName,
                         colDef.getHeader(),
@@ -234,9 +234,9 @@ public class JsonReportGenerator {
     }
 
     private void printJrxmlToConsole(JasperReport report, String reportName) {
-            System.out.println("\n" + "=".repeat(80) + "\n=== " + reportName + " ===\n" + "=".repeat(80));
-            System.out.println(JRXmlWriter.writeReport(report, "UTF-8"));
-            System.out.println("=".repeat(80) + "\n");
+        System.out.println("\n" + "=".repeat(80) + "\n=== " + reportName + " ===\n" + "=".repeat(80));
+        System.out.println(JRXmlWriter.writeReport(report, "UTF-8"));
+        System.out.println("=".repeat(80) + "\n");
 
     }
 

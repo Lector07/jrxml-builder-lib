@@ -17,7 +17,7 @@ public class ReportConfig {
 
     private boolean pageFooterEnabled;
     private String footerLeftText;
-
+    private String orientation;
     public ReportConfig() {
     }
 
@@ -30,6 +30,7 @@ public class ReportConfig {
         this.useSubreportBorders = builder.subreportBorders;
         this.pageFooterEnabled = builder.pageFooterEnabled;
         this.footerLeftText = builder.footerLeftText;
+        this.orientation = builder.orientation;
     }
 
     public String getTitle() {
@@ -64,6 +65,10 @@ public class ReportConfig {
         return footerLeftText;
     }
 
+    public String getOrientation(){
+        return orientation;
+    }
+
     public static class Builder {
         private String title = "";
         private List<ColumnDefinition> columns = new ArrayList<>();
@@ -72,7 +77,8 @@ public class ReportConfig {
         private CompanyInfo companyInfo;
         private boolean subreportBorders = false;
         private boolean pageFooterEnabled = true;
-        private String footerLeftText = ""; // Ustaw domyślną wartość
+        private String footerLeftText = "";
+        private String orientation = "PORTRAIT";
 
         public Builder title(String title) {
             this.title = title;
