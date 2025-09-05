@@ -9,6 +9,7 @@ public class FormattingOptions {
     private boolean zebraStripes;
     private boolean generateBookmarks;
     private List<HighlightRule> highlightRules;
+    private String bookmarkField; // opcjonalne: nazwa pola kolumny do zakładek
 
     // Getters
     public boolean isZebraStripes() {
@@ -35,4 +36,7 @@ public class FormattingOptions {
     public void setHighlightRules(List<HighlightRule> highlightRules) {
         this.highlightRules = highlightRules;
     }
+
+    public String getBookmarkField() { return bookmarkField; }
+    public void setBookmarkField(String bookmarkField) { this.bookmarkField = bookmarkField; }
 }

@@ -259,6 +259,8 @@ public class ReportBuilder {
             JRDesignBand dataBand = new JRDesignBand();
             dataBand.setHeight(20);
             int currentX = 0;
+            boolean bookmarkAssigned = false;
+            String desiredBookmarkField = (formattingOptions != null) ? formattingOptions.getBookmarkField() : null;
             for (Column column : columns) {
                 if (column.getWidth() <= 0) continue;
                 String jrFieldName = column.getFieldName().replace('.', '_');
@@ -268,6 +270,16 @@ public class ReportBuilder {
                 dataField.setBlankWhenNull(true);
                 if (column.hasPattern()) dataField.setPattern(column.getPattern());
                 dataField.setStretchType(StretchTypeEnum.RELATIVE_TO_TALLEST_OBJECT);
+
+                // Zakładki PDF dla raportów bez grup
+                if (formattingOptions != null && formattingOptions.isGenerateBookmarks() && (groups == null || groups.isEmpty())) {
+                    boolean isDesired = desiredBookmarkField != null && desiredBookmarkField.equals(column.getFieldName());
+                    if ((isDesired || (!bookmarkAssigned && desiredBookmarkField == null)) && !bookmarkAssigned) {
+                        dataField.setBookmarkLevel(1);
+                        bookmarkAssigned = true;
+                    }
+                }
+
                 dataBand.addElement(dataField);
                 currentX += column.getWidth();
             }
