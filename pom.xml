@@ -15,7 +15,7 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
 
-        <jasperreports.version>6.21.3</jasperreports.version>
+        <jasperreports.version>6.21.5</jasperreports.version>
         <jackson.version>2.17.1</jackson.version>
     </properties>
 

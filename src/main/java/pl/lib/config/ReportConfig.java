@@ -1,6 +1,8 @@
 package pl.lib.config;
 
 import pl.lib.model.CompanyInfo;
+import com.fasterxml.jackson.annotation.JsonSetter;
+import com.fasterxml.jackson.annotation.Nulls;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -18,6 +20,9 @@ public class ReportConfig {
     private boolean pageFooterEnabled;
     private String footerLeftText;
     private String orientation;
+    @JsonSetter(nulls = Nulls.SKIP)
+    private FormattingOptions formattingOptions = new FormattingOptions();
+
     public ReportConfig() {
     }
 
@@ -31,6 +36,9 @@ public class ReportConfig {
         this.pageFooterEnabled = builder.pageFooterEnabled;
         this.footerLeftText = builder.footerLeftText;
         this.orientation = builder.orientation;
+        if (builder.formattingOptions != null) {
+            this.formattingOptions = builder.formattingOptions;
+        }
     }
 
     public String getTitle() {
@@ -69,6 +77,10 @@ public class ReportConfig {
         return orientation;
     }
 
+    public FormattingOptions getFormattingOptions() { return formattingOptions; }
+
+
+
     public static class Builder {
         private String title = "";
         private List<ColumnDefinition> columns = new ArrayList<>();
@@ -79,6 +91,8 @@ public class ReportConfig {
         private boolean pageFooterEnabled = true;
         private String footerLeftText = "";
         private String orientation = "PORTRAIT";
+        private FormattingOptions formattingOptions;
+
 
         public Builder title(String title) {
             this.title = title;
@@ -127,6 +141,11 @@ public class ReportConfig {
 
         public Builder addFooterLeftText(String footerLeftText){
             this.footerLeftText = footerLeftText;
+            return this;
+        }
+
+        public Builder addFormattingOption(FormattingOptions formattingOptions){
+            this.formattingOptions = formattingOptions;
             return this;
         }
 

@@ -47,7 +47,6 @@ public class JsonReportGenerator {
 
         List<Map<String, Object>> mainData = convertJsonArrayToList(arrayNode);
 
-        // Sortowanie danych, jeśli zdefiniowano grupy
         if (config.getGroups() != null && !config.getGroups().isEmpty()) {
             mainData.sort((map1, map2) -> {
                 for (GroupDefinition groupDef : config.getGroups()) {
@@ -107,10 +106,23 @@ public class JsonReportGenerator {
             String prefix = currentPath.isEmpty() ? "" : currentPath + ".";
             jsonNode.fields().forEachRemaining(entry -> flattenNode(prefix + entry.getKey(), entry.getValue(), fields, fieldTypes));
         } else if (jsonNode.isArray()) {
-            // Arrays are not flattened, they would be treated as subreports
         } else {
             fields.add(currentPath);
-            fieldTypes.computeIfAbsent(currentPath, k -> determineDataType(jsonNode));
+            DataType newType = determineDataType(jsonNode);
+            DataType oldType = fieldTypes.get(currentPath);
+            if (oldType == null || (oldType == DataType.STRING && newType != DataType.STRING)) {
+                fieldTypes.put(currentPath, newType);
+            } else if (oldType == DataType.BOOLEAN && newType == DataType.INTEGER) {
+                fieldTypes.put(currentPath, oldType);
+            } else if (oldType == DataType.INTEGER && (newType == DataType.LONG || newType == DataType.BIG_DECIMAL || newType == DataType.DOUBLE || newType == DataType.FLOAT)) {
+                fieldTypes.put(currentPath, newType);
+            } else if (oldType == DataType.LONG && (newType == DataType.BIG_DECIMAL || newType == DataType.DOUBLE || newType == DataType.FLOAT)) {
+                fieldTypes.put(currentPath, newType);
+            } else if (oldType == DataType.DOUBLE && newType == DataType.BIG_DECIMAL) {
+                fieldTypes.put(currentPath, newType);
+            } else if (oldType == null) {
+                fieldTypes.put(currentPath, newType);
+            }
         }
     }
 
@@ -178,6 +190,10 @@ public class JsonReportGenerator {
                 .withMargins(20, 20, 20, 20)
                 .withCompanyInfo(config.getCompanyInfo())
                 .withPageFooter(config.isPageFooterEnabled());
+
+        if (config.getFormattingOptions() != null) {
+            builder.withFormattingOptions(config.getFormattingOptions());
+        }
 
         addDefaultStyles(builder);
 
@@ -253,3 +269,4 @@ public class JsonReportGenerator {
         public void setNestedStructures(Map<String, ReportStructure> nestedStructures) { this.nestedStructures = nestedStructures; }
     }
 }
+

@@ -3,6 +3,8 @@ package pl.lib.api;
 import net.sf.jasperreports.engine.*;
 import net.sf.jasperreports.engine.design.*;
 import net.sf.jasperreports.engine.type.*;
+import pl.lib.config.FormattingOptions;
+import pl.lib.config.HighlightRule;
 import pl.lib.model.*;
 import java.awt.Color;
 import java.util.ArrayList;
@@ -14,8 +16,7 @@ import java.util.stream.Collectors;
 import net.sf.jasperreports.engine.type.OrientationEnum;
 
 /**
- * OSTATECZNA, KOMPLETNA I POPRAWIONA WERSJA ReportBuilder.
- * Zawiera ostateczną poprawkę w `declareFields` dotyczącą typu danych pól grupowania.
+ * OSTATECZNA, KOMPLETNA, POPRAWIONA I FINALNA WERSJA.
  */
 public class ReportBuilder {
     private final List<Column> columns = new ArrayList<>();
@@ -23,18 +24,18 @@ public class ReportBuilder {
     private final JasperDesign jasperDesign;
     private final Map<String, Object> parameters = new HashMap<>();
     private final List<Group> groups = new ArrayList<>();
-    private boolean isForSubreport = false;
-    private boolean pageFooterEnabled = false;
+    private FormattingOptions formattingOptions = new FormattingOptions();
+    private boolean pageFooterEnabled = true;
+
+    public ReportBuilder() {
+        this(UUID.randomUUID().toString());
+    }
 
     public ReportBuilder(String reportName) {
         this.jasperDesign = new JasperDesign();
         this.jasperDesign.setName(reportName);
         this.jasperDesign.setWhenNoDataType(WhenNoDataTypeEnum.ALL_SECTIONS_NO_DETAIL);
         this.jasperDesign.setLanguage("java");
-    }
-
-    public ReportBuilder() {
-        this(UUID.randomUUID().toString());
     }
 
     public ReportBuilder withTitle(String title) {
@@ -60,11 +61,19 @@ public class ReportBuilder {
     }
 
     public ReportBuilder withCompanyInfo(CompanyInfo companyInfo) {
+        // Parametry są ustawiane w JsonReportGenerator
         return this;
     }
 
     public ReportBuilder withPageFooter(boolean enabled) {
         this.pageFooterEnabled = enabled;
+        return this;
+    }
+
+    public ReportBuilder withFormattingOptions(FormattingOptions options) {
+        if (options != null) {
+            this.formattingOptions = options;
+        }
         return this;
     }
 
@@ -118,12 +127,10 @@ public class ReportBuilder {
 
     private void declareFields() throws JRException {
         Map<String, Class<?>> fieldTypeMap = new HashMap<>();
-
         for (Column column : columns) {
             String fieldName = column.getFieldName();
             String jrFieldName = fieldName.replace('.', '_');
             fieldTypeMap.put(fieldName, column.getType().getJavaClass());
-
             if (jasperDesign.getFieldsMap().get(jrFieldName) == null) {
                 JRDesignField field = new JRDesignField();
                 field.setName(jrFieldName);
@@ -131,19 +138,14 @@ public class ReportBuilder {
                 jasperDesign.addField(field);
             }
         }
-
-
         for (Group group : groups) {
             String fieldName = group.getFieldName();
             String jrFieldName = fieldName.replace('.', '_');
-
             if (jasperDesign.getFieldsMap().get(jrFieldName) == null) {
                 JRDesignField field = new JRDesignField();
                 field.setName(jrFieldName);
-
                 Class<?> fieldClass = fieldTypeMap.getOrDefault(fieldName, String.class);
                 field.setValueClass(fieldClass);
-
                 jasperDesign.addField(field);
             }
         }
@@ -157,10 +159,6 @@ public class ReportBuilder {
         addParameterIfNotExists("CompanyCity", String.class);
         addParameterIfNotExists("FooterLeftText", String.class);
     }
-
-    // ... reszta pliku (wszystkie inne metody) pozostaje BEZ ZMIAN ...
-
-    // (Wklejam resztę pliku poniżej dla 100% pewności, że nic nie umknie)
 
     private void addParameterIfNotExists(String name, Class<?> type) throws JRException {
         if (jasperDesign.getParametersMap().get(name) == null) {
@@ -312,6 +310,9 @@ public class ReportBuilder {
                 groupHeaderBand.setHeight(20);
                 int indentation = i * indentationStep;
                 boolean showSummaryInHeader = group.isShowGroupFooter();
+
+                JRDesignTextField groupHeaderField;
+
                 if (showSummaryInHeader) {
                     JRDesignStaticText background = new JRDesignStaticText();
                     background.setX(0); background.setY(0);
@@ -329,9 +330,11 @@ public class ReportBuilder {
                     }
                     int labelWidth = firstSumColumnX - indentation;
                     if (labelWidth > 0) {
-                        JRDesignTextField groupHeaderField = createTextField(group.getHeaderExpression(), indentation, 0, labelWidth, 20, true, 7f);
+                        groupHeaderField = createTextField(group.getHeaderExpression(), indentation, 0, labelWidth, 20, true, 7f);
                         groupHeaderField.setStyle(getTransparentStyle(group.getStyleName()));
                         groupHeaderBand.addElement(groupHeaderField);
+                    } else {
+                        groupHeaderField = createTextField(group.getHeaderExpression(), indentation, 0, 0, 0, true, 0f); // dummy
                     }
                     currentX = 0;
                     for (Column column : columns) {
@@ -348,10 +351,15 @@ public class ReportBuilder {
                         currentX += column.getWidth();
                     }
                 } else {
-                    JRDesignTextField groupHeaderField = createTextField(group.getHeaderExpression(), indentation, 0, jasperDesign.getColumnWidth() - indentation, 20, false, 7f);
+                    groupHeaderField = createTextField(group.getHeaderExpression(), indentation, 0, jasperDesign.getColumnWidth() - indentation, 20, false, 7f);
                     groupHeaderField.setStyle((JRStyle) jasperDesign.getStylesMap().get(group.getStyleName()));
                     groupHeaderBand.addElement(groupHeaderField);
                 }
+
+                if (formattingOptions != null && formattingOptions.isGenerateBookmarks()) {
+                    groupHeaderField.setBookmarkLevel(i + 1);
+                }
+
                 ((JRDesignSection) jrGroup.getGroupHeaderSection()).addBand(groupHeaderBand);
             }
             jasperDesign.addGroup(jrGroup);
@@ -360,13 +368,16 @@ public class ReportBuilder {
 
     private void buildPageFooterBand() throws JRException {
         if (!pageFooterEnabled) return;
+
         JRDesignBand pageFooterBand = new JRDesignBand();
         pageFooterBand.setHeight(35);
+
         JRDesignTextField leftText = createTextField("$P{FooterLeftText}", 0, 2, jasperDesign.getColumnWidth() / 2, 30, false, 8f);
         leftText.setVerticalTextAlign(VerticalTextAlignEnum.BOTTOM);
         leftText.setHorizontalTextAlign(HorizontalTextAlignEnum.LEFT);
         leftText.setFontName(ReportStyles.FONT_DEJAVU_SANS_CONDENSED);
         pageFooterBand.addElement(leftText);
+
         JRDesignTextField pageNumberField = new JRDesignTextField();
         pageNumberField.setX(0); pageNumberField.setY(12);
         pageNumberField.setWidth(jasperDesign.getColumnWidth()); pageNumberField.setHeight(20);
@@ -376,6 +387,7 @@ public class ReportBuilder {
         pageNumberField.setFontName(ReportStyles.FONT_DEJAVU_SANS_CONDENSED);
         pageNumberField.setFontSize(8f);
         pageFooterBand.addElement(pageNumberField);
+
         jasperDesign.setPageFooter(pageFooterBand);
     }
 
@@ -400,6 +412,106 @@ public class ReportBuilder {
                 if (style.getPadding() != null) jrStyle.getLineBox().setPadding(style.getPadding());
                 jasperDesign.addStyle(jrStyle);
             }
+        }
+
+        JRDesignStyle dataStyle = (JRDesignStyle) jasperDesign.getStylesMap().get(ReportStyles.DATA_STYLE);
+        JRDesignStyle numericDataStyle = (JRDesignStyle) jasperDesign.getStylesMap().get(ReportStyles.NUMERIC_STYLE);
+
+        if (dataStyle == null || formattingOptions == null) return;
+
+        // Najpierw reguły highlight (wyższy priorytet)
+        if (formattingOptions.getHighlightRules() != null) {
+            for (HighlightRule rule : formattingOptions.getHighlightRules()) {
+                // Dla stylu danych
+                JRDesignConditionalStyle highlightStyleData = new JRDesignConditionalStyle();
+                try {
+                    highlightStyleData.setBackcolor(Color.decode(rule.getColor()));
+                    highlightStyleData.setMode(ModeEnum.OPAQUE);
+                } catch (Exception e) {
+                    System.err.println("Invalid color format: " + rule.getColor() + ". Using YELLOW.");
+                    highlightStyleData.setBackcolor(Color.YELLOW);
+                    highlightStyleData.setMode(ModeEnum.OPAQUE);
+                }
+                String conditionText = buildConditionExpression(rule);
+                if (conditionText != null) {
+                    highlightStyleData.setConditionExpression(new JRDesignExpression(conditionText));
+                    dataStyle.addConditionalStyle(highlightStyleData);
+                }
+
+                // Lustrzana reguła dla stylu numerycznego
+                if (numericDataStyle != null) {
+                    JRDesignConditionalStyle highlightStyleNumeric = new JRDesignConditionalStyle();
+                    try {
+                        highlightStyleNumeric.setBackcolor(Color.decode(rule.getColor()));
+                        highlightStyleNumeric.setMode(ModeEnum.OPAQUE);
+                    } catch (Exception e) {
+                        highlightStyleNumeric.setBackcolor(Color.YELLOW);
+                        highlightStyleNumeric.setMode(ModeEnum.OPAQUE);
+                    }
+                    if (conditionText != null) {
+                        highlightStyleNumeric.setConditionExpression(new JRDesignExpression(conditionText));
+                        numericDataStyle.addConditionalStyle(highlightStyleNumeric);
+                    }
+                }
+            }
+        }
+
+        // Na końcu zebra (niższy priorytet)
+        if (formattingOptions.isZebraStripes()) {
+            JRDesignConditionalStyle zebraStyleData = new JRDesignConditionalStyle();
+            zebraStyleData.setBackcolor(Color.decode("#F7F7F7"));
+            zebraStyleData.setMode(ModeEnum.OPAQUE);
+            zebraStyleData.setConditionExpression(new JRDesignExpression("$V{REPORT_COUNT} % 2 == 0"));
+            dataStyle.addConditionalStyle(zebraStyleData);
+
+            if (numericDataStyle != null) {
+                JRDesignConditionalStyle zebraStyleNumeric = new JRDesignConditionalStyle();
+                zebraStyleNumeric.setBackcolor(Color.decode("#F7F7F7"));
+                zebraStyleNumeric.setMode(ModeEnum.OPAQUE);
+                zebraStyleNumeric.setConditionExpression(new JRDesignExpression("$V{REPORT_COUNT} % 2 == 0"));
+                numericDataStyle.addConditionalStyle(zebraStyleNumeric);
+            }
+        }
+    }
+
+    private String buildConditionExpression(HighlightRule rule) {
+        String fieldName = "$F{" + rule.getField().replace('.', '_') + "}";
+        DataType fieldType = columns.stream()
+                .filter(c -> c.getFieldName().equals(rule.getField()))
+                .map(Column::getDataType)
+                .findFirst()
+                .orElse(DataType.STRING);
+
+        String value = rule.getValue();
+        String formattedValue;
+
+        if (fieldType.isNumeric()) {
+            try {
+                new java.math.BigDecimal(value);
+                formattedValue = "new java.math.BigDecimal(\"" + value.replace("\"", "\\\"") + "\")";
+            } catch (NumberFormatException e) {
+                System.err.println("Invalid number format for rule value: " + value);
+                return "Boolean.FALSE";
+            }
+        } else {
+            formattedValue = "\"" + value.replace("\"", "\\\"") + "\"";
+        }
+
+        String fieldForComparison = fieldType.isNumeric() ? fieldName : fieldName + ".toString()";
+
+        switch (rule.getOperator()) {
+            case "EQUALS":
+                return fieldName + " != null && " + fieldForComparison + ".equals(" + formattedValue + ")";
+            case "NOT_EQUALS":
+                return fieldName + " != null && !" + fieldForComparison + ".equals(" + formattedValue + ")";
+            case "CONTAINS":
+                return fieldType == DataType.STRING ? fieldName + " != null && " + fieldName + ".contains(" + formattedValue + ")" : "Boolean.FALSE";
+            case "GREATER_THAN":
+                return fieldType.isNumeric() ? fieldName + " != null && " + fieldName + ".compareTo(" + formattedValue + ") > 0" : "Boolean.FALSE";
+            case "LESS_THAN":
+                return fieldType.isNumeric() ? fieldName + " != null && " + fieldName + ".compareTo(" + formattedValue + ") < 0" : "Boolean.FALSE";
+            default:
+                return "Boolean.FALSE";
         }
     }
 
