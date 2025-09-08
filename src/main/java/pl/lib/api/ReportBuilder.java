@@ -14,10 +14,11 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import net.sf.jasperreports.engine.type.OrientationEnum;
+import net.sf.jasperreports.engine.type.WhenNoDataTypeEnum;
+import net.sf.jasperreports.engine.JRDataSource;
 
-/**
- * OSTATECZNA, KOMPLETNA, POPRAWIONA I FINALNA WERSJA.
- */
+
+
 public class ReportBuilder {
     private final List<Column> columns = new ArrayList<>();
     private final List<Style> styles = new ArrayList<>();
@@ -26,6 +27,9 @@ public class ReportBuilder {
     private final List<Group> groups = new ArrayList<>();
     private FormattingOptions formattingOptions = new FormattingOptions();
     private boolean pageFooterEnabled = true;
+    private final List<Subreport> subreports = new ArrayList<>();
+    private boolean titleEnabled = true;
+
 
     public ReportBuilder() {
         this(UUID.randomUUID().toString());
@@ -61,7 +65,11 @@ public class ReportBuilder {
     }
 
     public ReportBuilder withCompanyInfo(CompanyInfo companyInfo) {
-        // Parametry są ustawiane w JsonReportGenerator
+        return this;
+    }
+
+    public ReportBuilder withTitleBand(boolean enabled) {
+        this.titleEnabled = enabled;
         return this;
     }
 
@@ -98,11 +106,16 @@ public class ReportBuilder {
         return this;
     }
 
+    public ReportBuilder addSubreport(Subreport subreport){
+        this.subreports.add(subreport);
+        return this;
+    }
+
     public JasperReport build() throws JRException {
+        declareParameters(); // Move declareParameters before setupPage
         setupPage();
         calculateColumnWidths();
         buildStyles();
-        declareParameters();
         declareFields();
         buildGroups();
         declareVariables();
@@ -115,14 +128,26 @@ public class ReportBuilder {
     }
 
     private void setupPage() {
-        if (jasperDesign.getOrientationValue() == OrientationEnum.LANDSCAPE) {
-            jasperDesign.setPageWidth(842);
-            jasperDesign.setPageHeight(595);
+        if (jasperDesign.getParametersMap().containsKey("MasterColumnWidth") && parameters.containsKey("MasterColumnWidth")) {
+            int masterWidth = (Integer) parameters.get("MasterColumnWidth");
+            jasperDesign.setPageWidth(masterWidth);
+            jasperDesign.setColumnWidth(masterWidth);
+            jasperDesign.setLeftMargin(0);
+            jasperDesign.setRightMargin(0);
+            jasperDesign.setTopMargin(0);
+            jasperDesign.setBottomMargin(0);
         } else {
-            jasperDesign.setPageWidth(595);
-            jasperDesign.setPageHeight(842);
+            if (jasperDesign.getOrientationValue() == OrientationEnum.LANDSCAPE) {
+                jasperDesign.setPageWidth(842);
+                jasperDesign.setPageHeight(595);
+            } else {
+                jasperDesign.setPageWidth(595);
+                jasperDesign.setPageHeight(842);
+            }
+            int columnWidth = jasperDesign.getPageWidth() - jasperDesign.getLeftMargin() - jasperDesign.getRightMargin();
+            jasperDesign.setColumnWidth(columnWidth);
+            parameters.put("MasterColumnWidth", columnWidth);
         }
-        jasperDesign.setColumnWidth(jasperDesign.getPageWidth() - jasperDesign.getLeftMargin() - jasperDesign.getRightMargin());
     }
 
     private void declareFields() throws JRException {
@@ -149,6 +174,16 @@ public class ReportBuilder {
                 jasperDesign.addField(field);
             }
         }
+
+        for (Subreport subreport : subreports) {
+            String jrFieldName = subreport.getFieldName().replace('.', '_');
+            if (jasperDesign.getFieldsMap().get(jrFieldName) == null) {
+                JRDesignField field = new JRDesignField();
+                field.setName(jrFieldName);
+                field.setValueClass(JRDataSource.class);
+                jasperDesign.addField(field);
+            }
+        }
     }
 
     private void declareParameters() throws JRException {
@@ -158,6 +193,11 @@ public class ReportBuilder {
         addParameterIfNotExists("CompanyPostalCode", String.class);
         addParameterIfNotExists("CompanyCity", String.class);
         addParameterIfNotExists("FooterLeftText", String.class);
+        addParameterIfNotExists("MasterColumnWidth", Integer.class);
+
+        for(Subreport sub : subreports){
+            addParameterIfNotExists("SUBREPORT_" + sub.getFieldName(), JasperReport.class);
+        }
     }
 
     private void addParameterIfNotExists(String name, Class<?> type) throws JRException {
@@ -206,6 +246,7 @@ public class ReportBuilder {
     }
 
     private void buildTitleBand() {
+        if (!titleEnabled) return;
         int availableWidth = jasperDesign.getColumnWidth();
         JRDesignBand titleBand = new JRDesignBand();
         titleBand.setHeight(80);
@@ -244,7 +285,8 @@ public class ReportBuilder {
             if (column.getWidth() <= 0) continue;
             JRDesignStaticText headerText = new JRDesignStaticText();
             headerText.setX(currentX); headerText.setY(0);
-            headerText.setWidth(column.getWidth()); headerText.setHeight(20);
+            headerText.setWidth(column.getWidth());
+            headerText.setHeight(20);
             headerText.setText(column.getTitle());
             headerText.setStyle((JRStyle) jasperDesign.getStylesMap().get(ReportStyles.HEADER_STYLE));
             columnHeaderBand.addElement(headerText);
@@ -255,6 +297,7 @@ public class ReportBuilder {
 
     private void buildDetailBand() throws JRException {
         JRDesignSection detailSection = (JRDesignSection) jasperDesign.getDetailSection();
+
         if (columns.stream().anyMatch(c -> c.getWidth() > 0)) {
             JRDesignBand dataBand = new JRDesignBand();
             dataBand.setHeight(20);
@@ -271,7 +314,6 @@ public class ReportBuilder {
                 if (column.hasPattern()) dataField.setPattern(column.getPattern());
                 dataField.setStretchType(StretchTypeEnum.RELATIVE_TO_TALLEST_OBJECT);
 
-                // Zakładki PDF dla raportów bez grup
                 if (formattingOptions != null && formattingOptions.isGenerateBookmarks() && (groups == null || groups.isEmpty())) {
                     boolean isDesired = desiredBookmarkField != null && desiredBookmarkField.equals(column.getFieldName());
                     if ((isDesired || (!bookmarkAssigned && desiredBookmarkField == null)) && !bookmarkAssigned) {
@@ -284,6 +326,37 @@ public class ReportBuilder {
                 currentX += column.getWidth();
             }
             detailSection.addBand(dataBand);
+        }
+
+        if (!subreports.isEmpty()) {
+            for (Subreport sub : subreports) {
+                JRDesignBand subreportBand = new JRDesignBand();
+                int subreportHeight = 100;
+                subreportBand.setHeight(subreportHeight);
+
+                JRDesignSubreport jrSubreport = new JRDesignSubreport(jasperDesign);
+                jrSubreport.setX(- jasperDesign.getRightMargin());
+                jrSubreport.setWidth(jasperDesign.getColumnWidth() - jasperDesign.getRightMargin());
+                jrSubreport.setHeight(subreportHeight);
+
+                jrSubreport.setRemoveLineWhenBlank(true);
+
+                jrSubreport.setUsingCache(true);
+                jrSubreport.setExpression(new JRDesignExpression("$P{SUBREPORT_" + sub.getFieldName() + "}"));
+
+                JRDesignSubreportParameter dataSourceParam = new JRDesignSubreportParameter();
+                dataSourceParam.setName("REPORT_DATA_SOURCE");
+                dataSourceParam.setExpression(new JRDesignExpression("$F{" + sub.getFieldName().replace('.', '_') + "}"));
+                jrSubreport.addParameter(dataSourceParam);
+
+                JRDesignSubreportParameter widthParam = new JRDesignSubreportParameter();
+                widthParam.setName("MasterColumnWidth");
+                widthParam.setExpression(new JRDesignExpression("$P{MasterColumnWidth}"));
+                jrSubreport.addParameter(widthParam);
+
+                subreportBand.addElement(jrSubreport);
+                detailSection.addBand(subreportBand);
+            }
         }
     }
 
@@ -431,10 +504,8 @@ public class ReportBuilder {
 
         if (dataStyle == null || formattingOptions == null) return;
 
-        // Najpierw reguły highlight (wyższy priorytet)
         if (formattingOptions.getHighlightRules() != null) {
             for (HighlightRule rule : formattingOptions.getHighlightRules()) {
-                // Dla stylu danych
                 JRDesignConditionalStyle highlightStyleData = new JRDesignConditionalStyle();
                 try {
                     highlightStyleData.setBackcolor(Color.decode(rule.getColor()));
@@ -450,7 +521,6 @@ public class ReportBuilder {
                     dataStyle.addConditionalStyle(highlightStyleData);
                 }
 
-                // Lustrzana reguła dla stylu numerycznego
                 if (numericDataStyle != null) {
                     JRDesignConditionalStyle highlightStyleNumeric = new JRDesignConditionalStyle();
                     try {
@@ -468,7 +538,6 @@ public class ReportBuilder {
             }
         }
 
-        // Na końcu zebra (niższy priorytet)
         if (formattingOptions.isZebraStripes()) {
             JRDesignConditionalStyle zebraStyleData = new JRDesignConditionalStyle();
             zebraStyleData.setBackcolor(Color.decode("#F7F7F7"));

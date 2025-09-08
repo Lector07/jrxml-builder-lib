@@ -2,21 +2,17 @@ package pl.lib.config;
 
 import java.util.List;
 
-/**
- * OSTATECZNA POPRAWNA WERSJA - Usunięto pole pageFooterEnabled
- */
+
 public class FormattingOptions {
     private boolean zebraStripes;
     private boolean generateBookmarks;
     private List<HighlightRule> highlightRules;
-    private String bookmarkField; // opcjonalne: nazwa pola kolumny do zakładek
+    private String bookmarkField;
 
-    // Getters
     public boolean isZebraStripes() {
         return zebraStripes;
     }
 
-    // Setters
     public void setZebraStripes(boolean zebraStripes) {
         this.zebraStripes = zebraStripes;
     }

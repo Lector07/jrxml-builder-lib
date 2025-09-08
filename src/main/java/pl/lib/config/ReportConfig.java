@@ -16,6 +16,7 @@ public class ReportConfig {
     private Map<String, ReportConfig> subreportConfigs;
     private CompanyInfo companyInfo;
     private boolean useSubreportBorders;
+    private List<Integer> margins;
 
     private boolean pageFooterEnabled;
     private String footerLeftText;
@@ -36,6 +37,7 @@ public class ReportConfig {
         this.pageFooterEnabled = builder.pageFooterEnabled;
         this.footerLeftText = builder.footerLeftText;
         this.orientation = builder.orientation;
+        this.margins = builder.margins;
         if (builder.formattingOptions != null) {
             this.formattingOptions = builder.formattingOptions;
         }
@@ -65,6 +67,10 @@ public class ReportConfig {
         return useSubreportBorders;
     }
 
+    public List<Integer> getMargins() {
+        return margins;
+    }
+
     public boolean isPageFooterEnabled() {
         return pageFooterEnabled;
     }
@@ -80,6 +86,49 @@ public class ReportConfig {
     public FormattingOptions getFormattingOptions() { return formattingOptions; }
 
 
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public void setColumns(List<ColumnDefinition> columns) {
+        this.columns = columns;
+    }
+
+    public void setGroups(List<GroupDefinition> groups) {
+        this.groups = groups;
+    }
+
+    public void setSubreportConfigs(Map<String, ReportConfig> subreportConfigs) {
+        this.subreportConfigs = subreportConfigs;
+    }
+
+    public void setCompanyInfo(CompanyInfo companyInfo) {
+        this.companyInfo = companyInfo;
+    }
+
+    public void setUseSubreportBorders(boolean useSubreportBorders) {
+        this.useSubreportBorders = useSubreportBorders;
+    }
+
+    public void setMargins(List<Integer> margins) {
+        this.margins = margins;
+    }
+
+    public void setPageFooterEnabled(boolean pageFooterEnabled) {
+        this.pageFooterEnabled = pageFooterEnabled;
+    }
+
+    public void setFooterLeftText(String footerLeftText) {
+        this.footerLeftText = footerLeftText;
+    }
+
+    public void setOrientation(String orientation) {
+        this.orientation = orientation;
+    }
+
+    public void setFormattingOptions(FormattingOptions formattingOptions) {
+        this.formattingOptions = formattingOptions;
+    }
 
     public static class Builder {
         private String title = "";
@@ -92,6 +141,7 @@ public class ReportConfig {
         private String footerLeftText = "";
         private String orientation = "PORTRAIT";
         private FormattingOptions formattingOptions;
+        private List<Integer> margins;
 
 
         public Builder title(String title) {
@@ -141,6 +191,11 @@ public class ReportConfig {
 
         public Builder addFooterLeftText(String footerLeftText){
             this.footerLeftText = footerLeftText;
+            return this;
+        }
+
+        public Builder margins(List<Integer> margins) {
+            this.margins = margins;
             return this;
         }
 
