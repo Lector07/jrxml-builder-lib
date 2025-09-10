@@ -5,6 +5,8 @@ import net.sf.jasperreports.engine.design.*;
 import net.sf.jasperreports.engine.type.*;
 import pl.lib.config.FormattingOptions;
 import pl.lib.config.HighlightRule;
+import pl.lib.config.ReportTheme;
+import pl.lib.config.ThemeFactory;
 import pl.lib.model.*;
 import java.awt.Color;
 import java.util.ArrayList;
@@ -729,9 +731,9 @@ public class ReportBuilder {
 
     private JRStyle getTransparentStyle(String baseStyleName) throws JRException {
         String transparentStyleName = baseStyleName + "_Transparent";
-        JRStyle transparentStyle = (JRStyle) jasperDesign.getStylesMap().get(transparentStyleName);
+        JRStyle transparentStyle = jasperDesign.getStylesMap().get(transparentStyleName);
         if (transparentStyle == null) {
-            JRStyle baseStyle = (JRStyle) jasperDesign.getStylesMap().get(baseStyleName);
+            JRStyle baseStyle = jasperDesign.getStylesMap().get(baseStyleName);
             if (baseStyle == null) return null;
             JRDesignStyle newStyle = (JRDesignStyle) baseStyle.clone();
             newStyle.setName(transparentStyleName);
@@ -741,5 +743,25 @@ public class ReportBuilder {
             return newStyle;
         }
         return transparentStyle;
+    }
+
+    /**
+     * Applies a visual theme to the report by adding predefined styles.
+     * This method clears any existing styles and replaces them with
+     * theme-specific styles from the ThemeFactory.
+     *
+     * @param theme The visual theme to apply (DEFAULT, CLASSIC, MODERN, CORPORATE, MINIMAL)
+     * @return this ReportBuilder instance for method chaining
+     */
+    public ReportBuilder withTheme(ReportTheme theme) {
+        if (theme != null) {
+            // Clear existing styles to avoid conflicts
+            this.styles.clear();
+
+            // Add all styles from the selected theme
+            List<Style> themeStyles = ThemeFactory.createStylesForTheme(theme);
+            this.styles.addAll(themeStyles);
+        }
+        return this;
     }
 }

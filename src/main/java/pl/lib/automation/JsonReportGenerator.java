@@ -9,6 +9,7 @@ import pl.lib.api.ReportBuilder;
 import pl.lib.config.ColumnDefinition;
 import pl.lib.config.GroupDefinition;
 import pl.lib.config.ReportConfig;
+import pl.lib.config.ReportTheme;
 import pl.lib.model.*;
 
 import java.io.IOException;
@@ -211,7 +212,7 @@ public class JsonReportGenerator {
                 .withSummaryBand(config.isSummaryBandEnabled())
                 .withFormattingOptions(config.getFormattingOptions());
 
-        addDefaultStyles(builder);
+        addDefaultStyles(builder, config);
 
         if (config.getGroups() != null) {
             for (GroupDefinition groupDef : config.getGroups()) {
@@ -387,21 +388,29 @@ public class JsonReportGenerator {
     }
 
     /**
-     * Adds default styles to report.
+     * Applies the visual theme to the report based on configuration.
+     * Uses the theme specified in config, or DEFAULT if not specified.
      *
      * @param builder report builder
+     * @param config report configuration containing theme setting
      */
-    private void addDefaultStyles(ReportBuilder builder) {
-        String COLOR_HEADER_BACK = "#C6D8E4";
-        String COLOR_GROUP_BACK = "#F0F0F0";
-        String COLOR_HEADER_BORDER = "#DDDDDD";
-        String COLOR_CELL_BORDER = "#D6D6D6";
-        String COLOR_TEXT_BLACK = "#000000";
+    private void addDefaultStyles(ReportBuilder builder, ReportConfig config) {
+        // Determine which theme to use
+        ReportTheme themeToApply = ReportTheme.DEFAULT; // default fallback
 
-        builder.addStyle(new Style(ReportStyles.HEADER_STYLE).withFont(ReportStyles.FONT_DEJAVU_SANS, 7, true).withColors(COLOR_TEXT_BLACK, COLOR_HEADER_BACK).withAlignment("Center", "Middle").withBorders(1f, COLOR_HEADER_BORDER).withPadding(3))
-                .addStyle(new Style(ReportStyles.DATA_STYLE).withFont(ReportStyles.FONT_DEJAVU_SANS, 7, false).withColors(COLOR_TEXT_BLACK, null).withAlignment("Left", "Middle").withBorders(0.5f, COLOR_CELL_BORDER).withPadding(3))
-                .addStyle(new Style(ReportStyles.NUMERIC_STYLE).withFont(ReportStyles.FONT_DEJAVU_SANS, 7, false).withColors(COLOR_TEXT_BLACK, null).withAlignment("Right", "Middle").withBorders(0.5f, COLOR_CELL_BORDER).withPadding(3))
-                .addStyle(new Style(ReportStyles.GROUP_STYLE_1).withFont(ReportStyles.FONT_DEJAVU_SANS, 7, true).withColors(COLOR_TEXT_BLACK, COLOR_GROUP_BACK).withAlignment("Left", "Middle").withBorders(0.5f, COLOR_CELL_BORDER).withPadding(3));
+        if (config.getTheme() != null && !config.getTheme().trim().isEmpty()) {
+            try {
+                // Convert string theme name to enum
+                themeToApply = ReportTheme.valueOf(config.getTheme().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                // If invalid theme name, log warning and use default
+                System.err.println("Warning: Invalid theme '" + config.getTheme() + "'. Using DEFAULT theme.");
+                themeToApply = ReportTheme.DEFAULT;
+            }
+        }
+
+        // Apply the determined theme
+        builder.withTheme(themeToApply);
     }
 
     /**

@@ -50,6 +50,7 @@ public class ReportConfig {
     private String footerLeftText;
     private String orientation;
     private boolean summaryBandEnabled = false;
+    private String theme;
 
     @JsonSetter(nulls = Nulls.SKIP)
     private FormattingOptions formattingOptions = new FormattingOptions();
@@ -118,6 +119,14 @@ public class ReportConfig {
      */
     public Map<String, ReportConfig> getSubreportConfigs() {
         return subreportConfigs;
+    }
+
+    public String getTheme() {
+        return theme;
+    }
+
+    public void setTheme(String theme) {
+        this.theme = theme;
     }
 
     /**
