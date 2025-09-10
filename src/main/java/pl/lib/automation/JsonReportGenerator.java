@@ -19,17 +19,68 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * OSTATECZNA WERSJA z pełną i poprawną obsługą PODRAPORTÓW.
+ * JSON data report generator with full subreport support.
+ *
+ * <p>Class responsible for automatic JSON data structure analysis,
+ * conversion to JasperReports format and generation of complete reports
+ * with support for groups, calculations and hierarchical subreports.</p>
+ *
+ * <h3>Main functionalities:</h3>
+ * <ul>
+ *   <li>Automatic JSON structure analysis and data type detection</li>
+ *   <li>Recursive subreport generation for nested data</li>
+ *   <li>Data grouping and sorting support</li>
+ *   <li>JSON data type conversion to Java/JasperReports types</li>
+ *   <li>Optional debugging with JRXML output</li>
+ *   <li>ISO 8601 date format support</li>
+ *   <li>Automatic detection and handling of nested structures</li>
+ * </ul>
+ *
+ * <h3>Usage example:</h3>
+ * <pre>{@code
+ * JsonReportGenerator generator = new JsonReportGenerator()
+ *     .withJrxmlPrinting(true); // Optional debugging
+ *
+ * String jsonData = "[{\"name\":\"Product 1\",\"price\":100.50,\"details\":[...]}]";
+ * ReportConfig config = ...; // Report configuration
+ *
+ * JasperPrint jasperPrint = generator.generateReportFromJson(jsonData, config);
+ * }</pre>
+ *
+ * @author SOFTRES
+ * @since 1.0
+ * @see AutomatedReportService
+ * @see ReportConfig
+ * @see ReportBuilder
  */
 public class JsonReportGenerator {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private boolean printJrxmlToConsole = false;
 
+    /**
+     * Configures the generator to print JRXML to console for debugging purposes.
+     *
+     * @param print true to enable JRXML printing
+     * @return this generator (for method chaining)
+     */
     public JsonReportGenerator withJrxmlPrinting(boolean print) {
         this.printJrxmlToConsole = print;
         return this;
     }
 
+    /**
+     * Generates JasperReports report from JSON data.
+     *
+     * <p>Main method that parses JSON, analyzes data structure and generates
+     * complete report with subreports and grouping.</p>
+     *
+     * @param jsonContent source data in JSON format (must be an array of objects)
+     * @param config report configuration
+     * @return JasperPrint object ready for export
+     * @throws JRException in case of report compilation errors
+     * @throws IOException in case of JSON parsing errors
+     * @throws IllegalArgumentException if JSON is not an array
+     */
     public JasperPrint generateReportFromJson(String jsonContent, ReportConfig config) throws JRException, IOException {
         JsonNode arrayNode = objectMapper.readTree(jsonContent);
         if (!arrayNode.isArray()) {
@@ -38,10 +89,19 @@ public class JsonReportGenerator {
         return generateReportFromArray(arrayNode, config);
     }
 
+    /**
+     * Generates report from JSON node representing an array.
+     *
+     * @param arrayNode JSON node with array data
+     * @param config report configuration
+     * @return JasperPrint object
+     * @throws JRException in case of compilation errors
+     */
     private JasperPrint generateReportFromArray(JsonNode arrayNode, ReportConfig config) throws JRException {
         ReportStructure structure = analyzeArrayStructure(arrayNode);
 
         ReportBuilder reportBuilder = new ReportBuilder();
+        reportBuilder.withHorizontalLayout("LANDSCAPE".equalsIgnoreCase(config.getOrientation()));
 
         if (config.getMargins() != null && config.getMargins().size() == 4) {
             reportBuilder.withMargins(config.getMargins().get(0), config.getMargins().get(1), config.getMargins().get(2), config.getMargins().get(3));
@@ -49,7 +109,7 @@ public class JsonReportGenerator {
             reportBuilder.withMargins(20, 20, 20, 20);
         }
 
-        Map<String, JasperReport> compiledSubreports = compileSubreports(structure, config);
+        Map<String, JasperReport> compiledSubreports = compileSubreports(structure, config, "LANDSCAPE".equalsIgnoreCase(config.getOrientation()));
         for(Map.Entry<String, JasperReport> entry : compiledSubreports.entrySet()) {
             reportBuilder.getParameters().put("SUBREPORT_" + entry.getKey(), entry.getValue());
         }
@@ -91,6 +151,7 @@ public class JsonReportGenerator {
             parameters.put("CompanyAddress", config.getCompanyInfo().getAddress());
             parameters.put("CompanyPostalCode", config.getCompanyInfo().getPostalCode());
             parameters.put("CompanyCity", config.getCompanyInfo().getCity());
+            parameters.put("CompanyTaxId", config.getCompanyInfo().getTaxId());
         }
         if (config.getFooterLeftText() != null) {
             parameters.put("FooterLeftText", config.getFooterLeftText());
@@ -99,7 +160,16 @@ public class JsonReportGenerator {
         return JasperFillManager.fillReport(mainReport, parameters, dataSource);
     }
 
-    private Map<String, JasperReport> compileSubreports(ReportStructure structure, ReportConfig config) throws JRException {
+    /**
+     * Compiles all subreports defined in configuration.
+     *
+     * @param structure main report data structure
+     * @param config report configuration
+     * @param isLandscape whether report has landscape orientation
+     * @return map of compiled subreports
+     * @throws JRException in case of compilation errors
+     */
+    private Map<String, JasperReport> compileSubreports(ReportStructure structure, ReportConfig config, boolean isLandscape) throws JRException {
         Map<String, JasperReport> compiledSubreports = new HashMap<>();
         if (config.getSubreportConfigs() != null) {
             for (Map.Entry<String, ReportConfig> entry : config.getSubreportConfigs().entrySet()) {
@@ -108,11 +178,12 @@ public class JsonReportGenerator {
                 ReportStructure subStructure = structure.getNestedStructures().get(fieldName);
                 if (subStructure != null) {
                     ReportBuilder subBuilder = new ReportBuilder("SUB_" + fieldName);
+                    subBuilder.withHorizontalLayout(isLandscape);
 
                     if (subConfig.getMargins() != null && subConfig.getMargins().size() == 4) {
                         subBuilder.withMargins(subConfig.getMargins().get(0), subConfig.getMargins().get(1), subConfig.getMargins().get(2), subConfig.getMargins().get(3));
                     } else {
-                        subBuilder.withMargins(5, 20, 5, 20);
+                        subBuilder.withMargins(5, 20, 0, 40);
                     }
 
                     subBuilder.withTitleBand(false);
@@ -125,9 +196,19 @@ public class JsonReportGenerator {
         return compiledSubreports;
     }
 
+    /**
+     * Creates main report or subreport based on structure and configuration.
+     *
+     * @param builder report builder
+     * @param structure data structure
+     * @param config report configuration
+     * @param compiledSubreports map of compiled subreports
+     * @return compiled JasperReports report
+     * @throws JRException in case of compilation errors
+     */
     private JasperReport createMainReport(ReportBuilder builder, ReportStructure structure, ReportConfig config, Map<String, JasperReport> compiledSubreports) throws JRException {
-        builder.withHorizontalLayout("LANDSCAPE".equalsIgnoreCase(config.getOrientation()))
-                .withPageFooter(config.isPageFooterEnabled())
+        builder.withPageFooter(config.isPageFooterEnabled())
+                .withSummaryBand(config.isSummaryBandEnabled())
                 .withFormattingOptions(config.getFormattingOptions());
 
         addDefaultStyles(builder);
@@ -176,6 +257,15 @@ public class JsonReportGenerator {
         return builder.build();
     }
 
+    /**
+     * Analyzes JSON array structure and detects data types.
+     *
+     * <p>Recursively goes through all array elements and builds
+     * data type map and detects nested structures.</p>
+     *
+     * @param arrayNode JSON node with array
+     * @return structure describing the data
+     */
     private ReportStructure analyzeArrayStructure(JsonNode arrayNode) {
         ReportStructure structure = new ReportStructure();
         if (!arrayNode.isArray() || arrayNode.isEmpty()) return structure;
@@ -187,6 +277,16 @@ public class JsonReportGenerator {
         return structure;
     }
 
+    /**
+     * Flattens JSON node to hierarchical structure.
+     *
+     * <p>Converts nested JSON objects to flat structure with field names
+     * using dot notation (e.g. "address.city").</p>
+     *
+     * @param currentPath current path in hierarchy
+     * @param jsonNode node to flatten
+     * @param structure result structure
+     */
     private void flattenNode(String currentPath, JsonNode jsonNode, ReportStructure structure) {
         if (jsonNode.isObject()) {
             String prefix = currentPath.isEmpty() ? "" : currentPath + ".";
@@ -202,6 +302,12 @@ public class JsonReportGenerator {
         }
     }
 
+    /**
+     * Converts JSON array to list of maps for JasperReports.
+     *
+     * @param arrayNode JSON node with array
+     * @return list of maps representing records
+     */
     private List<Map<String, Object>> convertJsonArrayToList(JsonNode arrayNode) {
         List<Map<String, Object>> result = new ArrayList<>();
         for (JsonNode item : arrayNode) {
@@ -212,12 +318,25 @@ public class JsonReportGenerator {
         return result;
     }
 
+    /**
+     * Flattens single JSON object to map.
+     *
+     * @param node JSON node
+     * @return map with object data
+     */
     private Map<String, Object> flattenJson(JsonNode node) {
         Map<String, Object> map = new HashMap<>();
         addKeys("", node, map);
         return map;
     }
 
+    /**
+     * Adds keys from JSON node to result map.
+     *
+     * @param currentPath current path
+     * @param jsonNode JSON node
+     * @param map result map
+     */
     private void addKeys(String currentPath, JsonNode jsonNode, Map<String, Object> map) {
         if (jsonNode.isObject()) {
             String prefix = currentPath.isEmpty() ? "" : currentPath + ".";
@@ -229,6 +348,15 @@ public class JsonReportGenerator {
         }
     }
 
+    /**
+     * Converts JSON value to appropriate Java type.
+     *
+     * <p>Automatically detects data types and converts to appropriate Java classes,
+     * including support for dates in ISO 8601 format.</p>
+     *
+     * @param value JSON node with value
+     * @return converted Java value
+     */
     private Object convertJsonValue(JsonNode value) {
         if (value == null || value.isNull()) return null;
         if (value.isTextual()) {
@@ -240,6 +368,12 @@ public class JsonReportGenerator {
         return value.toString();
     }
 
+    /**
+     * Determines data type based on JSON node.
+     *
+     * @param node JSON node
+     * @return appropriate data type
+     */
     private DataType determineDataType(JsonNode node) {
         if (node == null || node.isNull()) return DataType.STRING;
         if (node.isTextual()) {
@@ -252,6 +386,11 @@ public class JsonReportGenerator {
         return DataType.STRING;
     }
 
+    /**
+     * Adds default styles to report.
+     *
+     * @param builder report builder
+     */
     private void addDefaultStyles(ReportBuilder builder) {
         String COLOR_HEADER_BACK = "#C6D8E4";
         String COLOR_GROUP_BACK = "#F0F0F0";
@@ -265,6 +404,12 @@ public class JsonReportGenerator {
                 .addStyle(new Style(ReportStyles.GROUP_STYLE_1).withFont(ReportStyles.FONT_DEJAVU_SANS, 7, true).withColors(COLOR_TEXT_BLACK, COLOR_GROUP_BACK).withAlignment("Left", "Middle").withBorders(0.5f, COLOR_CELL_BORDER).withPadding(3));
     }
 
+    /**
+     * Prints report JRXML to console for debugging purposes.
+     *
+     * @param report compiled report
+     * @param reportName report name for identification
+     */
     private void printJrxmlToConsole(JasperReport report, String reportName) {
         System.out.println("\n" + "=".repeat(80) + "\n=== " + reportName + " ===\n" + "=".repeat(80));
         System.out.println(JRXmlWriter.writeReport(report, "UTF-8"));
@@ -272,16 +417,69 @@ public class JsonReportGenerator {
 
     }
 
+    /**
+     * Internal class representing report data structure.
+     *
+     * <p>Stores information about fields, data types and nested structures
+     * detected during JSON analysis.</p>
+     */
     private static class ReportStructure {
         private Set<String> fields = new LinkedHashSet<>();
         private Map<String, DataType> fieldTypes = new HashMap<>();
         private Map<String, ReportStructure> nestedStructures = new HashMap<>();
 
-        public Set<String> getFields() { return fields; }
-        public void setFields(Set<String> fields) { this.fields = fields; }
-        public Map<String, DataType> getFieldTypes() { return fieldTypes; }
-        public void setFieldTypes(Map<String, DataType> fieldTypes) { this.fieldTypes = fieldTypes; }
-        public Map<String, ReportStructure> getNestedStructures() { return nestedStructures; }
-        public void setNestedStructures(Map<String, ReportStructure> nestedStructures) { this.nestedStructures = nestedStructures; }
+        /**
+         * Returns set of field names.
+         *
+         * @return set of field names
+         */
+        public Set<String> getFields() {
+            return fields;
+        }
+
+        /**
+         * Sets field names set.
+         *
+         * @param fields set of field names
+         */
+        public void setFields(Set<String> fields) {
+            this.fields = fields;
+        }
+
+        /**
+         * Returns map of data types for fields.
+         *
+         * @return data types map
+         */
+        public Map<String, DataType> getFieldTypes() {
+            return fieldTypes;
+        }
+
+        /**
+         * Sets data types map for fields.
+         *
+         * @param fieldTypes data types map
+         */
+        public void setFieldTypes(Map<String, DataType> fieldTypes) {
+            this.fieldTypes = fieldTypes;
+        }
+
+        /**
+         * Returns map of nested structures.
+         *
+         * @return nested structures map
+         */
+        public Map<String, ReportStructure> getNestedStructures() {
+            return nestedStructures;
+        }
+
+        /**
+         * Sets nested structures map.
+         *
+         * @param nestedStructures nested structures map
+         */
+        public void setNestedStructures(Map<String, ReportStructure> nestedStructures) {
+            this.nestedStructures = nestedStructures;
+        }
     }
 }

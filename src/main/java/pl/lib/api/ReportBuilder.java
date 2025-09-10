@@ -29,6 +29,7 @@ public class ReportBuilder {
     private boolean pageFooterEnabled = true;
     private final List<Subreport> subreports = new ArrayList<>();
     private boolean titleEnabled = true;
+    private boolean summaryBandEnabled = false;
 
 
     public ReportBuilder() {
@@ -85,6 +86,11 @@ public class ReportBuilder {
         return this;
     }
 
+    public ReportBuilder withSummaryBand(boolean enabled) {
+        this.summaryBandEnabled = enabled;
+        return this;
+    }
+
     public Map<String, Object> getParameters() {
         return this.parameters;
     }
@@ -112,7 +118,7 @@ public class ReportBuilder {
     }
 
     public JasperReport build() throws JRException {
-        declareParameters(); // Move declareParameters before setupPage
+        declareParameters();
         setupPage();
         calculateColumnWidths();
         buildStyles();
@@ -128,26 +134,15 @@ public class ReportBuilder {
     }
 
     private void setupPage() {
-        if (jasperDesign.getParametersMap().containsKey("MasterColumnWidth") && parameters.containsKey("MasterColumnWidth")) {
-            int masterWidth = (Integer) parameters.get("MasterColumnWidth");
-            jasperDesign.setPageWidth(masterWidth);
-            jasperDesign.setColumnWidth(masterWidth);
-            jasperDesign.setLeftMargin(0);
-            jasperDesign.setRightMargin(0);
-            jasperDesign.setTopMargin(0);
-            jasperDesign.setBottomMargin(0);
+        if (jasperDesign.getOrientationValue() == OrientationEnum.LANDSCAPE) {
+            jasperDesign.setPageWidth(842);
+            jasperDesign.setPageHeight(595);
         } else {
-            if (jasperDesign.getOrientationValue() == OrientationEnum.LANDSCAPE) {
-                jasperDesign.setPageWidth(842);
-                jasperDesign.setPageHeight(595);
-            } else {
-                jasperDesign.setPageWidth(595);
-                jasperDesign.setPageHeight(842);
-            }
-            int columnWidth = jasperDesign.getPageWidth() - jasperDesign.getLeftMargin() - jasperDesign.getRightMargin();
-            jasperDesign.setColumnWidth(columnWidth);
-            parameters.put("MasterColumnWidth", columnWidth);
+            jasperDesign.setPageWidth(595);
+            jasperDesign.setPageHeight(842);
         }
+        int columnWidth = jasperDesign.getPageWidth() - jasperDesign.getLeftMargin() - jasperDesign.getRightMargin();
+        jasperDesign.setColumnWidth(columnWidth);
     }
 
     private void declareFields() throws JRException {
@@ -193,7 +188,7 @@ public class ReportBuilder {
         addParameterIfNotExists("CompanyPostalCode", String.class);
         addParameterIfNotExists("CompanyCity", String.class);
         addParameterIfNotExists("FooterLeftText", String.class);
-        addParameterIfNotExists("MasterColumnWidth", Integer.class);
+        addParameterIfNotExists("CompanyTaxId", String.class);
 
         for(Subreport sub : subreports){
             addParameterIfNotExists("SUBREPORT_" + sub.getFieldName(), JasperReport.class);
@@ -249,14 +244,15 @@ public class ReportBuilder {
         if (!titleEnabled) return;
         int availableWidth = jasperDesign.getColumnWidth();
         JRDesignBand titleBand = new JRDesignBand();
-        titleBand.setHeight(80);
+        titleBand.setHeight(95);
         titleBand.addElement(createTextField("$P{CompanyName}", 0, 0, availableWidth / 2, 18, true, 8f));
         titleBand.addElement(createTextField("$P{CompanyAddress}", 0, 18, availableWidth / 2, 15, false, 8f));
         titleBand.addElement(createTextField("$P{CompanyPostalCode} + \" \" + $P{CompanyCity}", 0, 33, availableWidth / 2, 15, false, 8f));
+        titleBand.addElement(createTextField("$P{CompanyTaxId} != null ? \"NIP: \" + $P{CompanyTaxId} : \"\"", 0, 48, availableWidth / 2, 15, false, 8f));
         JRDesignTextField dateField = createTextField("\"Data: \" + new java.text.SimpleDateFormat(\"dd.MM.yyyy\").format(new java.util.Date())", 0, 18, availableWidth, 15, false, 8f);
         dateField.setHorizontalTextAlign(HorizontalTextAlignEnum.RIGHT);
         titleBand.addElement(dateField);
-        JRDesignTextField titleTextField = createTextField("$P{ReportTitle}", 0, 50, availableWidth, 25, true, 10f);
+        JRDesignTextField titleTextField = createTextField("$P{ReportTitle}", 0, 65, availableWidth, 25, true, 10f);
         titleTextField.setForecolor(Color.decode("#FFFFFF"));
         titleTextField.setBackcolor(Color.decode("#2A3F54"));
         titleTextField.setMode(ModeEnum.OPAQUE);
@@ -335,8 +331,9 @@ public class ReportBuilder {
                 subreportBand.setHeight(subreportHeight);
 
                 JRDesignSubreport jrSubreport = new JRDesignSubreport(jasperDesign);
-                jrSubreport.setX(- jasperDesign.getRightMargin());
-                jrSubreport.setWidth(jasperDesign.getColumnWidth() - jasperDesign.getRightMargin());
+                jrSubreport.setX(-jasperDesign.getRightMargin());
+                jrSubreport.setY(0);
+                jrSubreport.setWidth(jasperDesign.getColumnWidth());
                 jrSubreport.setHeight(subreportHeight);
 
                 jrSubreport.setRemoveLineWhenBlank(true);
@@ -349,10 +346,6 @@ public class ReportBuilder {
                 dataSourceParam.setExpression(new JRDesignExpression("$F{" + sub.getFieldName().replace('.', '_') + "}"));
                 jrSubreport.addParameter(dataSourceParam);
 
-                JRDesignSubreportParameter widthParam = new JRDesignSubreportParameter();
-                widthParam.setName("MasterColumnWidth");
-                widthParam.setExpression(new JRDesignExpression("$P{MasterColumnWidth}"));
-                jrSubreport.addParameter(widthParam);
 
                 subreportBand.addElement(jrSubreport);
                 detailSection.addBand(subreportBand);
@@ -476,7 +469,138 @@ public class ReportBuilder {
         jasperDesign.setPageFooter(pageFooterBand);
     }
 
-    private void buildSummaryBand() { }
+    private void buildSummaryBand() throws JRException {
+        if (!summaryBandEnabled) return;
+
+        boolean hasCalculations = columns.stream().anyMatch(column ->
+            column.hasGroupCalculation() ||
+            (column.getDataType() != null && column.getDataType().isNumeric())
+        );
+
+        int summaryHeight = hasCalculations ? 90 : 30;
+        JRDesignBand summaryBand = new JRDesignBand();
+        summaryBand.setHeight(summaryHeight);
+
+        if (hasCalculations) {
+            JRDesignLine topSeparatorLine = new JRDesignLine();
+            topSeparatorLine.setX(0);
+            topSeparatorLine.setY(25);
+            topSeparatorLine.setWidth(jasperDesign.getColumnWidth());
+            topSeparatorLine.setHeight(1);
+            topSeparatorLine.setForecolor(Color.decode("#CCCCCC"));
+            summaryBand.addElement(topSeparatorLine);
+
+            declareReportSummaryVariables();
+
+            int summaryY = 30;
+
+            JRDesignRectangle backgroundRect = new JRDesignRectangle();
+            backgroundRect.setX(0);
+            backgroundRect.setY(summaryY);
+            backgroundRect.setWidth(jasperDesign.getColumnWidth());
+            backgroundRect.setHeight(20);
+            backgroundRect.setBackcolor(Color.decode("#F0F0F0"));
+            backgroundRect.setMode(ModeEnum.OPAQUE);
+            backgroundRect.setFill(FillEnum.SOLID);
+            backgroundRect.getLinePen().setLineWidth(0.5f);
+            backgroundRect.getLinePen().setLineColor(Color.decode("#D6D6D6"));
+            summaryBand.addElement(backgroundRect);
+
+            int firstNumericColumnX = 0;
+            int currentX = 0;
+            boolean foundFirstNumeric = false;
+
+            for (Column column : columns) {
+                if (column.getWidth() <= 0) continue;
+
+                boolean isNumericColumn = column.getDataType() != null &&
+                    (column.getDataType().isNumeric() || column.hasGroupCalculation());
+
+                if (isNumericColumn && !foundFirstNumeric) {
+                    firstNumericColumnX = currentX;
+                    foundFirstNumeric = true;
+                    break;
+                }
+                currentX += column.getWidth();
+            }
+
+            currentX = 0;
+            for (Column column : columns) {
+                if (column.getWidth() <= 0) {
+                    continue;
+                }
+
+                boolean shouldShowSummary = column.getDataType() != null &&
+                    (column.getDataType().isNumeric() || column.hasGroupCalculation());
+
+                if (shouldShowSummary) {
+                    String jrFieldName = column.getFieldName().replace('.', '_');
+                    String variableName = jrFieldName + "_REPORT_SUM";
+
+                    JRDesignTextField summaryField = createTextField("$V{" + variableName + "}",
+                        currentX, summaryY, column.getWidth(), 20, true, 8f);
+
+                    // Transparent style, żeby nie zakrywać tła
+                    summaryField.setMode(ModeEnum.TRANSPARENT);
+                    summaryField.setFontName(ReportStyles.FONT_DEJAVU_SANS);
+                    summaryField.setForecolor(Color.decode("#000000"));
+
+                    if (column.hasPattern()) {
+                        summaryField.setPattern(column.getPattern());
+                    }
+                    summaryField.setHorizontalTextAlign(HorizontalTextAlignEnum.RIGHT);
+                    summaryField.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
+                    summaryField.setEvaluationTime(EvaluationTimeEnum.REPORT);
+                    summaryField.setBlankWhenNull(true);
+                    summaryBand.addElement(summaryField);
+                }
+
+                currentX += column.getWidth();
+            }
+
+            JRDesignLine bottomSeparatorLine = new JRDesignLine();
+            bottomSeparatorLine.setX(0);
+            bottomSeparatorLine.setY(summaryY + 25);
+            bottomSeparatorLine.setWidth(jasperDesign.getColumnWidth());
+            bottomSeparatorLine.setHeight(1);
+            bottomSeparatorLine.setForecolor(Color.decode("#CCCCCC"));
+            summaryBand.addElement(bottomSeparatorLine);
+
+            JRDesignTextField recordCountField = createTextField("\"Liczba rekordów: \" + $V{REPORT_COUNT}",
+                0, summaryY + 30, jasperDesign.getColumnWidth() / 2, 15, false, 8f);
+            recordCountField.setHorizontalTextAlign(HorizontalTextAlignEnum.LEFT);
+            recordCountField.setMode(ModeEnum.TRANSPARENT);
+            summaryBand.addElement(recordCountField);
+
+            JRDesignTextField generatedDateField = createTextField(
+                "\"Wygenerowano: \" + new java.text.SimpleDateFormat(\"dd.MM.yyyy HH:mm\").format(new java.util.Date())",
+                jasperDesign.getColumnWidth() / 2, summaryY + 30, jasperDesign.getColumnWidth() / 2, 15, false, 8f);
+            generatedDateField.setHorizontalTextAlign(HorizontalTextAlignEnum.RIGHT);
+            generatedDateField.setMode(ModeEnum.TRANSPARENT);
+            summaryBand.addElement(generatedDateField);
+        }
+
+        jasperDesign.setSummary(summaryBand);
+    }
+
+    private void declareReportSummaryVariables() throws JRException {
+        for (Column column : columns) {
+            if (column.getDataType() != null && column.getDataType().isNumeric()) {
+                String jrFieldName = column.getFieldName().replace('.', '_');
+                String variableName = jrFieldName + "_REPORT_SUM";
+
+                if (jasperDesign.getVariablesMap().get(variableName) == null) {
+                    JRDesignVariable variable = new JRDesignVariable();
+                    variable.setName(variableName);
+                    variable.setValueClass(column.getType().getJavaClass());
+                    variable.setResetType(ResetTypeEnum.REPORT);
+                    variable.setCalculation(CalculationEnum.SUM);
+                    variable.setExpression(new JRDesignExpression("$F{" + jrFieldName + "}"));
+                    jasperDesign.addVariable(variable);
+                }
+            }
+        }
+    }
 
     private void buildStyles() throws JRException {
         for (Style style : this.styles) {
