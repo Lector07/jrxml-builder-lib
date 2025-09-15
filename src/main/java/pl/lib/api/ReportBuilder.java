@@ -329,7 +329,7 @@ public class ReportBuilder {
         if (!subreports.isEmpty()) {
             for (Subreport sub : subreports) {
                 JRDesignBand subreportBand = new JRDesignBand();
-                int subreportHeight = 100;
+                int subreportHeight = sub.getHeight();
                 subreportBand.setHeight(subreportHeight);
 
                 JRDesignSubreport jrSubreport = new JRDesignSubreport(jasperDesign);
@@ -339,6 +339,7 @@ public class ReportBuilder {
                 jrSubreport.setHeight(subreportHeight);
 
                 jrSubreport.setRemoveLineWhenBlank(true);
+                subreportBand.setSplitType(SplitTypeEnum.STRETCH);
 
                 jrSubreport.setUsingCache(true);
                 jrSubreport.setExpression(new JRDesignExpression("$P{SUBREPORT_" + sub.getFieldName() + "}"));

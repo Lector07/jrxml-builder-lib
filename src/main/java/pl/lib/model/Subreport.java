@@ -31,9 +31,10 @@ import net.sf.jasperreports.engine.JasperReport;
 public final class Subreport {
     private final String fieldName;
     private final JasperReport subreport;
+    private final int height;
 
     /**
-     * Creates a new Subreport instance.
+     * Creates a new Subreport instance with default height (50 pixels).
      *
      * @param fieldName name of the field in source data containing data for the subreport
      * @param subreport compiled JasperReports report to be used as subreport
@@ -41,14 +42,32 @@ public final class Subreport {
      * @throws IllegalArgumentException if subreport is null
      */
     public Subreport(String fieldName, JasperReport subreport) {
+        this(fieldName, subreport, 50);
+    }
+
+    /**
+     * Creates a new Subreport instance with specified height.
+     *
+     * @param fieldName name of the field in source data containing data for the subreport
+     * @param subreport compiled JasperReports report to be used as subreport
+     * @param height height of the subreport band in pixels
+     * @throws IllegalArgumentException if fieldName is null or empty
+     * @throws IllegalArgumentException if subreport is null
+     * @throws IllegalArgumentException if height is less than 1
+     */
+    public Subreport(String fieldName, JasperReport subreport, int height) {
         if (fieldName == null || fieldName.trim().isEmpty()) {
             throw new IllegalArgumentException("Field name cannot be null or empty");
         }
         if (subreport == null) {
             throw new IllegalArgumentException("Subreport cannot be null");
         }
+        if (height < 1) {
+            throw new IllegalArgumentException("Height must be at least 1 pixel");
+        }
         this.fieldName = fieldName;
         this.subreport = subreport;
+        this.height = height;
     }
 
     /**
@@ -70,5 +89,14 @@ public final class Subreport {
      */
     public JasperReport getSubreport() {
         return subreport;
+    }
+
+    /**
+     * Returns the height of the subreport band in pixels.
+     *
+     * @return height in pixels
+     */
+    public int getHeight() {
+        return height;
     }
 }
