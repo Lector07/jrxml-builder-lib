@@ -1,13 +1,41 @@
 package pl.lib.config;
 
-import pl.lib.model.CompanyInfo;
 import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.annotation.Nulls;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import pl.lib.model.CompanyInfo;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+/**
+ * Custom deserializer for subreportConfigs that handles empty arrays as empty maps
+ */
+import com.fasterxml.jackson.databind.JavaType;
+
+class SubreportConfigsDeserializer extends JsonDeserializer<Map<String, ReportConfig>> {
+    @Override
+    public Map<String, ReportConfig> deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
+        if (p.getCurrentToken() == JsonToken.START_ARRAY) {
+            p.nextToken();
+            if (p.getCurrentToken() == JsonToken.END_ARRAY) {
+                return new HashMap<>();
+            }
+            throw new IOException("Oczekiwano pustej tablicy [] dla subreportConfigs, ale tablica zawiera elementy");
+        }
+
+        JavaType mapType = ctxt.getTypeFactory().constructMapType(HashMap.class, String.class, ReportConfig.class);
+
+        return ctxt.readValue(p, mapType);
+    }
+}
 
 /**
  * Main report configuration class.
@@ -42,6 +70,7 @@ public class ReportConfig {
     private String title;
     private List<ColumnDefinition> columns;
     private List<GroupDefinition> groups;
+    @JsonDeserialize(using = SubreportConfigsDeserializer.class)
     private Map<String, ReportConfig> subreportConfigs;
     private CompanyInfo companyInfo;
     private boolean useSubreportBorders;

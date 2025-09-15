@@ -10,7 +10,7 @@
 
     <name>JRXML Builder Library</name>
     <description>Comprehensive library for automatic JasperReports generation from JSON data</description>
-    <url>https://github.com/softres/jrxml-builder-lib</url>
+    <url>https://github.com/Lector07/jrxml-builder-lib</url>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -80,7 +80,6 @@
                     <docencoding>UTF-8</docencoding>
                     <charset>UTF-8</charset>
                     <locale>en</locale>
-                    <windowTitle>JRXML Builder Library ${project.version} API</windowTitle>
                     <doctitle>JRXML Builder Library ${project.version} API</doctitle>
                     <header>&lt;b&gt;JRXML Builder Library ${project.version}&lt;/b&gt;</header>
                     <footer>&lt;b&gt;JRXML Builder Library ${project.version}&lt;/b&gt;</footer>

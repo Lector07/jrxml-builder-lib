@@ -59,7 +59,6 @@ public class ThemeFactory {
                 .withBorders(0.25f, "#E0E0E0")
                 .withPadding(2));
 
-        // Group style - light blue background
         styles.add(new Style(GROUP_STYLE)
                 .withFont(ReportStyles.FONT_DEJAVU_SANS, 8, true)
                 .withColors("#1E2A38", "#E8F4FD")
@@ -99,9 +98,9 @@ public class ThemeFactory {
 
         styles.add(new Style(GROUP_STYLE)
                 .withFont(ReportStyles.FONT_DEJAVU_SANS, 8, true)
-                .withColors("#000000", "#C6D8E4")
+                .withColors("#000000", "#EDEDED")
                 .withAlignment("LEFT", "MIDDLE")
-                .withBorders(0.5f, "#999999")
+                .withBorders(0.5f, "#CCCCCC")
                 .withPadding(3));
 
         return styles;

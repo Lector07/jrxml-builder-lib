@@ -36,6 +36,15 @@ public class ColumnDefinition {
     private Calculation reportCalculation;
     private Calculation groupCalculation;
     private Boolean visible;
+    private String type = "COLUMN"; // Added field to distinguish between regular columns and subreports
+
+    /**
+     * Column types enum defining the type of column
+     */
+    public static class ColumnType {
+        public static final String COLUMN = "COLUMN";
+        public static final String SUBREPORT = "SUBREPORT";
+    }
 
     /**
      * Default constructor for JSON deserialization.
@@ -57,6 +66,7 @@ public class ColumnDefinition {
         this.reportCalculation = builder.reportCalculation;
         this.groupCalculation = builder.groupCalculation;
         this.visible = builder.visible;
+        this.type = builder.type != null ? builder.type : this.type;
     }
 
     /**
@@ -129,6 +139,15 @@ public class ColumnDefinition {
      */
     public Boolean getVisible() {
         return visible;
+    }
+
+    /**
+     * Returns the type of the column (regular or subreport).
+     *
+     * @return column type
+     */
+    public String getType() {
+        return type;
     }
 
     /**
@@ -207,6 +226,15 @@ public class ColumnDefinition {
     }
 
     /**
+     * Sets the type of the column.
+     *
+     * @param type column type (e.g. "COLUMN" or "SUBREPORT")
+     */
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    /**
      * Builder for ColumnDefinition class implementing Builder pattern.
      *
      * <p>Enables step-by-step building of ColumnDefinition object with optional fields.</p>
@@ -219,6 +247,7 @@ public class ColumnDefinition {
         private Calculation reportCalculation;
         private Calculation groupCalculation;
         private Boolean visible;
+        private String type;
 
         /**
          * Builder constructor with required field name.
@@ -292,6 +321,17 @@ public class ColumnDefinition {
          */
         public Builder visible(Boolean visible){
             this.visible = visible;
+            return this;
+        }
+
+        /**
+         * Sets the type of the column.
+         *
+         * @param type column type (e.g. "COLUMN" or "SUBREPORT")
+         * @return this Builder (for method chaining)
+         */
+        public Builder type(String type) {
+            this.type = type;
             return this;
         }
 

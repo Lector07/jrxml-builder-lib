@@ -343,11 +343,7 @@ public class ReportBuilder {
                 jrSubreport.setUsingCache(true);
                 jrSubreport.setExpression(new JRDesignExpression("$P{SUBREPORT_" + sub.getFieldName() + "}"));
 
-                JRDesignSubreportParameter dataSourceParam = new JRDesignSubreportParameter();
-                dataSourceParam.setName("REPORT_DATA_SOURCE");
-                dataSourceParam.setExpression(new JRDesignExpression("$F{" + sub.getFieldName().replace('.', '_') + "}"));
-                jrSubreport.addParameter(dataSourceParam);
-
+                jrSubreport.setDataSourceExpression(new JRDesignExpression("$F{" + sub.getFieldName().replace('.', '_') + "}"));
 
                 subreportBand.addElement(jrSubreport);
                 detailSection.addBand(subreportBand);
