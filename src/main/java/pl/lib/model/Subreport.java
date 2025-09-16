@@ -32,6 +32,7 @@ public final class Subreport {
     private final String fieldName;
     private final JasperReport subreport;
     private final int height;
+    private boolean showSummary;
 
     /**
      * Creates a new Subreport instance with default height (50 pixels).
@@ -42,7 +43,7 @@ public final class Subreport {
      * @throws IllegalArgumentException if subreport is null
      */
     public Subreport(String fieldName, JasperReport subreport) {
-        this(fieldName, subreport, 50);
+        this(fieldName, subreport, 50, false);
     }
 
     /**
@@ -55,7 +56,7 @@ public final class Subreport {
      * @throws IllegalArgumentException if subreport is null
      * @throws IllegalArgumentException if height is less than 1
      */
-    public Subreport(String fieldName, JasperReport subreport, int height) {
+    public Subreport(String fieldName, JasperReport subreport, int height, boolean showSummary) {
         if (fieldName == null || fieldName.trim().isEmpty()) {
             throw new IllegalArgumentException("Field name cannot be null or empty");
         }
@@ -68,6 +69,7 @@ public final class Subreport {
         this.fieldName = fieldName;
         this.subreport = subreport;
         this.height = height;
+        this.showSummary = showSummary;
     }
 
     /**
@@ -98,5 +100,15 @@ public final class Subreport {
      */
     public int getHeight() {
         return height;
+    }
+
+
+    /**
+     * Indicates whether to show the summary section of the subreport.
+     *
+     * @return true if the summary section should be shown, false otherwise
+     */
+    public boolean isShowSummary() {
+        return showSummary;
     }
 }

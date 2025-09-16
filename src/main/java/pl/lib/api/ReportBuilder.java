@@ -192,6 +192,8 @@ public class ReportBuilder {
         addParameterIfNotExists("FooterLeftText", String.class);
         addParameterIfNotExists("CompanyTaxId", String.class);
 
+        addParameterIfNotExists("SHOW_SUMMARY", Boolean.class);
+
         for(Subreport sub : subreports){
             addParameterIfNotExists("SUBREPORT_" + sub.getFieldName(), JasperReport.class);
         }
@@ -329,7 +331,7 @@ public class ReportBuilder {
         if (!subreports.isEmpty()) {
             for (Subreport sub : subreports) {
                 JRDesignBand subreportBand = new JRDesignBand();
-                int subreportHeight = sub.getHeight();
+                int subreportHeight = sub.getHeight()+3;
                 subreportBand.setHeight(subreportHeight);
 
                 JRDesignSubreport jrSubreport = new JRDesignSubreport(jasperDesign);
@@ -345,6 +347,11 @@ public class ReportBuilder {
                 jrSubreport.setExpression(new JRDesignExpression("$P{SUBREPORT_" + sub.getFieldName() + "}"));
 
                 jrSubreport.setDataSourceExpression(new JRDesignExpression("$F{" + sub.getFieldName().replace('.', '_') + "}"));
+
+                JRDesignSubreportParameter showSummaryParam = new JRDesignSubreportParameter();
+                showSummaryParam.setName("SHOW_SUMMARY");
+                showSummaryParam.setExpression(new JRDesignExpression(sub.isShowSummary() ? "java.lang.Boolean.TRUE" : "java.lang.Boolean.FALSE"));
+                jrSubreport.addParameter(showSummaryParam);
 
                 subreportBand.addElement(jrSubreport);
                 detailSection.addBand(subreportBand);
@@ -476,22 +483,17 @@ public class ReportBuilder {
             (column.getDataType() != null && column.getDataType().isNumeric())
         );
 
-        int summaryHeight = hasCalculations ? 90 : 30;
+        int summaryHeight = hasCalculations ? 25 : 20;
         JRDesignBand summaryBand = new JRDesignBand();
         summaryBand.setHeight(summaryHeight);
 
+        summaryBand.setPrintWhenExpression(
+                new JRDesignExpression("$P{SHOW_SUMMARY} == null ? java.lang.Boolean.TRUE : $P{SHOW_SUMMARY}")
+        );
+
         if (hasCalculations) {
-            JRDesignLine topSeparatorLine = new JRDesignLine();
-            topSeparatorLine.setX(0);
-            topSeparatorLine.setY(25);
-            topSeparatorLine.setWidth(jasperDesign.getColumnWidth());
-            topSeparatorLine.setHeight(1);
-            topSeparatorLine.setForecolor(Color.decode("#CCCCCC"));
-            summaryBand.addElement(topSeparatorLine);
-
             declareReportSummaryVariables();
-
-            int summaryY = 30;
+            int summaryY = 0;
 
             JRDesignRectangle backgroundRect = new JRDesignRectangle();
             backgroundRect.setX(0);
@@ -539,7 +541,6 @@ public class ReportBuilder {
                     JRDesignTextField summaryField = createTextField("$V{" + variableName + "}",
                         currentX, summaryY, column.getWidth(), 20, true, 8f);
 
-                    // Transparent style, żeby nie zakrywać tła
                     summaryField.setMode(ModeEnum.TRANSPARENT);
                     summaryField.setFontName(ReportStyles.FONT_DEJAVU_SANS);
                     summaryField.setForecolor(Color.decode("#000000"));
@@ -557,26 +558,6 @@ public class ReportBuilder {
                 currentX += column.getWidth();
             }
 
-            JRDesignLine bottomSeparatorLine = new JRDesignLine();
-            bottomSeparatorLine.setX(0);
-            bottomSeparatorLine.setY(summaryY + 25);
-            bottomSeparatorLine.setWidth(jasperDesign.getColumnWidth());
-            bottomSeparatorLine.setHeight(1);
-            bottomSeparatorLine.setForecolor(Color.decode("#CCCCCC"));
-            summaryBand.addElement(bottomSeparatorLine);
-
-            JRDesignTextField recordCountField = createTextField("\"Liczba rekordów: \" + $V{REPORT_COUNT}",
-                0, summaryY + 30, jasperDesign.getColumnWidth() / 2, 15, false, 8f);
-            recordCountField.setHorizontalTextAlign(HorizontalTextAlignEnum.LEFT);
-            recordCountField.setMode(ModeEnum.TRANSPARENT);
-            summaryBand.addElement(recordCountField);
-
-            JRDesignTextField generatedDateField = createTextField(
-                "\"Wygenerowano: \" + new java.text.SimpleDateFormat(\"dd.MM.yyyy HH:mm\").format(new java.util.Date())",
-                jasperDesign.getColumnWidth() / 2, summaryY + 30, jasperDesign.getColumnWidth() / 2, 15, false, 8f);
-            generatedDateField.setHorizontalTextAlign(HorizontalTextAlignEnum.RIGHT);
-            generatedDateField.setMode(ModeEnum.TRANSPARENT);
-            summaryBand.addElement(generatedDateField);
         }
 
         jasperDesign.setSummary(summaryBand);

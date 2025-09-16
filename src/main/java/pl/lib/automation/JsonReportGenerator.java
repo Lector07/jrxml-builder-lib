@@ -189,6 +189,7 @@ public class JsonReportGenerator {
 
                     subBuilder.withTitleBand(false);
                     subBuilder.withPageFooter(false);
+                    subBuilder.withSummaryBand(false);
                     JasperReport compiledSubreport = createMainReport(subBuilder, subStructure, subConfig, new HashMap<>());
                     compiledSubreports.put(fieldName, compiledSubreport);
                 }
@@ -250,7 +251,9 @@ public class JsonReportGenerator {
                 String fieldName = entry.getKey();
                 JasperReport compiledSubreport = compiledSubreports.get(fieldName);
                 if (compiledSubreport != null) {
-                    builder.addSubreport(new Subreport(fieldName, compiledSubreport));
+                    ReportConfig subConfig = config.getSubreportConfigs().get(fieldName);
+                    boolean showSummary = subConfig != null && subConfig.isSummaryBandEnabled();
+                    builder.addSubreport(new Subreport(fieldName, compiledSubreport, 50, subConfig.isSummaryBandEnabled()));
                 }
             }
         }
