@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import net.sf.jasperreports.engine.*;
 import net.sf.jasperreports.engine.data.JRMapCollectionDataSource;
+import net.sf.jasperreports.engine.design.JasperDesign;
 import net.sf.jasperreports.engine.xml.JRXmlWriter;
 import pl.lib.api.ReportBuilder;
 import pl.lib.config.ColumnDefinition;
@@ -57,6 +58,7 @@ import java.util.stream.Collectors;
 public class JsonReportGenerator {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private boolean printJrxmlToConsole = false;
+    private JasperDesign lastGeneratedDesign;
 
     /**
      * Configures the generator to print JRXML to console for debugging purposes.
@@ -67,6 +69,10 @@ public class JsonReportGenerator {
     public JsonReportGenerator withJrxmlPrinting(boolean print) {
         this.printJrxmlToConsole = print;
         return this;
+    }
+
+    public JasperDesign getLastGeneratedDesign() {
+        return this.lastGeneratedDesign;
     }
 
     /**
@@ -103,6 +109,8 @@ public class JsonReportGenerator {
 
         ReportBuilder reportBuilder = new ReportBuilder();
         reportBuilder.withHorizontalLayout("LANDSCAPE".equalsIgnoreCase(config.getOrientation()));
+        reportBuilder.withPageFormat(config.getPageFormat());
+        reportBuilder.withColorSettings(config.getColorSettings());
 
         if (config.getMargins() != null && config.getMargins().size() == 4) {
             reportBuilder.withMargins(config.getMargins().get(0), config.getMargins().get(1), config.getMargins().get(2), config.getMargins().get(3));
@@ -110,12 +118,16 @@ public class JsonReportGenerator {
             reportBuilder.withMargins(20, 20, 20, 20);
         }
 
-        Map<String, JasperReport> compiledSubreports = compileSubreports(structure, config, "LANDSCAPE".equalsIgnoreCase(config.getOrientation()));
-        for(Map.Entry<String, JasperReport> entry : compiledSubreports.entrySet()) {
+        int mainReportColumnWidth = reportBuilder.preparePageAndGetColumnWidth();
+
+        Map<String, JasperReport> compiledSubreports = compileSubreports(structure, config, "LANDSCAPE".equalsIgnoreCase(config.getOrientation()), mainReportColumnWidth);
+        for (Map.Entry<String, JasperReport> entry : compiledSubreports.entrySet()) {
             reportBuilder.getParameters().put("SUBREPORT_" + entry.getKey(), entry.getValue());
         }
 
         JasperReport mainReport = createMainReport(reportBuilder, structure, config, compiledSubreports);
+        this.lastGeneratedDesign = reportBuilder.getDesign();
+
 
         if (printJrxmlToConsole) {
             printJrxmlToConsole(mainReport, "MAIN REPORT: " + config.getTitle());
@@ -170,7 +182,7 @@ public class JsonReportGenerator {
      * @return map of compiled subreports
      * @throws JRException in case of compilation errors
      */
-    private Map<String, JasperReport> compileSubreports(ReportStructure structure, ReportConfig config, boolean isLandscape) throws JRException {
+    private Map<String, JasperReport> compileSubreports(ReportStructure structure, ReportConfig config, boolean isLandscape, int parentColumnWidth) throws JRException {
         Map<String, JasperReport> compiledSubreports = new HashMap<>();
         if (config.getSubreportConfigs() != null) {
             for (Map.Entry<String, ReportConfig> entry : config.getSubreportConfigs().entrySet()) {
@@ -179,12 +191,16 @@ public class JsonReportGenerator {
                 ReportStructure subStructure = structure.getNestedStructures().get(fieldName);
                 if (subStructure != null) {
                     ReportBuilder subBuilder = new ReportBuilder("SUB_" + fieldName);
+                    subBuilder.withColumnWidth(parentColumnWidth);
                     subBuilder.withHorizontalLayout(isLandscape);
+                    subBuilder.withPageFormat(subConfig.getPageFormat());
+                    subBuilder.withColorSettings(subConfig.getColorSettings());
+
 
                     if (subConfig.getMargins() != null && subConfig.getMargins().size() == 4) {
                         subBuilder.withMargins(subConfig.getMargins().get(0), subConfig.getMargins().get(1), subConfig.getMargins().get(2), subConfig.getMargins().get(3));
                     } else {
-                        subBuilder.withMargins(5, 20, 0, 40);
+                        subBuilder.withMargins(5, 20, 5, 40);
                     }
 
                     subBuilder.withTitleBand(false);
@@ -197,6 +213,7 @@ public class JsonReportGenerator {
         }
         return compiledSubreports;
     }
+
 
     /**
      * Creates main report or subreport based on structure and configuration.

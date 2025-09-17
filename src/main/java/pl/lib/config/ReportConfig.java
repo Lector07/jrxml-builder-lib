@@ -7,6 +7,7 @@ import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import pl.lib.model.ColorSettings;
 import pl.lib.model.CompanyInfo;
 
 import java.io.IOException;
@@ -80,6 +81,8 @@ public class ReportConfig {
     private String orientation;
     private boolean summaryBandEnabled = false;
     private String theme;
+    private String pageFormat;
+    private ColorSettings colorSettings;
 
     @JsonSetter(nulls = Nulls.SKIP)
     private FormattingOptions formattingOptions = new FormattingOptions();
@@ -110,6 +113,8 @@ public class ReportConfig {
         if (builder.formattingOptions != null) {
             this.formattingOptions = builder.formattingOptions;
         }
+        this.pageFormat = builder.pageFormat;
+        this.colorSettings = builder.colorSettings;
     }
 
     /**
@@ -137,6 +142,14 @@ public class ReportConfig {
      */
     public List<GroupDefinition> getGroups() {
         return groups;
+    }
+
+    public ColorSettings getColorSettings() {
+        return colorSettings;
+    }
+
+    public void setColorSettings(ColorSettings colorSettings) {
+        this.colorSettings = colorSettings;
     }
 
     /**
@@ -322,6 +335,14 @@ public class ReportConfig {
         this.orientation = orientation;
     }
 
+    public String getPageFormat() {
+        return pageFormat;
+    }
+
+    public void setPageFormat(String pageFormat) {
+        this.pageFormat = pageFormat;
+    }
+
     /**
      * Sets the report formatting options.
      *
@@ -358,6 +379,8 @@ public class ReportConfig {
         private FormattingOptions formattingOptions;
         private List<Integer> margins;
         private boolean summaryBandEnabled = false;
+        private String pageFormat = "A4";
+        private ColorSettings colorSettings;
 
         /**
          * Sets the report title.
@@ -369,6 +392,9 @@ public class ReportConfig {
             this.title = title;
             return this;
         }
+
+        public Builder colorSettings(ColorSettings settings) { this.colorSettings = settings; return this; }
+
 
         /**
          * Adds a column definition to the report.
@@ -500,6 +526,11 @@ public class ReportConfig {
          */
         public Builder withSummaryBandEnabled(boolean enabled) {
             this.summaryBandEnabled = enabled;
+            return this;
+        }
+
+        public Builder pageFormat(String pageFormat) {
+            this.pageFormat = pageFormat;
             return this;
         }
 
