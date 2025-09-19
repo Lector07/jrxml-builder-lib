@@ -192,10 +192,18 @@ public class JsonReportGenerator {
                 if (subStructure != null) {
                     ReportBuilder subBuilder = new ReportBuilder("SUB_" + fieldName);
                     subBuilder.withColumnWidth(parentColumnWidth);
+                    subBuilder.withColorSettings(config.getColorSettings());
+                    subBuilder.withPageFormat(config.getPageFormat());
                     subBuilder.withHorizontalLayout(isLandscape);
-                    subBuilder.withPageFormat(subConfig.getPageFormat());
-                    subBuilder.withColorSettings(subConfig.getColorSettings());
 
+
+                    if (config.getTheme() != null) {
+                        try {
+                            subBuilder.withTheme(ReportTheme.valueOf(config.getTheme().toUpperCase()));
+                        } catch (IllegalArgumentException e) {
+                            subBuilder.withTheme(ReportTheme.DEFAULT);
+                        }
+                    }
 
                     if (subConfig.getMargins() != null && subConfig.getMargins().size() == 4) {
                         subBuilder.withMargins(subConfig.getMargins().get(0), subConfig.getMargins().get(1), subConfig.getMargins().get(2), subConfig.getMargins().get(3));

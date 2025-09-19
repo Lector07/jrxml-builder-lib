@@ -313,8 +313,9 @@ public class ReportBuilder {
         String titleFg = (colorSettings != null && colorSettings.getTitleFontColor() != null)
                 ? colorSettings.getTitleFontColor()
                 : "#FFFFFF";
-        titleTextField.setForecolor(Color.decode("#FFFFFF"));
-        titleTextField.setBackcolor(Color.decode("#2A3F54"));
+
+        titleTextField.setForecolor(Color.decode(titleFg));
+        titleTextField.setBackcolor(Color.decode(titleBg));
         titleTextField.setMode(ModeEnum.OPAQUE);
         titleTextField.setHorizontalTextAlign(HorizontalTextAlignEnum.CENTER);
         titleTextField.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
@@ -801,16 +802,14 @@ public class ReportBuilder {
 
     private void applyCustomColors() {
         if (colorSettings == null) {
-            return; // Brak niestandardowych kolorów, nic nie rób
+            return;
         }
 
-        // --- Modyfikacja Nagłówków Kolumn ---
         modifyStyle(ReportStyles.HEADER_STYLE, style -> style
                 .withColors(colorSettings.getColumnHeaderFontColor(), colorSettings.getColumnHeaderBackgroundColor())
                 .withBorders(style.getBorderWidth(), colorSettings.getBorderColor())
         );
 
-        // --- Modyfikacja Danych w Komórkach (szczegóły) ---
         modifyStyle(ReportStyles.DATA_STYLE, style -> style
                 .withColors(colorSettings.getDetailFontColor(), colorSettings.getDetailBackgroundColor())
                 .withBorders(style.getBorderWidth(), colorSettings.getBorderColor())
@@ -820,7 +819,6 @@ public class ReportBuilder {
                 .withBorders(style.getBorderWidth(), colorSettings.getBorderColor())
         );
 
-        // --- Modyfikacja Nagłówków Grup ---
         modifyStyle(ReportStyles.GROUP_STYLE_1, style -> style
                 .withColors(colorSettings.getGroupHeaderFontColor(), colorSettings.getGroupHeaderBackgroundColor())
         );
