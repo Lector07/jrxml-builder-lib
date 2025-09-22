@@ -436,6 +436,10 @@ public class ReportBuilder {
     }
 
     private void buildGroups() throws JRException {
+        int totalColumnWidth = columns.stream()
+                .filter(c -> c.getWidth() > 0)
+                .mapToInt(Column::getWidth)
+                .sum();
         int indentationStep = 20;
         for (int i = 0; i < this.groups.size(); i++) {
             Group group = this.groups.get(i);
@@ -454,6 +458,8 @@ public class ReportBuilder {
                 JRDesignTextField groupHeaderField;
 
                 if (showSummaryInHeader) {
+                    int bgWidth = Math.max(0, totalColumnWidth - indentation);
+
                     JRDesignStaticText background = new JRDesignStaticText();
                     background.setX(indentation);
                     background.setY(0);
@@ -461,7 +467,7 @@ public class ReportBuilder {
                     background.setHeight(20);
                     background.setStyle(jasperDesign.getStylesMap().get(group.getStyleName()));
                     groupHeaderBand.addElement(background);
-                    int firstSumColumnX = jasperDesign.getColumnWidth();
+                    int firstSumColumnX = totalColumnWidth;
                     int currentX = 0;
                     for (Column column : columns) {
                         if (column.getWidth() > 0 && column.hasGroupCalculation() && column.getGroupCalculation().isActive()) {
@@ -494,7 +500,8 @@ public class ReportBuilder {
                         currentX += column.getWidth();
                     }
                 } else {
-                    groupHeaderField = createTextField(group.getHeaderExpression(), indentation, 0, jasperDesign.getColumnWidth() - indentation, 20, false, 7f);
+                    int availableWidth = Math.max(0, totalColumnWidth - indentation);
+                    groupHeaderField = createTextField(group.getHeaderExpression(), indentation, 0, availableWidth, 20, false, 7f);
                     groupHeaderField.setStyle(jasperDesign.getStylesMap().get(group.getStyleName()));
                     groupHeaderBand.addElement(groupHeaderField);
                 }
