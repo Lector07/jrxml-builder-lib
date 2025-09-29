@@ -332,13 +332,13 @@ Ten projekt jest udostępniany na licencji MIT. Zobacz plik `LICENSE`, aby uzysk
 ```
 ┌─────────────────────────────────────┐
 │         Aplikacja kliencka          │
-│    (Frontend / Inna aplikacja)     │
+│    (Frontend / Inna aplikacja)      │
 └─────────────┬───────────────────────┘
               │ HTTP requests
               ▼
 ┌─────────────────────────────────────┐
-│       REST API Serwis              │
-│    (Osobna aplikacja Spring Boot)  │
+│       REST API Serwis               │
+│    (Osobna aplikacja Spring Boot)   │
 │                                     │
 │  - DynamicReportController          │
 │  - ReportRequest DTO                │
@@ -508,8 +508,7 @@ public class ReportClient {
 | Format | Opis | Content-Type |
 |--------|------|--------------|
 | `pdf` | Adobe PDF (domyślny) | application/pdf |
-| `xlsx` | Microsoft Excel | application/vnd.openxmlformats-officedocument.spreadsheetml.sheet |
-| `csv` | Comma Separated Values | text/csv |
+
 
 ### Konfiguracja serwisu
 
