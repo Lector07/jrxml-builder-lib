@@ -64,7 +64,7 @@ Poniżej przykład użycia biblioteki w aplikacji Spring Boot do generowania rap
 public class ClinicReportService {
     
     public byte[] generateVisitsPdf(ArrayNode visits) throws JRException {
-        // 1) Opcje formatowania (zebra, zakładki PDF, reguły podświetlania)
+        // 1) Opcje formatowania (zebra, reguły podświetlania)
         FormattingOptions fmt = new FormattingOptions();
         fmt.setZebraStripes(true);
         fmt.setGenerateBookmarks(true);
@@ -301,14 +301,6 @@ Możliwość definiowania wielu poziomów grupowania z automatycznymi sumami:
 .addGroup(GroupDefinition.builder("city").label("Miasto: ").build())
 ```
 
-### Zakładki PDF
-Automatyczne generowanie zakładek PDF na podstawie grup lub wskazanego pola:
-
-```java
-FormattingOptions options = new FormattingOptions();
-options.setGenerateBookmarks(true);
-options.setBookmarkField("customerName");
-```
 
 ## Uwagi techniczne
 
@@ -370,8 +362,7 @@ Serwis REST API jest zaimplementowany jako niezależna aplikacja Spring Boot, kt
 
 1. **Importuje bibliotekę** `jrxml-builder-lib` jako zależność Maven
 2. **Udostępnia endpoint HTTP** do generowania raportów
-3. **Obsługuje różne formaty** eksportu (PDF, XLSX, CSV)
-4. **Automatycznie konwertuje** konfigurację JSON na obiekty biblioteki
+3**Automatycznie konwertuje** konfigurację JSON na obiekty biblioteki
 
 ### Struktura serwisu (osobna aplikacja)
 

@@ -498,7 +498,7 @@ public class ReportBuilder {
                             groupHeaderBand.addElement(sumField);
                         }
                         currentX += column.getWidth();
-                    } //
+                    }
                 } else {
                     int availableWidth = Math.max(0, totalColumnWidth - indentation);
                     groupHeaderField = createTextField(group.getHeaderExpression(), indentation, 0, availableWidth, 20, false, 7f);
