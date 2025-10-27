@@ -66,6 +66,7 @@ public class JsonReportGenerator {
 
         JRDesignBand summaryBand = new JRDesignBand();
         summaryBand.setSplitType(SplitTypeEnum.STRETCH);
+        summaryBand.setHeight(1);
         design.setSummary(summaryBand);
 
         JsonNode rootNode = objectMapper.readTree(jsonContent);
@@ -135,6 +136,7 @@ public class JsonReportGenerator {
 
         JRDesignDatasetRun run = new JRDesignDatasetRun();
         run.setDatasetName(dataset.getName());
+        run.setDataSourceExpression(new JRDesignExpression("$P{REPORT_DATA_SOURCE}"));
         table.setDatasetRun(run);
 
         for (HeaderNode child : rootHeader.children.values()) {
@@ -159,10 +161,17 @@ public class JsonReportGenerator {
         String dataSourceParamName = "DATA_" + UUID.randomUUID().toString().replace("-", "");
 
         this.reportParameters.put(subreportParamName, compiledSubreport);
-        this.reportParameters.put(dataSourceParamName, new JRMapCollectionDataSource(tableData));
+        this.reportParameters.put(dataSourceParamName, new JRMapCollectionDataSource((Collection<Map<String, ?>>) (Collection<?>) tableData));
 
-        mainDesign.addParameter(new JRDesignParameter() {{ setName(subreportParamName); setValueClass(JasperReport.class); }});
-        mainDesign.addParameter(new JRDesignParameter() {{ setName(dataSourceParamName); setValueClass(JRDataSource.class); }});
+        JRDesignParameter p1 = new JRDesignParameter();
+        p1.setName(subreportParamName);
+        p1.setValueClass(JasperReport.class);
+        mainDesign.addParameter(p1);
+
+        JRDesignParameter p2 = new JRDesignParameter();
+        p2.setName(dataSourceParamName);
+        p2.setValueClass(JRDataSource.class);
+        mainDesign.addParameter(p2);
 
         band.addElement(createHeader(title, mainDesign.getColumnWidth(), 1));
 
@@ -230,7 +239,6 @@ public class JsonReportGenerator {
             return column;
         } else {
             StandardColumnGroup group = new StandardColumnGroup();
-            group.setColumnHeader(createCell(createHeaderCell(node.name), 20));
             int totalWidth = 0;
             for (HeaderNode child : node.children.values()) {
                 BaseColumn childColumn = createJasperColumnStructure(child, dataset);
@@ -238,17 +246,21 @@ public class JsonReportGenerator {
                 totalWidth += childColumn.getWidth();
             }
             group.setWidth(totalWidth);
+            group.setColumnHeader(createCell(createHeaderCell(node.name), 20));
             return group;
         }
     }
 
     private Cell createCell(JRElement element, int height) {
         JRDesignCellContents cell = new JRDesignCellContents();
-        element.setWidth(1);
-        element.setHeight(height);
-        cell.addElement(element);
         cell.setHeight(height);
-        return cell;
+
+        if (element != null) {
+            element.setWidth(1);
+            element.getHeight();
+            cell.addElement(element);
+        }
+        return (Cell) cell;
     }
 
     private JRDesignStaticText createHeaderCell(String text) {
