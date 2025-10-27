@@ -21,6 +21,24 @@ import net.sf.jasperreports.engine.JRDataSource;
 
 
 
+/**
+ * Fluent builder that programmatically constructs a JasperReports design (JasperDesign)
+ * and compiles it into a {@link net.sf.jasperreports.engine.JasperReport}.
+ *
+ * Responsibilities:
+ * - Manage columns, styles, groups, subreports, parameters and variables
+ * - Configure page settings, margins, bands (title, column header, detail, footer, summary)
+ * - Apply visual themes and conditional formatting rules (zebra stripes, highlight rules)
+ * - Distribute automatic column widths and generate bookmarks
+ *
+ * Usage pattern:
+ * 1) Create a builder, configure it fluently, add columns/groups/styles/subreports
+ * 2) Optionally call {@link #preparePageAndGetColumnWidth()} to know the usable width
+ * 3) Call {@link #build()} to compile the design to a JasperReport
+ *
+ * Thread-safety: not thread-safe. Create a new instance per report.
+ * Reuse: the builder keeps internal state; prefer creating a fresh builder for each report.
+ */
 public class ReportBuilder {
     private final List<Column> columns = new ArrayList<>();
     private final List<Style> styles = new ArrayList<>();
@@ -36,10 +54,23 @@ public class ReportBuilder {
     private ColorSettings colorSettings;
 
 
+    /**
+     * Creates a builder with a random report name. Equivalent to
+     * {@link #ReportBuilder(String)} with a generated UUID.
+     */
     public ReportBuilder() {
         this(UUID.randomUUID().toString());
     }
 
+    /**
+     * Creates a builder with the provided report name.
+     *
+     * Effects:
+     * - Initializes an empty {@link JasperDesign} with the given name
+     * - Sets language to "java" and WhenNoData to {@link WhenNoDataTypeEnum#ALL_SECTIONS_NO_DETAIL}
+     *
+     * @param reportName logical name of the report; used as the JasperDesign name
+     */
     public ReportBuilder(String reportName) {
         this.jasperDesign = new JasperDesign();
         this.jasperDesign.setName(reportName);
@@ -47,6 +78,16 @@ public class ReportBuilder {
         this.jasperDesign.setLanguage("java");
     }
 
+    /**
+     * Sets the target page format (case-insensitive) among: A4 (default), A3, LETTER, LEGAL.
+     * The actual page width/height are applied during internal page setup (e.g. in {@link #build()}
+     * or {@link #preparePageAndGetColumnWidth()}).
+     *
+     * Note: Orientation and margins also affect the final column width.
+     *
+     * @param format page format name, e.g. "A4", "A3", "LETTER", "LEGAL"; null/blank is ignored
+     * @return this builder for chaining
+     */
     public ReportBuilder withPageFormat(String format) {
         if (format != null && !format.trim().isEmpty()) {
             this.pageFormat = format;
@@ -54,26 +95,61 @@ public class ReportBuilder {
         return this;
     }
 
+    /**
+     * Explicitly sets the JasperDesign column width in pixels.
+     *
+     * Important: this value can be recalculated/overridden by the internal page setup performed
+     * by {@link #setupPage()} which is executed by {@link #build()} and {@link #preparePageAndGetColumnWidth()}.
+     * To ensure a custom column width persists, call this after page setup or adjust margins/page format accordingly.
+     *
+     * @param width column width (pixels)
+     * @return this builder for chaining
+     */
     public ReportBuilder withColumnWidth(int width) {
         this.jasperDesign.setColumnWidth(width);
         return this;
     }
 
+    /**
+     * Supplies color customization used by themes and bands (e.g. title background/foreground,
+     * column header colors, borders, detail colors, group header colors).
+     *
+     * @param settings collection of color-related preferences; if null nothing changes
+     * @return this builder for chaining
+     */
     public ReportBuilder withColorSettings(ColorSettings settings) {
         this.colorSettings = settings;
         return this;
     }
 
+    /**
+     * Applies page format, orientation and margins, then returns the current usable column width.
+     * Useful before laying out columns with negative (auto) widths.
+     *
+     * @return computed column width (pageWidth - leftMargin - rightMargin)
+     */
     public int preparePageAndGetColumnWidth() {
         setupPage();
         return this.jasperDesign.getColumnWidth();
     }
 
+    /**
+     * Sets the report title parameter ("ReportTitle") used in the title band.
+     *
+     * @param title human-readable report title
+     * @return this builder for chaining
+     */
     public ReportBuilder withTitle(String title) {
         parameters.put("ReportTitle", title);
         return this;
     }
 
+    /**
+     * Sets page orientation.
+     *
+     * @param isLandscape true for landscape, false for portrait
+     * @return this builder for chaining
+     */
     public ReportBuilder withHorizontalLayout(boolean isLandscape) {
         if (isLandscape) {
             jasperDesign.setOrientation(OrientationEnum.LANDSCAPE);
@@ -83,6 +159,15 @@ public class ReportBuilder {
         return this;
     }
 
+    /**
+     * Sets page margins.
+     *
+     * @param top top margin in pixels
+     * @param right right margin in pixels
+     * @param bottom bottom margin in pixels
+     * @param left left margin in pixels
+     * @return this builder for chaining
+     */
     public ReportBuilder withMargins(int top, int right, int bottom, int left) {
         this.jasperDesign.setTopMargin(top);
         this.jasperDesign.setRightMargin(right);
@@ -91,20 +176,46 @@ public class ReportBuilder {
         return this;
     }
 
+    /**
+     * Optionally provides company info. Currently a placeholder/no-op reserved for future use.
+     * Typical data could include company name, address, tax id etc.
+     *
+     * @param companyInfo company details; ignored for now
+     * @return this builder for chaining
+     */
     public ReportBuilder withCompanyInfo(CompanyInfo companyInfo) {
         return this;
     }
 
+    /**
+     * Enables or disables the title band.
+     *
+     * @param enabled true to render the title band; false to omit it
+     * @return this builder for chaining
+     */
     public ReportBuilder withTitleBand(boolean enabled) {
         this.titleEnabled = enabled;
         return this;
     }
 
+    /**
+     * Enables or disables the page footer band, which contains the left text and page number.
+     *
+     * @param enabled true to render page footer; false to omit it
+     * @return this builder for chaining
+     */
     public ReportBuilder withPageFooter(boolean enabled) {
         this.pageFooterEnabled = enabled;
         return this;
     }
 
+    /**
+     * Sets formatting options controlling conditional highlighting, zebra striping,
+     * and bookmark generation.
+     *
+     * @param options formatting options; if null, defaults are kept
+     * @return this builder for chaining
+     */
     public ReportBuilder withFormattingOptions(FormattingOptions options) {
         if (options != null) {
             this.formattingOptions = options;
@@ -112,25 +223,64 @@ public class ReportBuilder {
         return this;
     }
 
+    /**
+     * Enables or disables the summary band. When enabled, the band can display report-level
+     * aggregations for numeric columns (e.g., SUM). Visibility can also be controlled at runtime
+     * via the "SHOW_SUMMARY" parameter.
+     *
+     * @param enabled true to add a summary band; false to omit it
+     * @return this builder for chaining
+     */
     public ReportBuilder withSummaryBand(boolean enabled) {
         this.summaryBandEnabled = enabled;
         return this;
     }
 
+    /**
+     * Provides access to the internal parameter map that will be added to the design
+     * (e.g., ReportTitle, CompanyName, FooterLeftText, SHOW_SUMMARY, subreport handles).
+     * You can add your own custom parameters here before {@link #build()}.
+     *
+     * @return mutable map of parameter name to value
+     */
     public Map<String, Object> getParameters() {
         return this.parameters;
     }
 
+    /**
+     * Adds a column definition to the report. Column width semantics:
+     * - width > 0: fixed width in pixels
+     * - width == 0: hidden column
+     * - width < 0: auto-width; will be distributed evenly among all auto columns
+     * after accounting for fixed-width columns (see {@link #calculateColumnWidths()}).
+     *
+     * @param column column configuration (title, field, type, style, width, pattern)
+     * @return this builder for chaining
+     */
     public ReportBuilder addColumn(Column column) {
         this.columns.add(column);
         return this;
     }
 
+    /**
+     * Adds a grouping definition. Groups may render a group header/footer and support
+     * per-group aggregations when paired with column calculations.
+     *
+     * @param group grouping configuration (field, style, visibility, header expression)
+     * @return this builder for chaining
+     */
     public ReportBuilder addGroup(Group group) {
         this.groups.add(group);
         return this;
     }
 
+    /**
+     * Adds a style if a style with the same name is not already present.
+     * Styles are injected into the JasperDesign during build.
+     *
+     * @param style style definition (font, size, bold, colors, alignment, borders, padding)
+     * @return this builder for chaining
+     */
     public ReportBuilder addStyle(Style style) {
         if (styles.stream().noneMatch(s -> s.getName().equals(style.getName()))) {
             this.styles.add(style);
@@ -138,11 +288,34 @@ public class ReportBuilder {
         return this;
     }
 
+    /**
+     * Registers a subreport to be rendered in the detail section. For each subreport a JasperReport
+     * parameter named "SUBREPORT_<fieldName>" is declared and the subreport receives a dedicated
+     * dataSource taken from the corresponding field in the master dataset.
+     *
+     * @param subreport subreport metadata (data field, summary visibility)
+     * @return this builder for chaining
+     */
     public ReportBuilder addSubreport(Subreport subreport){
         this.subreports.add(subreport);
         return this;
     }
 
+    /**
+     * Builds the design and compiles it into a {@link JasperReport}.
+     * Steps performed in order:
+     * 1) Declare required parameters
+     * 2) Setup page size/orientation/margins and compute column width
+     * 3) Distribute auto column widths
+     * 4) Inject styles (including themes and conditional styles)
+     * 5) Declare fields (for columns, groups and subreports)
+     * 6) Build groups and declare per-group variables
+     * 7) Create title, column header, detail, page footer and (optional) summary bands
+     * 8) Compile the design
+     *
+     * @return compiled JasperReport ready to be filled
+     * @throws JRException if the design is invalid or compilation fails
+     */
     public JasperReport build() throws JRException {
         declareParameters();
         setupPage();
@@ -415,6 +588,11 @@ public class ReportBuilder {
         }
     }
 
+    /**
+     * Recalculates negative (auto) column widths so that their total fills the remaining space
+     * after subtracting fixed-width columns from the available column width.
+     * Columns with width == 0 remain hidden. Non-negative widths are preserved.
+     */
     public void calculateColumnWidths() {
         int availableWidth = jasperDesign.getColumnWidth();
         List<Column> visibleColumns = columns.stream().filter(c -> c.getWidth() != 0).collect(Collectors.toList());
@@ -849,6 +1027,13 @@ public class ReportBuilder {
     }
 
 
+    /**
+     * Exposes the underlying {@link JasperDesign} for advanced customizations prior to build.
+     * Note that changing the design directly may interact with builder-managed state.
+     * Prefer using builder methods when available.
+     *
+     * @return the live JasperDesign instance used by this builder
+     */
     public JasperDesign getDesign() {
         return this.jasperDesign;
     }

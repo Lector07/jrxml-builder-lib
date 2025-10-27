@@ -423,21 +423,17 @@ public class JsonReportGenerator {
      * @param config report configuration containing theme setting
      */
     private void addDefaultStyles(ReportBuilder builder, ReportConfig config) {
-        // Determine which theme to use
         ReportTheme themeToApply = ReportTheme.DEFAULT; // default fallback
 
         if (config.getTheme() != null && !config.getTheme().trim().isEmpty()) {
             try {
-                // Convert string theme name to enum
                 themeToApply = ReportTheme.valueOf(config.getTheme().toUpperCase());
             } catch (IllegalArgumentException e) {
-                // If invalid theme name, log warning and use default
                 System.err.println("Warning: Invalid theme '" + config.getTheme() + "'. Using DEFAULT theme.");
                 themeToApply = ReportTheme.DEFAULT;
             }
         }
 
-        // Apply the determined theme
         builder.withTheme(themeToApply);
     }
 
