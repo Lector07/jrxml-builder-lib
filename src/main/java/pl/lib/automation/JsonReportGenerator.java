@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import net.sf.jasperreports.engine.*;
 import net.sf.jasperreports.engine.data.JRMapCollectionDataSource;
 import net.sf.jasperreports.engine.design.*;
+import net.sf.jasperreports.engine.export.JRPdfExporter;
+import net.sf.jasperreports.engine.SimpleJasperReportsContext;
 import net.sf.jasperreports.engine.type.*;
 import net.sf.jasperreports.engine.xml.JRXmlWriter;
 import pl.lib.api.ReportBuilder;
@@ -49,6 +51,8 @@ public class JsonReportGenerator {
 
         JasperDesign design = builder.getDesign();
         design.setWhenNoDataType(WhenNoDataTypeEnum.ALL_SECTIONS_NO_DETAIL);
+
+        design.setProperty("net.sf.jasperreports.create.bookmarks", "true");
 
         JRDesignBand summaryBand = new JRDesignBand();
         summaryBand.setSplitType(SplitTypeEnum.STRETCH);
@@ -143,22 +147,38 @@ public class JsonReportGenerator {
         band.addElement(subreportElement);
     }
 
-    private JRDesignStaticText createHeader(String text, int width, int level) {
-        JRDesignStaticText header = new JRDesignStaticText();
+    private JRDesignTextField createHeader(String text, int width, int level) {
+        JRDesignTextField header = new JRDesignTextField();
         header.setX(level * 15);
         header.setY(0);
         header.setWidth(width - (level * 15));
         header.setHeight(25 - level * 2);
         header.setPositionType(PositionTypeEnum.FLOAT);
-        header.setText(text);
+
+        JRDesignExpression expression = new JRDesignExpression();
+        expression.setText("\"" + text.replace("\"", "\\\"") + "\"");
+        header.setExpression(expression);
+
+        if (level > 0) {
+            String anchorName = "bookmark_" + text.replaceAll("\\s+|[^a-zA-Z0-9]", "_") + "_" + level;
+
+            JRDesignExpression anchorExpression = new JRDesignExpression();
+            anchorExpression.setText("\"" + anchorName + "\"");
+            header.setAnchorNameExpression(anchorExpression);
+            header.getPropertiesMap().setProperty("net.sf.jasperreports.export.pdf.bookmark.level", String.valueOf(level));
+        }
+
         header.setFontName(ReportStyles.FONT_DEJAVU_SANS);
         header.setFontSize(Math.max(10f, 16f - level * 2));
         header.setBold(true);
         header.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
         header.setMode(ModeEnum.OPAQUE);
         header.setBackcolor(new Color(235, 235, 235));
+
         return header;
     }
+
+
 
     private JRDesignTextField createKeyValueField(String key, String value, int width, int level) {
         JRDesignTextField textField = new JRDesignTextField();

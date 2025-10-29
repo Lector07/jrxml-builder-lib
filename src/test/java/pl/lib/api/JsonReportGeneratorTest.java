@@ -2,9 +2,7 @@ package pl.lib.api;
 
 import net.sf.jasperreports.engine.JRException;
 import net.sf.jasperreports.engine.JasperPrint;
-import net.sf.jasperreports.engine.design.JRDesignBand;
-import net.sf.jasperreports.engine.design.JRDesignStaticText;
-import net.sf.jasperreports.engine.design.JRDesignSubreport;
+import net.sf.jasperreports.engine.design.*;
 import org.junit.jupiter.api.Test;
 import pl.lib.automation.JsonReportGenerator;
 import pl.lib.config.ColumnDefinition;
@@ -61,14 +59,20 @@ class JsonReportGeneratorTest {
 
         JRDesignBand summary = (JRDesignBand) gen.getLastGeneratedDesign().getSummary();
         assertNotNull(summary, "Summary band powinien istnieć.");
-        Optional<JRDesignStaticText> personHeader = Arrays.stream(summary.getElements())
-                .filter(e -> e instanceof JRDesignStaticText)
-                .map(e -> (JRDesignStaticText) e)
-                .filter(st -> "person".equals(st.getText()))
+
+        Optional<JRDesignTextField> personHeader = Arrays.stream(summary.getElements())
+                .filter(e -> e instanceof JRDesignTextField)
+                .map(e -> (JRDesignTextField) e)
+                .filter(st -> {
+                    JRDesignExpression expr = (JRDesignExpression) st.getExpression();
+                    return expr != null && "\"person\"".equals(expr.getText());
+                })
                 .findFirst();
+
         assertTrue(personHeader.isPresent(), "Powinien istnieć nagłówek dla klucza 'person'.");
         assertEquals(15, personHeader.get().getX(), "Nagłówek z poziomu 1 powinien mieć wcięcie X=15.");
     }
+
 
     @Test
     void generateTableReportFromJson_throwsWhenNotArray() {
