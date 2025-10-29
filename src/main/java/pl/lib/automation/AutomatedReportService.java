@@ -64,7 +64,7 @@ public class AutomatedReportService {
      */
     public void generatePdfReportFromJson(String jsonContent, ReportConfig config, String outputPath)
             throws JRException, IOException {
-        JasperPrint jasperPrint = generator.generateReportFromJson(jsonContent, config);
+        JasperPrint jasperPrint = generator.generateTableReportFromJson(jsonContent, config);
         JasperExportManager.exportReportToPdfFile(jasperPrint, outputPath);
     }
 
@@ -84,7 +84,7 @@ public class AutomatedReportService {
     public void generatePdfReportFromJsonWithJrxml(String jsonContent, ReportConfig config, String outputPath)
             throws JRException, IOException {
         JsonReportGenerator generatorWithPrinting = new JsonReportGenerator().withJrxmlPrinting(true);
-        JasperPrint jasperPrint = generatorWithPrinting.generateReportFromJson(jsonContent, config);
+        JasperPrint jasperPrint = generatorWithPrinting.generateTableReportFromJson(jsonContent, config);
         JasperExportManager.exportReportToPdfFile(jasperPrint, outputPath);
     }
 
@@ -103,7 +103,7 @@ public class AutomatedReportService {
      */
     public JasperPrint generateReportFromJson(String jsonContent, ReportConfig config)
             throws JRException, IOException {
-        return generator.generateReportFromJson(jsonContent, config);
+        return generator.generateTableReportFromJson(jsonContent, config);
     }
 
 }

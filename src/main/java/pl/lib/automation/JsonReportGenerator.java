@@ -2,14 +2,7 @@ package pl.lib.automation;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import net.sf.jasperreports.components.table.BaseColumn;
-import net.sf.jasperreports.components.table.Cell;
-import net.sf.jasperreports.components.table.StandardColumn;
-import net.sf.jasperreports.components.table.StandardColumnGroup;
-import net.sf.jasperreports.components.table.StandardTable;
-import net.sf.jasperreports.crosstabs.design.JRDesignCellContents;
 import net.sf.jasperreports.engine.*;
-import net.sf.jasperreports.engine.component.ComponentKey;
 import net.sf.jasperreports.engine.data.JRMapCollectionDataSource;
 import net.sf.jasperreports.engine.design.*;
 import net.sf.jasperreports.engine.type.*;
@@ -28,10 +21,6 @@ import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.*;
 
-/**
- * Rozbudowany generator raportów z danych JSON, wspierający zarówno pre-konfigurowane,
- * jak i w pełni dynamiczne, automatycznie wnioskowane struktury raportów.
- */
 public class JsonReportGenerator {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private boolean printJrxmlToConsole = false;
@@ -48,9 +37,6 @@ public class JsonReportGenerator {
         return this.lastGeneratedDesign;
     }
 
-    // ===================================================================================
-    // NOWY, GŁÓWNY PUNKT WEJŚCIA DLA W PEŁNI DYNAMICZNYCH RAPORTÓW
-    // ===================================================================================
     public JasperPrint generateReport(String jsonContent, String reportTitle) throws JRException, IOException {
         reportParameters.clear();
 
@@ -66,11 +52,10 @@ public class JsonReportGenerator {
 
         JRDesignBand summaryBand = new JRDesignBand();
         summaryBand.setSplitType(SplitTypeEnum.STRETCH);
-        summaryBand.setHeight(1);
+        summaryBand.setHeight(23);
         design.setSummary(summaryBand);
 
         JsonNode rootNode = objectMapper.readTree(jsonContent);
-
         processNode(summaryBand, design, reportTitle, rootNode, 0);
 
         JasperReport jasperReport = builder.build();
@@ -83,9 +68,6 @@ public class JsonReportGenerator {
         return JasperFillManager.fillReport(jasperReport, this.reportParameters, new JREmptyDataSource(1));
     }
 
-    // ===================================================================================
-    // ISTNIEJĄCA FUNKCJONALNOŚĆ - Zmieniamy nazwę dla jasności
-    // ===================================================================================
     public JasperPrint generateTableReportFromJson(String jsonContent, ReportConfig config) throws JRException, IOException {
         JsonNode arrayNode = objectMapper.readTree(jsonContent);
         if (!arrayNode.isArray()) {
@@ -93,10 +75,6 @@ public class JsonReportGenerator {
         }
         return generateReportFromArray(arrayNode, config);
     }
-
-    // ===================================================================================
-    // PRYWATNE METODY SILNIKA INFERENCJI (DLA `generateReport`)
-    // ===================================================================================
 
     private void processNode(JRDesignBand band, JasperDesign design, String key, JsonNode node, int level) throws JRException {
         if (node.isObject()) {
@@ -119,43 +97,29 @@ public class JsonReportGenerator {
         List<Map<String, Object>> tableData = convertJsonArrayToList(dataNode);
         if (tableData.isEmpty()) return;
 
-        HeaderNode rootHeader = new HeaderNode("root");
-        tableData.get(0).keySet().forEach(fieldName -> rootHeader.addPath(fieldName.split("_"), fieldName));
-
         ReportBuilder tableBuilder = new ReportBuilder("sub_" + title.replaceAll("\\s+|[^a-zA-Z0-9]", ""))
                 .withTheme(ReportTheme.DEFAULT)
                 .withTitleBand(false)
                 .withPageFooter(false);
-        JasperDesign tableDesign = tableBuilder.getDesign();
 
-        StandardTable table = new StandardTable();
-        String datasetName = "tableDataset_" + UUID.randomUUID().toString().substring(0, 8);
-        JRDesignDataset dataset = new JRDesignDataset(false);
-        dataset.setName(datasetName);
-        tableDesign.addDataset(dataset);
+        tableBuilder.withColumnWidth(mainDesign.getColumnWidth());
 
-        JRDesignDatasetRun run = new JRDesignDatasetRun();
-        run.setDatasetName(dataset.getName());
-        run.setDataSourceExpression(new JRDesignExpression("$P{REPORT_DATA_SOURCE}"));
-        table.setDatasetRun(run);
+        Map<String, Object> firstRow = tableData.get(0);
+        for (String fieldName : firstRow.keySet()) {
+            DataType type = determineDataType(firstRow.get(fieldName));
+            String header = fieldName.substring(fieldName.lastIndexOf('_') + 1);
 
-        for (HeaderNode child : rootHeader.children.values()) {
-            table.addColumn(createJasperColumnStructure(child, dataset));
+            tableBuilder.addColumn(new Column(
+                    fieldName, header, -1,
+                    type, type.isNumeric() ? "#,##0.00" : null,
+                    Calculation.NONE, Calculation.NONE,
+                    type.isNumeric() ? ReportStyles.NUMERIC_STYLE : ReportStyles.DATA_STYLE
+            ));
         }
 
-        JRDesignBand tableBand = new JRDesignBand();
-        tableBand.setHeight(1);
-        tableBand.setSplitType(SplitTypeEnum.STRETCH);
+        tableBuilder.calculateColumnWidths();
 
-        JRDesignComponentElement tableElement = new JRDesignComponentElement(tableDesign);
-        tableElement.setComponentKey(new ComponentKey("http://jasperreports.sourceforge.net/jasperreports/components", "jr", "table"));
-        tableElement.setWidth(mainDesign.getColumnWidth());
-        tableElement.setHeight(1);
-        tableElement.setComponent(table);
-        tableBand.addElement(tableElement);
-
-        ((JRDesignSection) tableDesign.getDetailSection()).addBand(tableBand);
-        JasperReport compiledSubreport = JasperCompileManager.compileReport(tableDesign);
+        JasperReport compiledSubreport = tableBuilder.build();
 
         String subreportParamName = "SUB_" + UUID.randomUUID().toString().replace("-", "");
         String dataSourceParamName = "DATA_" + UUID.randomUUID().toString().replace("-", "");
@@ -163,23 +127,17 @@ public class JsonReportGenerator {
         this.reportParameters.put(subreportParamName, compiledSubreport);
         this.reportParameters.put(dataSourceParamName, new JRMapCollectionDataSource((Collection<Map<String, ?>>) (Collection<?>) tableData));
 
-        JRDesignParameter p1 = new JRDesignParameter();
-        p1.setName(subreportParamName);
-        p1.setValueClass(JasperReport.class);
+        JRDesignParameter p1 = new JRDesignParameter(); p1.setName(subreportParamName); p1.setValueClass(JasperReport.class);
         mainDesign.addParameter(p1);
-
-        JRDesignParameter p2 = new JRDesignParameter();
-        p2.setName(dataSourceParamName);
-        p2.setValueClass(JRDataSource.class);
+        JRDesignParameter p2 = new JRDesignParameter(); p2.setName(dataSourceParamName); p2.setValueClass(JRDataSource.class);
         mainDesign.addParameter(p2);
 
         band.addElement(createHeader(title, mainDesign.getColumnWidth(), 1));
 
         JRDesignSubreport subreportElement = new JRDesignSubreport(mainDesign);
-        subreportElement.setY(0);
         subreportElement.setPositionType(PositionTypeEnum.FLOAT);
         subreportElement.setWidth(mainDesign.getColumnWidth());
-        subreportElement.setHeight(50);
+        subreportElement.setHeight(1);
         subreportElement.setExpression(new JRDesignExpression("$P{" + subreportParamName + "}"));
         subreportElement.setDataSourceExpression(new JRDesignExpression("$P{" + dataSourceParamName + "}"));
         band.addElement(subreportElement);
@@ -188,7 +146,7 @@ public class JsonReportGenerator {
     private JRDesignStaticText createHeader(String text, int width, int level) {
         JRDesignStaticText header = new JRDesignStaticText();
         header.setX(level * 15);
-        header.setY(5);
+        header.setY(0);
         header.setWidth(width - (level * 15));
         header.setHeight(25 - level * 2);
         header.setPositionType(PositionTypeEnum.FLOAT);
@@ -199,8 +157,6 @@ public class JsonReportGenerator {
         header.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
         header.setMode(ModeEnum.OPAQUE);
         header.setBackcolor(new Color(235, 235, 235));
-        header.getLineBox().getBottomPen().setLineWidth(0.5f);
-        header.getLineBox().getBottomPen().setLineColor(Color.DARK_GRAY);
         return header;
     }
 
@@ -219,71 +175,11 @@ public class JsonReportGenerator {
         return textField;
     }
 
-    private BaseColumn createJasperColumnStructure(HeaderNode node, JRDesignDataset dataset) throws JRException {
-        if (node.isLeaf()) {
-            JRDesignField field = new JRDesignField();
-            field.setName(node.fullPath);
-            field.setValueClass(Object.class);
-            dataset.addField(field);
-
-            StandardColumn column = new StandardColumn();
-            column.setWidth(120);
-            column.setColumnHeader(createCell(createHeaderCell(node.name), 40));
-
-            JRDesignTextField cellTextField = new JRDesignTextField();
-            cellTextField.setExpression(new JRDesignExpression("$F{" + node.fullPath + "} == null ? \"\" : $F{" + node.fullPath + "}.toString()"));
-            cellTextField.setStretchWithOverflow(true);
-            cellTextField.getLineBox().getPen().setLineWidth(0.25f);
-            cellTextField.getLineBox().getPen().setLineColor(Color.LIGHT_GRAY);
-            column.setDetailCell(createCell(cellTextField, 20));
-            return column;
-        } else {
-            StandardColumnGroup group = new StandardColumnGroup();
-            int totalWidth = 0;
-            for (HeaderNode child : node.children.values()) {
-                BaseColumn childColumn = createJasperColumnStructure(child, dataset);
-                group.addColumn(childColumn);
-                totalWidth += childColumn.getWidth();
-            }
-            group.setWidth(totalWidth);
-            group.setColumnHeader(createCell(createHeaderCell(node.name), 20));
-            return group;
-        }
-    }
-
-    private Cell createCell(JRElement element, int height) {
-        JRDesignCellContents cell = new JRDesignCellContents();
-        cell.setHeight(height);
-
-        if (element != null) {
-            element.setWidth(1);
-            element.getHeight();
-            cell.addElement(element);
-        }
-        return (Cell) cell;
-    }
-
-    private JRDesignStaticText createHeaderCell(String text) {
-        JRDesignStaticText header = new JRDesignStaticText();
-        header.setText(text);
-        header.setHorizontalTextAlign(HorizontalTextAlignEnum.CENTER);
-        header.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
-        header.setMode(ModeEnum.OPAQUE);
-        header.setBackcolor(new Color(242, 242, 242));
-        header.setFontName(ReportStyles.FONT_DEJAVU_SANS);
-        header.setFontSize(8f);
-        header.setBold(true);
-        header.getLineBox().getPen().setLineWidth(0.5f);
-        header.getLineBox().getPen().setLineColor(Color.GRAY);
-        return header;
-    }
-
     private String escapeJava(String s) {
         if (s == null) return "null";
         return s.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
-    // --- ORYGINALNE METODY Z TWOJEJ BIBLIOTEKI ---
 
     private JasperPrint generateReportFromArray(JsonNode arrayNode, ReportConfig config) throws JRException {
         ReportStructure structure = analyzeArrayStructure(arrayNode);
@@ -407,13 +303,10 @@ public class JsonReportGenerator {
         if (config.getColumns() != null) {
             for (ColumnDefinition colDef : config.getColumns()) {
                 if (colDef.getVisible() != null && !colDef.getVisible()) continue;
-
                 String fieldName = colDef.getField();
-
                 if (config.getSubreportConfigs() != null && config.getSubreportConfigs().containsKey(fieldName)) {
                     continue;
                 }
-
                 DataType dataType = structure.getFieldTypes().getOrDefault(fieldName, DataType.STRING);
                 builder.addColumn(new Column(
                         fieldName, colDef.getHeader(),
@@ -436,7 +329,6 @@ public class JsonReportGenerator {
                 }
             }
         }
-
         return builder.build();
     }
 
@@ -519,6 +411,15 @@ public class JsonReportGenerator {
         return DataType.STRING;
     }
 
+    private DataType determineDataType(Object value) {
+        if (value == null) return DataType.STRING;
+        if (value instanceof Date) return DataType.DATE;
+        if (value instanceof BigDecimal || value instanceof Number) return DataType.BIG_DECIMAL;
+        if (value instanceof Boolean) return DataType.BOOLEAN;
+        if (value instanceof JRDataSource) return DataType.JR_DATA_SOURCE;
+        return DataType.STRING;
+    }
+
     private void addDefaultStyles(ReportBuilder builder, ReportConfig config) {
         ReportTheme themeToApply = ReportTheme.DEFAULT;
         if (config.getTheme() != null && !config.getTheme().trim().isEmpty()) {
@@ -532,38 +433,18 @@ public class JsonReportGenerator {
     }
 
     private void printJrxmlToConsole(JasperReport report, String reportName) {
-        System.out.println("\n" + "=".repeat(80) + "\n=== " + reportName + " ===\n" + "=".repeat(80));
-        System.out.println(JRXmlWriter.writeReport(report, "UTF-8"));
-        System.out.println("=".repeat(80) + "\n");
+            System.out.println("\n" + "=".repeat(80) + "\n=== " + reportName + " ===\n" + "=".repeat(80));
+            System.out.println(JRXmlWriter.writeReport(report, "UTF-8"));
+            System.out.println("=".repeat(80) + "\n");
     }
 
     private static class ReportStructure {
-        private Set<String> fields = new LinkedHashSet<>();
-        private Map<String, DataType> fieldTypes = new HashMap<>();
-        private Map<String, ReportStructure> nestedStructures = new HashMap<>();
+        private final Set<String> fields = new LinkedHashSet<>();
+        private final Map<String, DataType> fieldTypes = new HashMap<>();
+        private final Map<String, ReportStructure> nestedStructures = new HashMap<>();
 
         public Set<String> getFields() { return fields; }
-        public void setFields(Set<String> fields) { this.fields = fields; }
         public Map<String, DataType> getFieldTypes() { return fieldTypes; }
-        public void setFieldTypes(Map<String, DataType> fieldTypes) { this.fieldTypes = fieldTypes; }
         public Map<String, ReportStructure> getNestedStructures() { return nestedStructures; }
-        public void setNestedStructures(Map<String, ReportStructure> nestedStructures) { this.nestedStructures = nestedStructures; }
-    }
-
-    private static class HeaderNode {
-        String name;
-        String fullPath;
-        Map<String, HeaderNode> children = new LinkedHashMap<>();
-
-        HeaderNode(String name) { this.name = name; }
-        boolean isLeaf() { return children.isEmpty(); }
-
-        void addPath(String[] pathParts, String fullPath) {
-            HeaderNode current = this;
-            for (String part : pathParts) {
-                current = current.children.computeIfAbsent(part, HeaderNode::new);
-            }
-            current.fullPath = fullPath;
-        }
     }
 }
