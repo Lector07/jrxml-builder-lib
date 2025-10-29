@@ -5,8 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import net.sf.jasperreports.engine.*;
 import net.sf.jasperreports.engine.data.JRMapCollectionDataSource;
 import net.sf.jasperreports.engine.design.*;
-import net.sf.jasperreports.engine.export.JRPdfExporter;
-import net.sf.jasperreports.engine.SimpleJasperReportsContext;
 import net.sf.jasperreports.engine.type.*;
 import net.sf.jasperreports.engine.xml.JRXmlWriter;
 import pl.lib.api.ReportBuilder;
@@ -25,10 +23,9 @@ import java.util.*;
 
 public class JsonReportGenerator {
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final Map<String, Object> reportParameters = new HashMap<>();
     private boolean printJrxmlToConsole = false;
     private JasperDesign lastGeneratedDesign;
-
-    private final Map<String, Object> reportParameters = new HashMap<>();
 
     public JsonReportGenerator withJrxmlPrinting(boolean print) {
         this.printJrxmlToConsole = print;
@@ -71,6 +68,8 @@ public class JsonReportGenerator {
 
         return JasperFillManager.fillReport(jasperReport, this.reportParameters, new JREmptyDataSource(1));
     }
+
+    //TODO zrobić strone tytułową, automatyczne generowany spis treści , sekcje z nagłówkami
 
     public JasperPrint generateTableReportFromJson(String jsonContent, ReportConfig config) throws JRException, IOException {
         JsonNode arrayNode = objectMapper.readTree(jsonContent);
@@ -131,9 +130,13 @@ public class JsonReportGenerator {
         this.reportParameters.put(subreportParamName, compiledSubreport);
         this.reportParameters.put(dataSourceParamName, new JRMapCollectionDataSource((Collection<Map<String, ?>>) (Collection<?>) tableData));
 
-        JRDesignParameter p1 = new JRDesignParameter(); p1.setName(subreportParamName); p1.setValueClass(JasperReport.class);
+        JRDesignParameter p1 = new JRDesignParameter();
+        p1.setName(subreportParamName);
+        p1.setValueClass(JasperReport.class);
         mainDesign.addParameter(p1);
-        JRDesignParameter p2 = new JRDesignParameter(); p2.setName(dataSourceParamName); p2.setValueClass(JRDataSource.class);
+        JRDesignParameter p2 = new JRDesignParameter();
+        p2.setName(dataSourceParamName);
+        p2.setValueClass(JRDataSource.class);
         mainDesign.addParameter(p2);
 
         band.addElement(createHeader(title, mainDesign.getColumnWidth(), 1));
@@ -177,7 +180,6 @@ public class JsonReportGenerator {
 
         return header;
     }
-
 
 
     private JRDesignTextField createKeyValueField(String key, String value, int width, int level) {
@@ -411,8 +413,11 @@ public class JsonReportGenerator {
     private Object convertJsonValue(JsonNode value) {
         if (value == null || value.isNull()) return null;
         if (value.isTextual()) {
-            try { return Date.from(Instant.parse(value.asText())); }
-            catch (DateTimeParseException e) { return value.asText(); }
+            try {
+                return Date.from(Instant.parse(value.asText()));
+            } catch (DateTimeParseException e) {
+                return value.asText();
+            }
         }
         if (value.isNumber()) return new BigDecimal(value.asText());
         if (value.isBoolean()) return value.asBoolean();
@@ -422,8 +427,12 @@ public class JsonReportGenerator {
     private DataType determineDataType(JsonNode node) {
         if (node == null || node.isNull()) return DataType.STRING;
         if (node.isTextual()) {
-            try { Instant.parse(node.asText()); return DataType.DATE; }
-            catch (DateTimeParseException e) { return DataType.STRING; }
+            try {
+                Instant.parse(node.asText());
+                return DataType.DATE;
+            } catch (DateTimeParseException e) {
+                return DataType.STRING;
+            }
         }
         if (node.isNumber()) return DataType.BIG_DECIMAL;
         if (node.isBoolean()) return DataType.BOOLEAN;
@@ -453,9 +462,9 @@ public class JsonReportGenerator {
     }
 
     private void printJrxmlToConsole(JasperReport report, String reportName) {
-            System.out.println("\n" + "=".repeat(80) + "\n=== " + reportName + " ===\n" + "=".repeat(80));
-            System.out.println(JRXmlWriter.writeReport(report, "UTF-8"));
-            System.out.println("=".repeat(80) + "\n");
+        System.out.println("\n" + "=".repeat(80) + "\n=== " + reportName + " ===\n" + "=".repeat(80));
+        System.out.println(JRXmlWriter.writeReport(report, "UTF-8"));
+        System.out.println("=".repeat(80) + "\n");
     }
 
     private static class ReportStructure {
@@ -463,8 +472,16 @@ public class JsonReportGenerator {
         private final Map<String, DataType> fieldTypes = new HashMap<>();
         private final Map<String, ReportStructure> nestedStructures = new HashMap<>();
 
-        public Set<String> getFields() { return fields; }
-        public Map<String, DataType> getFieldTypes() { return fieldTypes; }
-        public Map<String, ReportStructure> getNestedStructures() { return nestedStructures; }
+        public Set<String> getFields() {
+            return fields;
+        }
+
+        public Map<String, DataType> getFieldTypes() {
+            return fieldTypes;
+        }
+
+        public Map<String, ReportStructure> getNestedStructures() {
+            return nestedStructures;
+        }
     }
 }
