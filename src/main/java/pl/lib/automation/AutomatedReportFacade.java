@@ -30,6 +30,18 @@ public class AutomatedReportFacade {
     }
 
     public byte[] generateCompositeReport(String jsonContent, String reportTitle, CompanyInfo companyInfo) throws JRException, IOException {
+            JasperPrint mainContentPrint = jsonReportGenerator.generateReport(jsonContent, reportTitle);
 
+            JasperPrint titlePagePrint = createTitlePage(reportTitle, companyInfo);
+
+            JasperPrint tocPagePrint = createTocPage(mainContentPrint);
+
+            List<JasperPrint> printList = new ArrayList<>();
+            printList.add(titlePagePrint);
+            printList.add(tocPagePrint);
+            printList.add(mainContentPrint);
+
+            ByteArrayOutputStream pdfOutputStream = new ByteArrayOutputStream();
+            JRPdfExporter exporter = new JRPdfExporter();
     }
 }
