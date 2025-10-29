@@ -69,7 +69,7 @@ public class JsonReportGenerator {
         return JasperFillManager.fillReport(jasperReport, this.reportParameters, new JREmptyDataSource(1));
     }
 
-    //TODO zrobić strone tytułową, automatyczne generowany spis treści , sekcje z nagłówkami
+    //TODO zrobić strone tytułową, automatyczne generowany spis treści , sekcje z nagłówkami, Plan Działania: Implementacja AutomatedReportFacade
 
     public JasperPrint generateTableReportFromJson(String jsonContent, ReportConfig config) throws JRException, IOException {
         JsonNode arrayNode = objectMapper.readTree(jsonContent);
