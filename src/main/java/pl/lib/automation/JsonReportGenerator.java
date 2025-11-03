@@ -484,4 +484,32 @@ public class JsonReportGenerator {
             return nestedStructures;
         }
     }
+
+    private static class ReportElement{
+        String type;
+        String text;
+        String value;
+        int level;
+        JsonNode rawTableData;
+
+
+        @Override
+        public String toString(){
+            return String.format("Typ: %-15s | Poziom: %d | Tekst: %s", type, level, text != null ? text : "ROOT");
+        }
+    }
+
+    private List<Map<String, Object>> convertJsonToArrayList(JsonNode arrayNode){
+        List<Map<String, Object>> result = new ArrayList<>();
+        if(arrayNode != null && arrayNode.isArray()){
+            for(JsonNode item : arrayNode){
+                if(item.isObject()){
+                    Map<String,Object> map = new LinkedHashMap<>();
+                    item.fields().forEachRemaining(entry -> map.put(entry.getKey(), convertJsonValue(entry.getValue())));
+                    result.add(map);
+                }
+            }
+        }
+        return result;
+    }
 }
