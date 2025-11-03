@@ -14,15 +14,10 @@ import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Testy dla klasy AutomatedReportFacade.
- * Sprawdzają poprawność generowania złożonych raportów z stroną tytułową i spisem treści.
- */
 class AutomatedReportFacadeTest {
 
     @Test
     void generateCompositeReport_withSimpleJson_shouldGeneratePdf() throws JRException, IOException {
-        // given
         AutomatedReportFacade facade = new AutomatedReportFacade();
         String jsonContent = "{ \"name\": \"Jan Kowalski\", \"age\": 30, \"city\": \"Warszawa\" }";
 
@@ -31,20 +26,16 @@ class AutomatedReportFacadeTest {
                 .pageFormat("A4")
                 .build();
 
-        // when
         byte[] pdfBytes = facade.generateCompositeReport(jsonContent, config);
 
-        // then
         assertNotNull(pdfBytes, "PDF powinien zostać wygenerowany");
         assertTrue(pdfBytes.length > 0, "PDF powinien zawierać dane");
-        // Sprawdzenie nagłówka PDF
         assertTrue(pdfBytes[0] == 0x25 && pdfBytes[1] == 0x50 && pdfBytes[2] == 0x44 && pdfBytes[3] == 0x46,
                 "Wygenerowany plik powinien być PDF");
     }
 
     @Test
     void generateCompositeReport_withCompanyInfo_shouldIncludeCompanyName() throws JRException, IOException {
-        // given
         AutomatedReportFacade facade = new AutomatedReportFacade();
         String jsonContent = "{ \"product\": \"Laptop\", \"price\": 3500.00 }";
 
@@ -59,10 +50,9 @@ class AutomatedReportFacadeTest {
                 .pageFormat("A4")
                 .build();
 
-        // when
+
         byte[] pdfBytes = facade.generateCompositeReport(jsonContent, config);
 
-        // then
         assertNotNull(pdfBytes);
         assertTrue(pdfBytes.length > 0);
     }
@@ -82,17 +72,16 @@ class AutomatedReportFacadeTest {
                 .pageFormat("A4")
                 .build();
 
-        // when
+
         byte[] pdfBytes = facade.generateCompositeReport(jsonContent, config);
 
-        // then
+
         assertNotNull(pdfBytes);
         assertTrue(pdfBytes.length > 0);
     }
 
     @Test
     void generateCompositeReport_withLandscapeOrientation_shouldGeneratePdf() throws JRException, IOException {
-        // given
         AutomatedReportFacade facade = new AutomatedReportFacade();
         String jsonContent = "{ \"department\": \"IT\", \"budget\": 500000 }";
 
@@ -102,17 +91,14 @@ class AutomatedReportFacadeTest {
                 .addFooterLeftText("Poufne")
                 .build();
 
-        // when
         byte[] pdfBytes = facade.generateCompositeReport(jsonContent, config);
 
-        // then
         assertNotNull(pdfBytes);
         assertTrue(pdfBytes.length > 0);
     }
 
     @Test
     void generateCompositeReport_withCustomColors_shouldGeneratePdf() throws JRException, IOException {
-        // given
         AutomatedReportFacade facade = new AutomatedReportFacade();
         String jsonContent = "{ \"title\": \"Kolorowy Raport\", \"value\": 100 }";
 
@@ -127,10 +113,8 @@ class AutomatedReportFacadeTest {
                 .colorSettings(colors)
                 .build();
 
-        // when
         byte[] pdfBytes = facade.generateCompositeReport(jsonContent, config);
 
-        // then
         assertNotNull(pdfBytes);
         assertTrue(pdfBytes.length > 0);
     }
@@ -275,5 +259,82 @@ class AutomatedReportFacadeTest {
         assertNotNull(pdfBytes);
         assertTrue(pdfBytes.length > 5000, "PDF powinien być większy ze względu na wiele stron");
     }
+
+    @Test
+    void generateReportWithTOC_shouldCreateDetailedPdf(@TempDir Path tempDir) throws JRException, IOException {
+        AutomatedReportFacade facade = new AutomatedReportFacade(true);
+
+        String jsonContent = """
+        {
+          "company": {
+            "name": "TechCorp Sp. z o.o.",
+            "nip": "1234567890",
+            "address": "ul. Testowa 123",
+            "city": "Warszawa"
+          },
+          "employees": [
+            {"id": 1, "firstName": "Jan", "lastName": "Kowalski", "position": "Senior Developer", "department": "IT", "salary": 12000},
+            {"id": 2, "firstName": "Anna", "lastName": "Nowak", "position": "Project Manager", "department": "Management", "salary": 15000},
+            {"id": 3, "firstName": "Piotr", "lastName": "Wiśniewski", "position": "Tester", "department": "QA", "salary": 8000}
+          ],
+          "departments": [
+            {
+              "name": "IT",
+              "budget": 500000,
+              "headCount": 15,
+              "projects": [
+                {"name": "Portal A", "status": "active", "budget": 150000},
+                {"name": "System B", "status": "completed", "budget": 200000}
+              ]
+            },
+            {
+              "name": "QA",
+              "budget": 200000,
+              "headCount": 5,
+              "projects": [{"name": "Testy automatyczne", "status": "active", "budget": 100000}]
+            }
+          ],
+          "financialData": {
+            "year": 2025,
+            "revenue": 2500000,
+            "expenses": 1800000,
+            "profit": 700000,
+            "quarterlyResults": [
+              {"quarter": "Q1", "revenue": 600000, "expenses": 450000},
+              {"quarter": "Q2", "revenue": 650000, "expenses": 480000},
+              {"quarter": "Q3", "revenue": 620000, "expenses": 440000},
+              {"quarter": "Q4", "revenue": 630000, "expenses": 430000}
+            ]
+          }
+        }
+        """;
+
+        CompanyInfo companyInfo = CompanyInfo.builder("TechCorp Sp. z o.o.")
+                .address("ul. Testowa 123")
+                .location("00-001", "Warszawa")
+                .build();
+
+        ReportConfig config = new ReportConfig.Builder()
+                .title("Raport Roczny Firmy 2025")
+                .companyInfo(companyInfo)
+                .pageFormat("A4")
+                .withPageFooterEnabled(true)
+                .addFooterLeftText("Dokument poufny")
+                .build();
+
+        byte[] pdfBytes = facade.generateCompositeReport(jsonContent, config);
+
+        File outputFile = tempDir.resolve("raport-ze-spisem-tresci.pdf").toFile();
+        try (FileOutputStream fos = new FileOutputStream(outputFile)) {
+            fos.write(pdfBytes);
+        }
+
+        assertNotNull(pdfBytes);
+        assertTrue(pdfBytes.length > 0);
+        assertTrue(outputFile.exists());
+
+        System.out.println("Raport wygenerowany: " + outputFile.getAbsolutePath());
+    }
+
 }
 
