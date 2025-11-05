@@ -37,37 +37,50 @@ public class JsonReportGenerator {
     }
 
     public JasperPrint generateReport(String jsonContent, String reportTitle) throws JRException, IOException {
-        reportParameters.clear();
-
-        ReportBuilder builder = new ReportBuilder(reportTitle)
-                .withPageFormat("A4")
-                .withHorizontalLayout(true)
-                .withMargins(40, 40, 40, 40)
-                .withTitle(reportTitle)
-                .withTheme(ReportTheme.DEFAULT);
-
-        JasperDesign design = builder.getDesign();
-        design.setWhenNoDataType(WhenNoDataTypeEnum.ALL_SECTIONS_NO_DETAIL);
-
-        design.setProperty("net.sf.jasperreports.create.bookmarks", "true");
-
-        JRDesignBand summaryBand = new JRDesignBand();
-        summaryBand.setSplitType(SplitTypeEnum.STRETCH);
-        summaryBand.setHeight(23);
-        design.setSummary(summaryBand);
+        System.out.println("--- Rozpoczynam spłaszczanie JSON ---");
 
         JsonNode rootNode = objectMapper.readTree(jsonContent);
-        processNode(summaryBand, design, reportTitle, rootNode, 0);
+        List<ReportElement> reportElements = flattenJsonForDebugging(rootNode);
 
-        JasperReport jasperReport = builder.build();
-        this.lastGeneratedDesign = design;
+        System.out.println("--- Wynik spłaszczania: ---");
+        reportElements.forEach(System.out::println);
+        System.out.println("--- Zakończono spłaszczanie ---");
 
-        if (printJrxmlToConsole) {
-            printJrxmlToConsole(jasperReport, "MAIN DYNAMIC REPORT");
-        }
-
-        return JasperFillManager.fillReport(jasperReport, this.reportParameters, new JREmptyDataSource(1));
+        return null;
     }
+
+//    public JasperPrint generateReport(String jsonContent, String reportTitle) throws JRException, IOException {
+//        reportParameters.clear();
+//
+//        ReportBuilder builder = new ReportBuilder(reportTitle)
+//                .withPageFormat("A4")
+//                .withHorizontalLayout(true)
+//                .withMargins(40, 40, 40, 40)
+//                .withTitle(reportTitle)
+//                .withTheme(ReportTheme.DEFAULT);
+//
+//        JasperDesign design = builder.getDesign();
+//        design.setWhenNoDataType(WhenNoDataTypeEnum.ALL_SECTIONS_NO_DETAIL);
+//
+//        design.setProperty("net.sf.jasperreports.create.bookmarks", "true");
+//
+//        JRDesignBand summaryBand = new JRDesignBand();
+//        summaryBand.setSplitType(SplitTypeEnum.STRETCH);
+//        summaryBand.setHeight(23);
+//        design.setSummary(summaryBand);
+//
+//        JsonNode rootNode = objectMapper.readTree(jsonContent);
+//        processNode(summaryBand, design, reportTitle, rootNode, 0);
+//
+//        JasperReport jasperReport = builder.build();
+//        this.lastGeneratedDesign = design;
+//
+//        if (printJrxmlToConsole) {
+//            printJrxmlToConsole(jasperReport, "MAIN DYNAMIC REPORT");
+//        }
+//
+//        return JasperFillManager.fillReport(jasperReport, this.reportParameters, new JREmptyDataSource(1));
+//    }
 
     //TODO zrobić strone tytułową, automatyczne generowany spis treści , sekcje z nagłówkami, Plan Działania: Implementacja AutomatedReportFacade
 
@@ -399,6 +412,44 @@ public class JsonReportGenerator {
         return map;
     }
 
+    private List<ReportElement> flattenJsonForDebugging(JsonNode rootNode) {
+        List<ReportElement> elements = new ArrayList<>();
+        rootNode.fields().forEachRemaining(entry -> {
+            flattenNodeRecursive(entry.getValue(), elements, 1, entry.getKey());
+        });
+        return elements;
+    }
+
+    private void flattenNodeRecursive(JsonNode node, List<ReportElement> elements, int level, String key) {
+        if (node.isObject()) {
+            ReportElement header = new ReportElement();
+            header.type = "HEADER";
+            header.text = key;
+            header.level = level;
+            elements.add(header);
+
+            node.fields().forEachRemaining(entry -> {
+                flattenNodeRecursive(entry.getValue(), elements, level + 1, entry.getKey());
+            });
+
+        } else if (node.isArray() && node.size() > 0 && node.get(0).isObject()) {
+            ReportElement table = new ReportElement();
+            table.type = "TABLE";
+            table.text = key;
+            table.level = level;
+            table.rawTableData = node;
+            elements.add(table);
+
+        } else if (node.isValueNode()) {
+            ReportElement kv = new ReportElement();
+            kv.type = "KEY_VALUE";
+            kv.text = key;
+            kv.value = node.asText("null");
+            kv.level = level;
+            elements.add(kv);
+        }
+    }
+
     private void addKeys(String currentPath, JsonNode jsonNode, Map<String, Object> map) {
         if (jsonNode.isObject()) {
             String prefix = currentPath.isEmpty() ? "" : currentPath + "_";
@@ -410,19 +461,19 @@ public class JsonReportGenerator {
         }
     }
 
-    private Object convertJsonValue(JsonNode value) {
-        if (value == null || value.isNull()) return null;
-        if (value.isTextual()) {
-            try {
-                return Date.from(Instant.parse(value.asText()));
-            } catch (DateTimeParseException e) {
-                return value.asText();
-            }
-        }
-        if (value.isNumber()) return new BigDecimal(value.asText());
-        if (value.isBoolean()) return value.asBoolean();
-        return value.toString();
-    }
+//    private Object convertJsonValue(JsonNode value) {
+//        if (value == null || value.isNull()) return null;
+//        if (value.isTextual()) {
+//            try {
+//                return Date.from(Instant.parse(value.asText()));
+//            } catch (DateTimeParseException e) {
+//                return value.asText();
+//            }
+//        }
+//        if (value.isNumber()) return new BigDecimal(value.asText());
+//        if (value.isBoolean()) return value.asBoolean();
+//        return value.toString();
+//    }
 
     private DataType determineDataType(JsonNode node) {
         if (node == null || node.isNull()) return DataType.STRING;
@@ -467,6 +518,28 @@ public class JsonReportGenerator {
         System.out.println("=".repeat(80) + "\n");
     }
 
+    private List<Map<String, Object>> convertJsonToArrayList(JsonNode arrayNode) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        if (arrayNode != null && arrayNode.isArray()) {
+            for (JsonNode item : arrayNode) {
+                if (item.isObject()) {
+                    Map<String, Object> map = new LinkedHashMap<>();
+                    item.fields().forEachRemaining(entry -> map.put(entry.getKey(), convertJsonValue(entry.getValue())));
+                    result.add(map);
+                }
+            }
+        }
+        return result;
+    }
+
+    private Object convertJsonValue(JsonNode value) {
+        if (value == null || value.isNull()) return null;
+        if (value.isTextual()) return value.asText();
+        if (value.isNumber()) return new BigDecimal(value.asText());
+        if (value.isBoolean()) return value.asBoolean();
+        return value.toString();
+    }
+
     private static class ReportStructure {
         private final Set<String> fields = new LinkedHashSet<>();
         private final Map<String, DataType> fieldTypes = new HashMap<>();
@@ -485,7 +558,7 @@ public class JsonReportGenerator {
         }
     }
 
-    private static class ReportElement{
+    private static class ReportElement {
         String type;
         String text;
         String value;
@@ -494,22 +567,9 @@ public class JsonReportGenerator {
 
 
         @Override
-        public String toString(){
+        public String toString() {
             return String.format("Typ: %-15s | Poziom: %d | Tekst: %s", type, level, text != null ? text : "ROOT");
         }
     }
 
-    private List<Map<String, Object>> convertJsonToArrayList(JsonNode arrayNode){
-        List<Map<String, Object>> result = new ArrayList<>();
-        if(arrayNode != null && arrayNode.isArray()){
-            for(JsonNode item : arrayNode){
-                if(item.isObject()){
-                    Map<String,Object> map = new LinkedHashMap<>();
-                    item.fields().forEachRemaining(entry -> map.put(entry.getKey(), convertJsonValue(entry.getValue())));
-                    result.add(map);
-                }
-            }
-        }
-        return result;
-    }
 }
