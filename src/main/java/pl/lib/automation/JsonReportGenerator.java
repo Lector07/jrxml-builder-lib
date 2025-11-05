@@ -36,18 +36,18 @@ public class JsonReportGenerator {
         return this.lastGeneratedDesign;
     }
 
-    public JasperPrint generateReport(String jsonContent, String reportTitle) throws JRException, IOException {
-        System.out.println("--- Rozpoczynam spłaszczanie JSON ---");
-
-        JsonNode rootNode = objectMapper.readTree(jsonContent);
-        List<ReportElement> reportElements = flattenJsonForDebugging(rootNode);
-
-        System.out.println("--- Wynik spłaszczania: ---");
-        reportElements.forEach(System.out::println);
-        System.out.println("--- Zakończono spłaszczanie ---");
-
-        return null;
-    }
+//    public JasperPrint generateReport(String jsonContent, String reportTitle) throws JRException, IOException {
+//        System.out.println("--- Rozpoczynam spłaszczanie JSON ---");
+//
+//        JsonNode rootNode = objectMapper.readTree(jsonContent);
+//        List<ReportElement> reportElements = flattenJsonForDebugging(rootNode);
+//
+//        System.out.println("--- Wynik spłaszczania: ---");
+//        reportElements.forEach(System.out::println);
+//        System.out.println("--- Zakończono spłaszczanie ---");
+//
+//        return null;
+//    }
 
 //    public JasperPrint generateReport(String jsonContent, String reportTitle) throws JRException, IOException {
 //        reportParameters.clear();
@@ -81,6 +81,90 @@ public class JsonReportGenerator {
 //
 //        return JasperFillManager.fillReport(jasperReport, this.reportParameters, new JREmptyDataSource(1));
 //    }
+
+    public JasperPrint generateReport(String jsonContent, String reportTitle) throws JRException, IOException {
+        JsonNode rootNode = objectMapper.readTree(jsonContent);
+        List<ReportElement> reportElements = flattenJsonForDebugging(rootNode);
+
+        List<Map<String, ?>> dataSourceList = new ArrayList<>();
+        for (ReportElement el : reportElements) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("type", el.type);
+            map.put("text", el.text);
+            map.put("value", el.value);
+            map.put("level", el.level);
+            dataSourceList.add(map);
+        }
+        JRDataSource dataSource = new JRMapCollectionDataSource(dataSourceList);
+
+        ReportBuilder builder = new ReportBuilder(reportTitle)
+                .withTheme(ReportTheme.DEFAULT)
+                .withPageFormat("A4")
+                .withHorizontalLayout(false)
+                .withMargins(20, 20, 20, 20)
+                .withTitleBand(false)
+                .withSummaryBand(false);
+
+        JasperDesign design = builder.getDesign();
+        design.setProperty("net.sf.jasperreports.create.bookmarks", "true");
+
+        JRDesignBand summaryBand = new JRDesignBand();
+        summaryBand.setHeight(0);
+        summaryBand.setSplitType(SplitTypeEnum.STRETCH);
+        design.setSummary(summaryBand);
+
+        JRDesignField fieldType = new JRDesignField(); fieldType.setName("type"); fieldType.setValueClass(String.class); design.addField(fieldType);
+        JRDesignField fieldText = new JRDesignField(); fieldText.setName("text"); fieldText.setValueClass(String.class); design.addField(fieldText);
+        JRDesignField fieldValue = new JRDesignField(); fieldValue.setName("value"); fieldValue.setValueClass(String.class); design.addField(fieldValue);
+        JRDesignField fieldLevel = new JRDesignField(); fieldLevel.setName("level"); fieldLevel.setValueClass(Integer.class); design.addField(fieldLevel);
+
+        JRDesignBand detailBand = new JRDesignBand();
+        detailBand.setHeight(20);
+        detailBand.setSplitType(SplitTypeEnum.STRETCH);
+
+        JRDesignTextField headerField = new JRDesignTextField();
+        headerField.setX(0); headerField.setY(0);
+        headerField.setWidth(design.getColumnWidth()); headerField.setHeight(20);
+        headerField.setStretchWithOverflow(true);
+        headerField.setBold(true);
+        headerField.setFontName(ReportStyles.FONT_DEJAVU_SANS);
+        headerField.setExpression(new JRDesignExpression("$F{text}"));
+        headerField.setPrintWhenExpression(new JRDesignExpression("$F{type}.equals(\"HEADER\")"));
+        JRDesignExpression xExpression = new JRDesignExpression("($F{level} - 1) * 20");
+        headerField.setFontSize(Math.max(10.0f, 16.0f - (1 * 1.5f)));
+        headerField.setBookmarkLevelExpression(new JRDesignExpression("$F{level}"));
+        detailBand.addElement(headerField);
+
+        JRDesignTextField keyValueField = new JRDesignTextField();
+        keyValueField.setX(0); keyValueField.setY(0);
+        keyValueField.setWidth(design.getColumnWidth()); keyValueField.setHeight(15);
+        keyValueField.setStretchWithOverflow(true);
+        keyValueField.setFontName(ReportStyles.FONT_DEJAVU_SANS);
+        keyValueField.setFontSize(9f);
+        keyValueField.setMarkup("html");
+        keyValueField.setExpression(new JRDesignExpression("\"<b>\" + $F{text} + \":</b> \" + $F{value}"));
+        keyValueField.setPrintWhenExpression(new JRDesignExpression("$F{type}.equals(\"KEY_VALUE\")"));
+        detailBand.addElement(keyValueField);
+
+        JRDesignStaticText tablePlaceholder = new JRDesignStaticText();
+        tablePlaceholder.setX(0); tablePlaceholder.setY(0);
+        tablePlaceholder.setWidth(design.getColumnWidth()); tablePlaceholder.setHeight(20);
+        tablePlaceholder.setText("TUTAJ BĘDZIE TABELA: ");
+        tablePlaceholder.setPrintWhenExpression(new JRDesignExpression("$F{type}.equals(\"TABLE\")"));
+        detailBand.addElement(tablePlaceholder);
+
+        ((JRDesignSection) design.getDetailSection()).addBand(detailBand);
+
+        JasperReport jasperReport = JasperCompileManager.compileReport(design);
+        this.lastGeneratedDesign = design;
+
+        if (printJrxmlToConsole) {
+            printJrxmlToConsole(jasperReport, "MAIN DYNAMIC REPORT");
+        }
+
+        return JasperFillManager.fillReport(jasperReport, reportParameters, dataSource);
+    }
+
 
     //TODO zrobić strone tytułową, automatyczne generowany spis treści , sekcje z nagłówkami, Plan Działania: Implementacja AutomatedReportFacade
 
@@ -406,13 +490,28 @@ public class JsonReportGenerator {
         return result;
     }
 
+    private Object convertJsonValue(JsonNode value) {
+        if (value == null || value.isNull()) return null;
+        if (value.isTextual()) {
+            try {
+                return Date.from(Instant.parse(value.asText()));
+            } catch (DateTimeParseException e) {
+                return value.asText();
+            }
+        }
+        if (value.isNumber()) return new BigDecimal(value.asText());
+        if (value.isBoolean()) return value.asBoolean();
+        return value.toString();
+    }
+
+
     private Map<String, Object> flattenJson(JsonNode node) {
         Map<String, Object> map = new LinkedHashMap<>();
         addKeys("", node, map);
         return map;
     }
 
-    private List<ReportElement> flattenJsonForDebugging(JsonNode rootNode) {
+    List<ReportElement> flattenJsonForDebugging(JsonNode rootNode) {
         List<ReportElement> elements = new ArrayList<>();
         rootNode.fields().forEachRemaining(entry -> {
             flattenNodeRecursive(entry.getValue(), elements, 1, entry.getKey());
@@ -532,13 +631,7 @@ public class JsonReportGenerator {
         return result;
     }
 
-    private Object convertJsonValue(JsonNode value) {
-        if (value == null || value.isNull()) return null;
-        if (value.isTextual()) return value.asText();
-        if (value.isNumber()) return new BigDecimal(value.asText());
-        if (value.isBoolean()) return value.asBoolean();
-        return value.toString();
-    }
+
 
     private static class ReportStructure {
         private final Set<String> fields = new LinkedHashSet<>();
@@ -558,7 +651,7 @@ public class JsonReportGenerator {
         }
     }
 
-    private static class ReportElement {
+    static class ReportElement {
         String type;
         String text;
         String value;
