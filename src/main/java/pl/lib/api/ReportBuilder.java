@@ -540,7 +540,7 @@ public class ReportBuilder {
                 String jrFieldName = column.getFieldName().replace('.', '_');
                 JRDesignTextField dataField = createTextField("$F{" + jrFieldName + "}", currentX, 0, column.getWidth(), 20, false, 7f);
                 dataField.setStyle(jasperDesign.getStylesMap().get(column.getStyleName()));
-                dataField.setStretchWithOverflow(true);
+                dataField.setTextAdjust(TextAdjustEnum.STRETCH_HEIGHT);
                 dataField.setBlankWhenNull(true);
                 if (column.hasPattern()) dataField.setPattern(column.getPattern());
                 dataField.setStretchType(StretchTypeEnum.RELATIVE_TO_TALLEST_OBJECT);
@@ -1037,5 +1037,29 @@ public class ReportBuilder {
      */
     public JasperDesign getDesign() {
         return this.jasperDesign;
+    }
+
+    /**
+     * Adds a border around a JasperReports element.
+     * This is a static utility method that can be used to add borders to text fields,
+     * static texts, and other box container elements.
+     *
+     * @param element The element to which the border should be added
+     * @param lineWidth The width of the border lines
+     * @param color The color of the border
+     */
+    public static void addBorder(JRDesignElement element, float lineWidth, java.awt.Color color) {
+        if (element instanceof JRBoxContainer) {
+            JRLineBox box = ((JRBoxContainer) element).getLineBox();
+            box.getTopPen().setLineColor(color);
+            box.getTopPen().setLineWidth(lineWidth);
+            box.getBottomPen().setLineColor(color);
+            box.getBottomPen().setLineWidth(lineWidth);
+            box.getLeftPen().setLineColor(color);
+            box.getLeftPen().setLineWidth(lineWidth);
+            box.getRightPen().setLineColor(color);
+            box.getRightPen().setLineWidth(lineWidth);
+            box.setPadding(3);
+        }
     }
 }

@@ -336,5 +336,110 @@ class AutomatedReportFacadeTest {
         System.out.println("Raport wygenerowany: " + outputFile.getAbsolutePath());
     }
 
+
+    @Test
+    void testCompositeReport_budgetGliwice_shouldGeneratePdf() throws Exception {
+        // given
+        AutomatedReportFacade facade = new AutomatedReportFacade(true);
+
+        String jsonContent = """
+        {
+                  "1. Wstęp": {
+                    "Cel raportu": "Przedstawienie kompleksowej analizy wykonania budżetu miasta Gliwice za rok 2024.",
+                    "Data wygenerowania": "2025-11-05",
+                    "Zakres danych": "Dane finansowe od 1 stycznia 2024 do 31 grudnia 2024.",
+                    "1.1. Podstawa prawna": {
+                      "Dokument główny": "Uchwała Rady Miasta nr LII/1078/2023 z dnia 14 grudnia 2023 r.",
+                      "Inne regulacje": "Ustawa o finansach publicznych z dnia 27 sierpnia 2009 r."
+                    }
+                  },
+                  "2. Analiza wskaźnikowa": {
+                    "Opis sekcji": "Prezentacja kluczowych wskaźników budżetowych obrazujących sytuację finansową miasta.",
+                    "2.1. Główne wskaźniki budżetowe": [
+                      {
+                        "Lp.": 1,
+                        "Wskaźnik": "Udział dochodów bieżących w dochodach ogółem (WB1)",
+                        "Wartość wyliczona": "90,56%",
+                        "Zmiana r/r": "+0,81 pp"
+                      },
+                      {
+                        "Lp.": 2,
+                        "Wskaźnik": "Udział dochodów własnych w dochodach ogółem (WB2)",
+                        "Wartość wyliczona": "66,99%",
+                        "Zmiana r/r": "+1,20 pp"
+                      },
+                      {
+                        "Lp.": 3,
+                        "Wskaźnik": "Udział nadwyżki operacyjnej w dochodach bieżących (WB3)",
+                        "Wartość wyliczona": "13,36%",
+                        "Zmiana r/r": "+4,50 pp"
+                      }
+                    ],
+                    "Wnioski z analizy": "Wskaźniki wskazują na stabilną i poprawiającą się kondycję finansową miasta."
+                  },
+                  "3. Omówienie wykonania dochodów": {
+                    "Dochody ogółem (wykonanie)": "1.944.885.474,95 zł",
+                    "Plan po zmianach": "1.903.250.875,31 zł",
+                    "Procent realizacji planu": "102,19%",
+                    "3.1. Struktura dochodów według źródeł": {
+                      "Kluczowy wniosek": "Największy udział w dochodach mają dochody własne.",
+                      "Źródła dochodów (tabela)": [
+                        {
+                          "Źródło": "Dochody własne",
+                          "Kwota (zł)": "1.302.865.390,67",
+                          "Udział (%)": "66,99"
+                        },
+                        {
+                          "Źródło": "Subwencje",
+                          "Kwota (zł)": "464.651.524,00",
+                          "Udział (%)": "23,89"
+                        },
+                        {
+                          "Źródło": "Dotacje celowe z budżetu państwa",
+                          "Kwota (zł)": "140.362.311,46",
+                          "Udział (%)": "7,22"
+                        },
+                        {
+                          "Źródło": "Środki z UE i inne",
+                          "Kwota (zł)": "36.006.248,82",
+                          "Udział (%)": "1,90"
+                        }
+                      ]
+                    }
+                  },
+                  "4. Podsumowanie": {
+                    "Ocena końcowa": "Realizacja budżetu w roku 2024 przebiegła pomyślnie, z nadwyżką budżetową.",
+                    "Rekomendacje na przyszłość": "Rekomenduje się dalsze działania w celu dywersyfikacji źródeł dochodów własnych."
+                  }
+                }
+        """;
+
+        ReportConfig config = new ReportConfig();
+        config.setTitle("Sprawozdanie z Wykonania Budżetu Miasta Gliwice za 2024 r.");
+        config.setPageFormat("A4");
+        config.setOrientation("PORTRAIT");
+
+        pl.lib.config.FormattingOptions opts = new pl.lib.config.FormattingOptions();
+        opts.setGenerateBookmarks(true);
+        config.setFormattingOptions(opts);
+
+        byte[] pdfBytes = facade.generateCompositeReport(jsonContent, config);
+
+        assertNotNull(pdfBytes);
+        assertTrue(pdfBytes.length > 0);
+
+        File resourcesDir = new File("src/main/resources");
+        if (!resourcesDir.exists()) {
+            resourcesDir.mkdirs();
+        }
+        File outputFile = new File(resourcesDir, "raport_budzet_gliwice.pdf");
+        try (FileOutputStream fos = new FileOutputStream(outputFile)) {
+            fos.write(pdfBytes);
+        }
+
+        System.out.println("PDF wygenerowany: " + outputFile.getAbsolutePath());
+    }
+
+
 }
 

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="TableOfContents" pageWidth="595" pageHeight="842" whenNoDataType="AllSectionsNoDetail" columnWidth="555" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20">
+    <style name="TOCEntry" fontName="DejaVu Sans" fontSize="10"/>
+
+    <field name="label" class="java.lang.String"/>
+    <field name="pageIndex" class="java.lang.Integer"/>
+    <field name="level" class="java.lang.Integer"/>
+
+    <title>
+        <band height="50">
+            <staticText>
+                <reportElement x="0" y="10" width="555" height="30"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="22" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Spis treści]]></text>
+            </staticText>
+        </band>
+    </title>
+
+
+    <detail>
+        <band height="18" splitType="Stretch">
+            <textField isStretchWithOverflow="true">
+                <reportElement style="TOCEntry" x="0" y="0" width="480" height="18"/>
+                <textElement verticalAlignment="Middle">
+                    <paragraph leftIndent="0"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{label}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement style="TOCEntry" x="0" y="0" width="480" height="18" forecolor="#BDBDBD"/>
+                <textElement verticalAlignment="Middle">
+                    <paragraph leftIndent="0"/>
+                </textElement>
+                <textFieldExpression><![CDATA[".................................................................................................................................................................................................................................................................................................."]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" evaluationTime="Page">
+                <reportElement style="TOCEntry" x="480" y="0" width="75" height="18"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"/>
+                <textFieldExpression><![CDATA[$F{pageIndex}]]></textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+
+</jasperReport>

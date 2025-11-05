@@ -86,17 +86,6 @@ public class JsonReportGenerator {
         JsonNode rootNode = objectMapper.readTree(jsonContent);
         List<ReportElement> reportElements = flattenJsonForDebugging(rootNode);
 
-        List<Map<String, ?>> dataSourceList = new ArrayList<>();
-        for (ReportElement el : reportElements) {
-            Map<String, Object> map = new HashMap<>();
-            map.put("type", el.type);
-            map.put("text", el.text);
-            map.put("value", el.value);
-            map.put("level", el.level);
-            dataSourceList.add(map);
-        }
-        JRDataSource dataSource = new JRMapCollectionDataSource(dataSourceList);
-
         ReportBuilder builder = new ReportBuilder(reportTitle)
                 .withTheme(ReportTheme.DEFAULT)
                 .withPageFormat("A4")
@@ -108,37 +97,105 @@ public class JsonReportGenerator {
         JasperDesign design = builder.getDesign();
         design.setProperty("net.sf.jasperreports.create.bookmarks", "true");
 
-        JRDesignBand summaryBand = new JRDesignBand();
-        summaryBand.setHeight(0);
-        summaryBand.setSplitType(SplitTypeEnum.STRETCH);
-        design.setSummary(summaryBand);
+        // Krok 1: Prekompiluj wszystkie subreporty dla tabel
+        Map<Integer, JasperReport> compiledTables = new HashMap<>();
+        Map<Integer, JRDataSource> tableDataSources = new HashMap<>();
 
-        JRDesignField fieldType = new JRDesignField(); fieldType.setName("type"); fieldType.setValueClass(String.class); design.addField(fieldType);
-        JRDesignField fieldText = new JRDesignField(); fieldText.setName("text"); fieldText.setValueClass(String.class); design.addField(fieldText);
-        JRDesignField fieldValue = new JRDesignField(); fieldValue.setName("value"); fieldValue.setValueClass(String.class); design.addField(fieldValue);
-        JRDesignField fieldLevel = new JRDesignField(); fieldLevel.setName("level"); fieldLevel.setValueClass(Integer.class); design.addField(fieldLevel);
+        for (int i = 0; i < reportElements.size(); i++) {
+            ReportElement element = reportElements.get(i);
+            if ("TABLE".equals(element.type) && element.rawTableData != null) {
+                JasperReport tableReport = compileTableSubreport(element.rawTableData, design.getColumnWidth());
+                JRDataSource tableData = createTableDataSource(element.rawTableData);
 
+                String subreportParamName = "TABLE_REPORT_" + i;
+                String dataSourceParamName = "TABLE_DATA_" + i;
+
+                compiledTables.put(i, tableReport);
+                tableDataSources.put(i, tableData);
+
+                reportParameters.put(subreportParamName, tableReport);
+                reportParameters.put(dataSourceParamName, tableData);
+
+                // Dodaj parametry do designu
+                JRDesignParameter p1 = new JRDesignParameter();
+                p1.setName(subreportParamName);
+                p1.setValueClass(JasperReport.class);
+                design.addParameter(p1);
+
+                JRDesignParameter p2 = new JRDesignParameter();
+                p2.setName(dataSourceParamName);
+                p2.setValueClass(JRDataSource.class);
+                design.addParameter(p2);
+            }
+        }
+
+        // Krok 2: Przygotuj źródło danych
+        List<Map<String, ?>> dataSourceList = new ArrayList<>();
+        for (int i = 0; i < reportElements.size(); i++) {
+            ReportElement el = reportElements.get(i);
+            Map<String, Object> map = new HashMap<>();
+            map.put("type", el.type);
+            map.put("text", el.text);
+            map.put("value", el.value);
+            map.put("level", el.level);
+            map.put("elementIndex", i);
+            dataSourceList.add(map);
+        }
+        JRDataSource dataSource = new JRMapCollectionDataSource(dataSourceList);
+
+        // Krok 3: Dodaj pola
+        JRDesignField fieldType = new JRDesignField();
+        fieldType.setName("type");
+        fieldType.setValueClass(String.class);
+        design.addField(fieldType);
+
+        JRDesignField fieldText = new JRDesignField();
+        fieldText.setName("text");
+        fieldText.setValueClass(String.class);
+        design.addField(fieldText);
+
+        JRDesignField fieldValue = new JRDesignField();
+        fieldValue.setName("value");
+        fieldValue.setValueClass(String.class);
+        design.addField(fieldValue);
+
+        JRDesignField fieldLevel = new JRDesignField();
+        fieldLevel.setName("level");
+        fieldLevel.setValueClass(Integer.class);
+        design.addField(fieldLevel);
+
+        JRDesignField fieldIndex = new JRDesignField();
+        fieldIndex.setName("elementIndex");
+        fieldIndex.setValueClass(Integer.class);
+        design.addField(fieldIndex);
+
+        // Krok 4: Zbuduj bandę detail
         JRDesignBand detailBand = new JRDesignBand();
-        detailBand.setHeight(20);
+        detailBand.setHeight(60); // Zwiększone aby pomieścić subreporty
         detailBand.setSplitType(SplitTypeEnum.STRETCH);
 
+        // Element 1: Nagłówek
         JRDesignTextField headerField = new JRDesignTextField();
-        headerField.setX(0); headerField.setY(0);
-        headerField.setWidth(design.getColumnWidth()); headerField.setHeight(20);
-        headerField.setStretchWithOverflow(true);
+        headerField.setX(0);
+        headerField.setY(0);
+        headerField.setWidth(design.getColumnWidth());
+        headerField.setHeight(20);
+        headerField.setTextAdjust(TextAdjustEnum.STRETCH_HEIGHT);
         headerField.setBold(true);
         headerField.setFontName(ReportStyles.FONT_DEJAVU_SANS);
         headerField.setExpression(new JRDesignExpression("$F{text}"));
         headerField.setPrintWhenExpression(new JRDesignExpression("$F{type}.equals(\"HEADER\")"));
-        JRDesignExpression xExpression = new JRDesignExpression("($F{level} - 1) * 20");
         headerField.setFontSize(Math.max(10.0f, 16.0f - (1 * 1.5f)));
         headerField.setBookmarkLevelExpression(new JRDesignExpression("$F{level}"));
         detailBand.addElement(headerField);
 
+        // Element 2: Para klucz-wartość
         JRDesignTextField keyValueField = new JRDesignTextField();
-        keyValueField.setX(0); keyValueField.setY(0);
-        keyValueField.setWidth(design.getColumnWidth()); keyValueField.setHeight(15);
-        keyValueField.setStretchWithOverflow(true);
+        keyValueField.setX(0);
+        keyValueField.setY(0);
+        keyValueField.setWidth(design.getColumnWidth());
+        keyValueField.setHeight(15);
+        keyValueField.setTextAdjust(TextAdjustEnum.STRETCH_HEIGHT);
         keyValueField.setFontName(ReportStyles.FONT_DEJAVU_SANS);
         keyValueField.setFontSize(9f);
         keyValueField.setMarkup("html");
@@ -146,12 +203,23 @@ public class JsonReportGenerator {
         keyValueField.setPrintWhenExpression(new JRDesignExpression("$F{type}.equals(\"KEY_VALUE\")"));
         detailBand.addElement(keyValueField);
 
-        JRDesignStaticText tablePlaceholder = new JRDesignStaticText();
-        tablePlaceholder.setX(0); tablePlaceholder.setY(0);
-        tablePlaceholder.setWidth(design.getColumnWidth()); tablePlaceholder.setHeight(20);
-        tablePlaceholder.setText("TUTAJ BĘDZIE TABELA: ");
-        tablePlaceholder.setPrintWhenExpression(new JRDesignExpression("$F{type}.equals(\"TABLE\")"));
-        detailBand.addElement(tablePlaceholder);
+        // Element 3: Subreporty dla tabel
+        for (int i = 0; i < reportElements.size(); i++) {
+            if ("TABLE".equals(reportElements.get(i).type)) {
+                JRDesignSubreport subreport = new JRDesignSubreport(design);
+                subreport.setX(0);
+                subreport.setY(0);
+                subreport.setWidth(design.getColumnWidth());
+                subreport.setHeight(50);
+                subreport.setPositionType(PositionTypeEnum.FLOAT);
+
+                subreport.setExpression(new JRDesignExpression("$P{TABLE_REPORT_" + i + "}"));
+                subreport.setDataSourceExpression(new JRDesignExpression("$P{TABLE_DATA_" + i + "}"));
+                subreport.setPrintWhenExpression(new JRDesignExpression("$F{type}.equals(\"TABLE\") && $F{elementIndex}.equals(" + i + ")"));
+
+                detailBand.addElement(subreport);
+            }
+        }
 
         ((JRDesignSection) design.getDetailSection()).addBand(detailBand);
 
@@ -163,6 +231,72 @@ public class JsonReportGenerator {
         }
 
         return JasperFillManager.fillReport(jasperReport, reportParameters, dataSource);
+    }
+
+    /**
+     * Kompiluje subreport dla tabeli z danych JSON.
+     */
+    private JasperReport compileTableSubreport(JsonNode tableData, int availableWidth) throws JRException {
+        if (!tableData.isArray() || tableData.isEmpty()) {
+            throw new JRException("Table data must be a non-empty array");
+        }
+
+        JsonNode firstRow = tableData.get(0);
+        if (!firstRow.isObject()) {
+            throw new JRException("Table rows must be objects");
+        }
+
+        // Pobierz nazwy kolumn
+        List<String> columnNames = new ArrayList<>();
+        firstRow.fieldNames().forEachRemaining(columnNames::add);
+
+        // Użyj ReportBuilder do stworzenia subreportu
+        ReportBuilder tableBuilder = new ReportBuilder("TableSubreport")
+                .withTheme(ReportTheme.DEFAULT)
+                .withTitleBand(false)
+                .withPageFooter(false)
+                .withSummaryBand(false)
+                .withColumnWidth(availableWidth);
+
+        // Dodaj kolumny
+        for (String columnName : columnNames) {
+            tableBuilder.addColumn(new Column(
+                    columnName,
+                    columnName,
+                    -1, // auto width
+                    DataType.STRING,
+                    null,
+                    Calculation.NONE,
+                    Calculation.NONE,
+                    ReportStyles.DATA_STYLE
+            ));
+        }
+
+        tableBuilder.calculateColumnWidths();
+        return tableBuilder.build();
+    }
+
+    /**
+     * Tworzy źródło danych dla tabeli z JSON.
+     */
+    private JRDataSource createTableDataSource(JsonNode tableData) {
+        List<Map<String, ?>> rows = new ArrayList<>();
+
+        if (tableData.isArray()) {
+            for (JsonNode row : tableData) {
+                if (row.isObject()) {
+                    Map<String, Object> rowMap = new LinkedHashMap<>();
+                    row.fields().forEachRemaining(entry -> {
+                        String key = entry.getKey();
+                        JsonNode value = entry.getValue();
+                        rowMap.put(key, value.isNull() ? "" : value.asText());
+                    });
+                    rows.add(rowMap);
+                }
+            }
+        }
+
+        return new JRMapCollectionDataSource(rows);
     }
 
 
