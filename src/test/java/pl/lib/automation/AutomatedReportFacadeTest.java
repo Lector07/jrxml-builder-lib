@@ -428,11 +428,12 @@ class AutomatedReportFacadeTest {
         assertNotNull(pdfBytes);
         assertTrue(pdfBytes.length > 0);
 
-        File resourcesDir = new File("src/main/resources");
-        if (!resourcesDir.exists()) {
-            resourcesDir.mkdirs();
+        // Zapisz do katalogu tymczasowego zamiast src/main/resources
+        File tempDir = new File(System.getProperty("java.io.tmpdir"), "jrxml-reports");
+        if (!tempDir.exists()) {
+            tempDir.mkdirs();
         }
-        File outputFile = new File(resourcesDir, "raport_budzet_gliwice.pdf");
+        File outputFile = new File(tempDir, "raport_budzet_gliwice.pdf");
         try (FileOutputStream fos = new FileOutputStream(outputFile)) {
             fos.write(pdfBytes);
         }
