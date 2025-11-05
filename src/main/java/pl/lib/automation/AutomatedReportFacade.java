@@ -35,9 +35,13 @@ public class AutomatedReportFacade {
     }
 
     public byte[] generateCompositeReport(String jsonContent, ReportConfig config) throws JRException, IOException {
+        // Najpierw parsuj JSON aby wyciągnąć nagłówki do spisu treści
+        List<Map<String, Object>> tocEntries = jsonReportGenerator.extractTocEntries(jsonContent);
+
         JasperPrint mainContentPrint = jsonReportGenerator.generateReport(jsonContent, config.getTitle());
+
         JasperPrint titlePagePrint = createTitlePage(config.getTitle(), config.getCompanyInfo(), config);
-        JasperPrint tocPagePrint = createTocPage(mainContentPrint, config);
+        JasperPrint tocPagePrint = createTocPageFromData(tocEntries, config);
 
         List<JasperPrint> printList = new ArrayList<>();
         printList.add(titlePagePrint);
@@ -84,6 +88,11 @@ public class AutomatedReportFacade {
     }
 
     private JasperPrint createTocPage(JasperPrint mainContentPrint, ReportConfig config) throws JRException {
+        // Ta metoda jest już nieużywana - używamy createTocPageFromData
+        return null;
+    }
+
+    private JasperPrint createTocPageFromData(List<Map<String, Object>> tocEntries, ReportConfig config) throws JRException {
         InputStream tocTemplateStream = getClass().getClassLoader().getResourceAsStream("templates/toc_template.jrxml");
         if (tocTemplateStream == null) {
             throw new JRException("Nie znaleziono szablonu toc_template.jrxml");
@@ -92,23 +101,12 @@ public class AutomatedReportFacade {
         JasperDesign design = JRXmlLoader.load(tocTemplateStream);
         JasperReport report = JasperCompileManager.compileReport(design);
 
-        List<Map<String, ?>> tocData = new ArrayList<>();
-        List<net.sf.jasperreports.engine.PrintBookmark> allBookmarks = new ArrayList<>();
-        collectAllBookmarks(mainContentPrint.getBookmarks(), allBookmarks);
-
-        for (net.sf.jasperreports.engine.PrintBookmark bookmark : allBookmarks) {
-            Map<String, Object> row = new HashMap<>();
-            row.put("label", bookmark.getLabel());
-            row.put("pageNumber", bookmark.getPageIndex() + 2);
-            row.put("level", calculateBookmarkLevel(bookmark, mainContentPrint.getBookmarks()));
-            tocData.add(row);
-        }
-
         Map<String, Object> parameters = new HashMap<>();
         parameters.put("PAGE_FORMAT", config.getPageFormat());
         parameters.put("ORIENTATION", config.getOrientation());
 
-        JRMapCollectionDataSource dataSource = new JRMapCollectionDataSource(tocData);
+        JRMapCollectionDataSource dataSource = new JRMapCollectionDataSource((Collection<Map<String, ?>>) (Collection<?>) tocEntries);
+
         return JasperFillManager.fillReport(report, parameters, dataSource);
     }
 
@@ -149,7 +147,7 @@ public class AutomatedReportFacade {
             }
 
             if (bookmark.getBookmarks() != null) {
-                int foundLevel = calculateBookmarkLevelRecursive(target, bookmark.getBookmarks(), currentLevel + 1);
+                int foundLevel = calculateBookmarkLevelRecursive(target, bookmark.getBookmarks(), currentLevel + 2);
                 if (foundLevel >= 0) {
                     return foundLevel;
                 }

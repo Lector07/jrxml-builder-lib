@@ -36,6 +36,30 @@ public class JsonReportGenerator {
         return this.lastGeneratedDesign;
     }
 
+    /**
+     * Wydobywa nagłówki z JSON do utworzenia spisu treści.
+     * Zwraca listę map z polami: label, level, pageNumber (oszacowany).
+     */
+    public List<Map<String, Object>> extractTocEntries(String jsonContent) throws IOException {
+        JsonNode rootNode = objectMapper.readTree(jsonContent);
+        List<ReportElement> reportElements = flattenJsonForDebugging(rootNode);
+
+        List<Map<String, Object>> tocEntries = new ArrayList<>();
+        int currentPage = 1; // Strona głównej treści (po stronie tytułowej i spisie treści)
+
+        for (ReportElement element : reportElements) {
+            if ("HEADER".equals(element.type)) {
+                Map<String, Object> entry = new HashMap<>();
+                entry.put("label", element.text);
+                entry.put("level", element.level);
+                entry.put("pageNumber", currentPage + 2); // +2 bo strona tytułowa i spis treści
+                tocEntries.add(entry);
+            }
+        }
+
+        return tocEntries;
+    }
+
 //    public JasperPrint generateReport(String jsonContent, String reportTitle) throws JRException, IOException {
 //        System.out.println("--- Rozpoczynam spłaszczanie JSON ---");
 //
@@ -171,7 +195,7 @@ public class JsonReportGenerator {
 
         // Krok 4: Zbuduj bandę detail
         JRDesignBand detailBand = new JRDesignBand();
-        detailBand.setHeight(60); // Zwiększone aby pomieścić subreporty
+        detailBand.setHeight(11); // Rozmiar największego elementu (nagłówka)
         detailBand.setSplitType(SplitTypeEnum.STRETCH);
 
         // Element 1: Nagłówek
@@ -179,14 +203,25 @@ public class JsonReportGenerator {
         headerField.setX(0);
         headerField.setY(0);
         headerField.setWidth(design.getColumnWidth());
-        headerField.setHeight(20);
+        headerField.setHeight(11);
+        headerField.setRemoveLineWhenBlank(true);
         headerField.setTextAdjust(TextAdjustEnum.STRETCH_HEIGHT);
         headerField.setBold(true);
         headerField.setFontName(ReportStyles.FONT_DEJAVU_SANS);
-        headerField.setExpression(new JRDesignExpression("$F{text}"));
+        // Dodanie wcięcia poprzez spacje: każdy poziom = 3 spacje
+        headerField.setExpression(new JRDesignExpression(
+            "\"   \".repeat(Math.max(0, $F{level} - 1)) + $F{text}"
+        ));
         headerField.setPrintWhenExpression(new JRDesignExpression("$F{type}.equals(\"HEADER\")"));
-        headerField.setFontSize(Math.max(10.0f, 16.0f - (1 * 1.5f)));
+        headerField.setFontSize(9f);
+
+        // WAŻNE: Aby zakładka została utworzona, musi być anchor i bookmarkLevel
+        headerField.setAnchorNameExpression(new JRDesignExpression(
+            "\"bookmark_\" + $F{elementIndex}"
+        ));
         headerField.setBookmarkLevelExpression(new JRDesignExpression("$F{level}"));
+
+        headerField.setPositionType(PositionTypeEnum.FLOAT);
         detailBand.addElement(headerField);
 
         // Element 2: Para klucz-wartość
@@ -194,23 +229,28 @@ public class JsonReportGenerator {
         keyValueField.setX(0);
         keyValueField.setY(0);
         keyValueField.setWidth(design.getColumnWidth());
-        keyValueField.setHeight(15);
+        keyValueField.setHeight(9);
+        keyValueField.setRemoveLineWhenBlank(true); // Usuń linię gdy pusty
         keyValueField.setTextAdjust(TextAdjustEnum.STRETCH_HEIGHT);
         keyValueField.setFontName(ReportStyles.FONT_DEJAVU_SANS);
-        keyValueField.setFontSize(9f);
+        keyValueField.setFontSize(7f);
         keyValueField.setMarkup("html");
-        keyValueField.setExpression(new JRDesignExpression("\"<b>\" + $F{text} + \":</b> \" + $F{value}"));
+        // Dodanie wcięcia: poziom nagłówka + 1 dodatkowa spacja
+        keyValueField.setExpression(new JRDesignExpression(
+            "\"&nbsp;\".repeat(Math.max(0, $F{level} - 1) * 3 + 3) + \"<b>\" + $F{text} + \":</b> \" + $F{value}"
+        ));
         keyValueField.setPrintWhenExpression(new JRDesignExpression("$F{type}.equals(\"KEY_VALUE\")"));
+        keyValueField.setPositionType(PositionTypeEnum.FLOAT);
         detailBand.addElement(keyValueField);
 
-        // Element 3: Subreporty dla tabel
         for (int i = 0; i < reportElements.size(); i++) {
             if ("TABLE".equals(reportElements.get(i).type)) {
                 JRDesignSubreport subreport = new JRDesignSubreport(design);
                 subreport.setX(0);
                 subreport.setY(0);
                 subreport.setWidth(design.getColumnWidth());
-                subreport.setHeight(50);
+                subreport.setHeight(1);
+                subreport.setRemoveLineWhenBlank(true);
                 subreport.setPositionType(PositionTypeEnum.FLOAT);
 
                 subreport.setExpression(new JRDesignExpression("$P{TABLE_REPORT_" + i + "}"));
@@ -230,7 +270,12 @@ public class JsonReportGenerator {
             printJrxmlToConsole(jasperReport, "MAIN DYNAMIC REPORT");
         }
 
-        return JasperFillManager.fillReport(jasperReport, reportParameters, dataSource);
+        JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, reportParameters, dataSource);
+
+        // WAŻNE: Ustaw property create.bookmarks w JasperPrint aby zakładki były generowane
+        jasperPrint.setProperty("net.sf.jasperreports.create.bookmarks", "true");
+
+        return jasperPrint;
     }
 
     /**
@@ -257,6 +302,16 @@ public class JsonReportGenerator {
                 .withPageFooter(false)
                 .withSummaryBand(false)
                 .withColumnWidth(availableWidth);
+
+        // Nadpisz styl nagłówka aby miał rozmiar czcionki 7
+        Style tableHeaderStyle = new Style(ReportStyles.HEADER_STYLE)
+                .withFont(ReportStyles.FONT_DEJAVU_SANS, 7, true)
+                .withColors("#FFFFFF", "#2A3F54")
+                .withAlignment("CENTER", "MIDDLE")
+                .withBorders(0.5f, "#1E2A38")
+                .withPadding(1); // Zmniejszone z 2 na 1
+
+        tableBuilder.addStyle(tableHeaderStyle);
 
         // Dodaj kolumny
         for (String columnName : columnNames) {
