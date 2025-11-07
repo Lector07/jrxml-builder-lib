@@ -45,7 +45,7 @@ public class ReportAssembler {
 
     private void buildDetailBand(JasperDesign design, List<ReportElement> elements) throws JRException {
         JRDesignBand detailBand = new JRDesignBand();
-        detailBand.setHeight(13);
+        detailBand.setHeight(19);
         detailBand.setSplitType(SplitTypeEnum.STRETCH);
 
         detailBand.addElement(createHeaderField(design));
@@ -85,7 +85,7 @@ public class ReportAssembler {
         keyValueField.setX(0);
         keyValueField.setY(0);
         keyValueField.setWidth(design.getColumnWidth());
-        keyValueField.setHeight(12);
+        keyValueField.setHeight(18);
         keyValueField.setRemoveLineWhenBlank(true);
         keyValueField.setTextAdjust(TextAdjustEnum.STRETCH_HEIGHT);
         keyValueField.setFontName(ReportStyles.FONT_DEJAVU_SANS);
@@ -95,7 +95,7 @@ public class ReportAssembler {
         keyValueField.setHorizontalTextAlign(HorizontalTextAlignEnum.JUSTIFIED);
 
         keyValueField.setExpression(new JRDesignExpression(
-            "\"&nbsp;\".repeat(Math.max(0, $F{level} - 1) * 3 + 3) + \"<b>\" + $F{text} + \":</b> \" + $F{value}"
+            "\"&nbsp;\".repeat(Math.max(0, $F{level} - 1) * 3 + 3) + \"<b>\" + $F{text} + \":</b> \" + $F{value} + \"<br/>\""
         ));
         keyValueField.setPrintWhenExpression(new JRDesignExpression("$F{type}.equals(\"KEY_VALUE\")"));
 

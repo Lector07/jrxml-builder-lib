@@ -20,21 +20,20 @@ public class TitlePageGenerator {
 
         int currentY = 40;
 
-        JRDesignStaticText logoPlaceholder = new JRDesignStaticText();
-        logoPlaceholder.setX((availableWidth - 200) / 2);
-        logoPlaceholder.setY(currentY);
-        logoPlaceholder.setWidth(200);
-        logoPlaceholder.setHeight(80);
-        logoPlaceholder.setText("LOGO URZĘDU");
-        logoPlaceholder.setFontName(ReportStyles.FONT_DEJAVU_SANS);
-        logoPlaceholder.setFontSize(14f);
-        logoPlaceholder.setBold(true);
-        logoPlaceholder.setHorizontalTextAlign(HorizontalTextAlignEnum.CENTER);
-        logoPlaceholder.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
-        logoPlaceholder.setForecolor(Color.decode("#999999"));
-        logoPlaceholder.setMode(ModeEnum.OPAQUE);
-        logoPlaceholder.setBackcolor(Color.decode("#F5F5F5"));
-        titleBand.addElement(logoPlaceholder);
+        JRDesignImage logoImage = new JRDesignImage(design);
+        logoImage.setX((availableWidth - 200) / 2);
+        logoImage.setY(currentY);
+        logoImage.setWidth(200);
+        logoImage.setHeight(80);
+        logoImage.setScaleImage(ScaleImageEnum.RETAIN_SHAPE);
+        logoImage.setHorizontalImageAlign(HorizontalImageAlignEnum.CENTER);
+        logoImage.setVerticalImageAlign(VerticalImageAlignEnum.MIDDLE);
+
+        JRDesignExpression logoExpression = new JRDesignExpression();
+        logoExpression.setText("\"pobrane.png\"");
+        logoImage.setExpression(logoExpression);
+
+        titleBand.addElement(logoImage);
 
         currentY += 120;
 
@@ -52,7 +51,6 @@ public class TitlePageGenerator {
         titleField.setForecolor(Color.decode("#2A3F54"));
         titleBand.addElement(titleField);
 
-        // Stopka na dole strony
         int footerY = pageHeight - 30;
 
         String dateStr = new SimpleDateFormat("dd.MM.yyyy").format(new Date());
