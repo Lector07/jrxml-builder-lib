@@ -10,7 +10,10 @@ import net.sf.jasperreports.engine.xml.JRXmlWriter;
 import pl.lib.api.ReportBuilder;
 import pl.lib.automation.analyzer.JsonStructureAnalyzer;
 import pl.lib.automation.analyzer.ReportElement;
+import pl.lib.automation.assembler.ReportAssembler;
+import pl.lib.automation.compiler.SubreportCompiler;
 import pl.lib.automation.converter.DataSourceConverter;
+import pl.lib.automation.page.TitlePageGenerator;
 import pl.lib.config.ColumnDefinition;
 import pl.lib.config.GroupDefinition;
 import pl.lib.config.ReportConfig;
@@ -26,8 +29,11 @@ import java.util.*;
 
 public class JsonReportGenerator {
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final DataSourceConverter dataSourceConverter = new DataSourceConverter();
     private final JsonStructureAnalyzer structureAnalyzer = new JsonStructureAnalyzer();
+    private final SubreportCompiler subreportCompiler = new SubreportCompiler();
+    private final DataSourceConverter dataSourceConverter = new DataSourceConverter();
+    private final ReportAssembler reportAssembler = new ReportAssembler();
+    private final TitlePageGenerator titlePageGenerator = new TitlePageGenerator();
     private final Map<String, Object> reportParameters = new HashMap<>();
     private boolean printJrxmlToConsole = false;
     private JasperDesign lastGeneratedDesign;
@@ -41,10 +47,7 @@ public class JsonReportGenerator {
         return this.lastGeneratedDesign;
     }
 
-    /**
-     * Wydobywa nagłówki z JSON do utworzenia spisu treści.
-     * Zwraca listę map z polami: label, level, pageNumber (oszacowany).
-     */
+
     public List<Map<String, Object>> extractTocEntries(String jsonContent) throws IOException {
         JsonNode rootNode = objectMapper.readTree(jsonContent);
         List<ReportElement> reportElements = structureAnalyzer.flattenJson(rootNode);
@@ -112,6 +115,10 @@ public class JsonReportGenerator {
 //    }
 
     public JasperPrint generateReport(String jsonContent, String reportTitle) throws JRException, IOException {
+        return generateReport(jsonContent, reportTitle, "Chełm");
+    }
+
+    public JasperPrint generateReport(String jsonContent, String reportTitle, String city) throws JRException, IOException {
         JsonNode rootNode = objectMapper.readTree(jsonContent);
         List<ReportElement> reportElements = structureAnalyzer.flattenJson(rootNode);
 
@@ -126,6 +133,8 @@ public class JsonReportGenerator {
         JasperDesign design = builder.getDesign();
         design.setProperty("net.sf.jasperreports.create.bookmarks", "true");
 
+        titlePageGenerator.addTitlePage(design, reportTitle, city);
+
         // Krok 1: Prekompiluj wszystkie subreporty dla tabel
         Map<Integer, JasperReport> compiledTables = new HashMap<>();
         Map<Integer, JRDataSource> tableDataSources = new HashMap<>();
@@ -133,7 +142,7 @@ public class JsonReportGenerator {
         for (int i = 0; i < reportElements.size(); i++) {
             ReportElement element = reportElements.get(i);
             if ("TABLE".equals(element.getType()) && element.getRawTableData() != null) {
-                JasperReport tableReport = compileTableSubreport(element.getRawTableData(), design.getColumnWidth());
+                JasperReport tableReport = subreportCompiler.compileTableSubreport(element.getRawTableData(), design.getColumnWidth());
                 JRDataSource tableData = dataSourceConverter.createTableDataSource(element.getRawTableData());
 
                 String subreportParamName = "TABLE_REPORT_" + i;
@@ -159,168 +168,17 @@ public class JsonReportGenerator {
 
         JRDataSource dataSource = dataSourceConverter.createMainDataSource(reportElements);
 
-        JRDesignField fieldType = new JRDesignField();
-        fieldType.setName("type");
-        fieldType.setValueClass(String.class);
-        design.addField(fieldType);
-
-        JRDesignField fieldText = new JRDesignField();
-        fieldText.setName("text");
-        fieldText.setValueClass(String.class);
-        design.addField(fieldText);
-
-        JRDesignField fieldValue = new JRDesignField();
-        fieldValue.setName("value");
-        fieldValue.setValueClass(String.class);
-        design.addField(fieldValue);
-
-        JRDesignField fieldLevel = new JRDesignField();
-        fieldLevel.setName("level");
-        fieldLevel.setValueClass(Integer.class);
-        design.addField(fieldLevel);
-
-        JRDesignField fieldIndex = new JRDesignField();
-        fieldIndex.setName("elementIndex");
-        fieldIndex.setValueClass(Integer.class);
-        design.addField(fieldIndex);
-
-        // Krok 4: Zbuduj bandę detail
-        JRDesignBand detailBand = new JRDesignBand();
-        detailBand.setHeight(11); // Rozmiar największego elementu (nagłówka)
-        detailBand.setSplitType(SplitTypeEnum.STRETCH);
-
-        // Element 1: Nagłówek
-        JRDesignTextField headerField = new JRDesignTextField();
-        headerField.setX(0);
-        headerField.setY(0);
-        headerField.setWidth(design.getColumnWidth());
-        headerField.setHeight(11);
-        headerField.setRemoveLineWhenBlank(true);
-        headerField.setTextAdjust(TextAdjustEnum.STRETCH_HEIGHT);
-        headerField.setBold(true);
-        headerField.setFontName(ReportStyles.FONT_DEJAVU_SANS);
-        // Dodanie wcięcia poprzez spacje: każdy poziom = 3 spacje
-        headerField.setExpression(new JRDesignExpression(
-            "\"   \".repeat(Math.max(0, $F{level} - 1)) + $F{text}"
-        ));
-        headerField.setPrintWhenExpression(new JRDesignExpression("$F{type}.equals(\"HEADER\")"));
-        headerField.setFontSize(9f);
-
-        // WAŻNE: Aby zakładka została utworzona, musi być anchor i bookmarkLevel
-        headerField.setAnchorNameExpression(new JRDesignExpression(
-            "\"bookmark_\" + $F{elementIndex}"
-        ));
-        headerField.setBookmarkLevelExpression(new JRDesignExpression("$F{level}"));
-
-        headerField.setPositionType(PositionTypeEnum.FLOAT);
-        detailBand.addElement(headerField);
-
-        // Element 2: Para klucz-wartość
-        JRDesignTextField keyValueField = new JRDesignTextField();
-        keyValueField.setX(0);
-        keyValueField.setY(0);
-        keyValueField.setWidth(design.getColumnWidth());
-        keyValueField.setHeight(9);
-        keyValueField.setRemoveLineWhenBlank(true); // Usuń linię gdy pusty
-        keyValueField.setTextAdjust(TextAdjustEnum.STRETCH_HEIGHT);
-        keyValueField.setFontName(ReportStyles.FONT_DEJAVU_SANS);
-        keyValueField.setFontSize(7f);
-        keyValueField.setMarkup("html");
-        // Dodanie wcięcia: poziom nagłówka + 1 dodatkowa spacja
-        keyValueField.setExpression(new JRDesignExpression(
-            "\"&nbsp;\".repeat(Math.max(0, $F{level} - 1) * 3 + 3) + \"<b>\" + $F{text} + \":</b> \" + $F{value}"
-        ));
-        keyValueField.setPrintWhenExpression(new JRDesignExpression("$F{type}.equals(\"KEY_VALUE\")"));
-        keyValueField.setPositionType(PositionTypeEnum.FLOAT);
-        detailBand.addElement(keyValueField);
-
-        for (int i = 0; i < reportElements.size(); i++) {
-            if ("TABLE".equals(reportElements.get(i).getType())) {
-                JRDesignSubreport subreport = new JRDesignSubreport(design);
-                subreport.setX(0);
-                subreport.setY(0);
-                subreport.setWidth(design.getColumnWidth());
-                subreport.setHeight(1);
-                subreport.setRemoveLineWhenBlank(true);
-                subreport.setPositionType(PositionTypeEnum.FLOAT);
-
-                subreport.setExpression(new JRDesignExpression("$P{TABLE_REPORT_" + i + "}"));
-                subreport.setDataSourceExpression(new JRDesignExpression("$P{TABLE_DATA_" + i + "}"));
-                subreport.setPrintWhenExpression(new JRDesignExpression("$F{type}.equals(\"TABLE\") && $F{elementIndex}.equals(" + i + ")"));
-
-                detailBand.addElement(subreport);
-            }
-        }
-
-        ((JRDesignSection) design.getDetailSection()).addBand(detailBand);
-
-        JasperReport jasperReport = JasperCompileManager.compileReport(design);
         this.lastGeneratedDesign = design;
 
+        JasperPrint jasperPrint = reportAssembler.assemble(design, dataSource, reportParameters, reportElements);
+
         if (printJrxmlToConsole) {
-            printJrxmlToConsole(jasperReport, "MAIN DYNAMIC REPORT");
+            printJrxmlToConsole(JasperCompileManager.compileReport(design), "MAIN DYNAMIC REPORT");
         }
-
-        JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, reportParameters, dataSource);
-
-        // WAŻNE: Ustaw property create.bookmarks w JasperPrint aby zakładki były generowane
-        jasperPrint.setProperty("net.sf.jasperreports.create.bookmarks", "true");
 
         return jasperPrint;
     }
 
-    /**
-     * Kompiluje subreport dla tabeli z danych JSON.
-     */
-    private JasperReport compileTableSubreport(JsonNode tableData, int availableWidth) throws JRException {
-        if (!tableData.isArray() || tableData.isEmpty()) {
-            throw new JRException("Table data must be a non-empty array");
-        }
-
-        JsonNode firstRow = tableData.get(0);
-        if (!firstRow.isObject()) {
-            throw new JRException("Table rows must be objects");
-        }
-
-        // Pobierz nazwy kolumn
-        List<String> columnNames = new ArrayList<>();
-        firstRow.fieldNames().forEachRemaining(columnNames::add);
-
-        // Użyj ReportBuilder do stworzenia subreportu
-        ReportBuilder tableBuilder = new ReportBuilder("TableSubreport")
-                .withTheme(ReportTheme.DEFAULT)
-                .withTitleBand(false)
-                .withPageFooter(false)
-                .withSummaryBand(false)
-                .withColumnWidth(availableWidth);
-
-        // Nadpisz styl nagłówka aby miał rozmiar czcionki 7
-        Style tableHeaderStyle = new Style(ReportStyles.HEADER_STYLE)
-                .withFont(ReportStyles.FONT_DEJAVU_SANS, 7, true)
-                .withColors("#FFFFFF", "#2A3F54")
-                .withAlignment("CENTER", "MIDDLE")
-                .withBorders(0.5f, "#1E2A38")
-                .withPadding(1); // Zmniejszone z 2 na 1
-
-        tableBuilder.addStyle(tableHeaderStyle);
-
-        // Dodaj kolumny
-        for (String columnName : columnNames) {
-            tableBuilder.addColumn(new Column(
-                    columnName,
-                    columnName,
-                    -1, // auto width
-                    DataType.STRING,
-                    null,
-                    Calculation.NONE,
-                    Calculation.NONE,
-                    ReportStyles.DATA_STYLE
-            ));
-        }
-
-        tableBuilder.calculateColumnWidths();
-        return tableBuilder.build();
-    }
 
     public JasperPrint generateTableReportFromJson(String jsonContent, ReportConfig config) throws JRException, IOException {
         JsonNode arrayNode = objectMapper.readTree(jsonContent);
@@ -328,7 +186,7 @@ public class JsonReportGenerator {
             throw new IllegalArgumentException("JSON content must be an array");
         }
 
-        JasperReport tableReport = compileTableSubreport(arrayNode, 555);
+        JasperReport tableReport = subreportCompiler.compileTableSubreport(arrayNode, 555);
         JRDataSource tableData = dataSourceConverter.createTableDataSource(arrayNode);
 
         return JasperFillManager.fillReport(tableReport, new HashMap<>(), tableData);

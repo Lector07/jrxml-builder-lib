@@ -40,9 +40,9 @@ public class ThemeFactory {
 
         styles.add(new Style(ReportStyles.HEADER_STYLE)
                 .withFont(ReportStyles.FONT_DEJAVU_SANS, 8, true)
-                .withColors("#FFFFFF", "#2A3F54")
+                .withColors("#000000", "#E3E3E3")
                 .withAlignment("CENTER", "MIDDLE")
-                .withBorders(0.5f, "#1E2A38")
+                .withBorders(0.5f, "#E0E0E0")
                 .withPadding(2));
 
         styles.add(new Style(ReportStyles.DATA_STYLE)
