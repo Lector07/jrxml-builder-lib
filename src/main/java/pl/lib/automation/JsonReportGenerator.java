@@ -8,6 +8,9 @@ import net.sf.jasperreports.engine.design.*;
 import net.sf.jasperreports.engine.type.*;
 import net.sf.jasperreports.engine.xml.JRXmlWriter;
 import pl.lib.api.ReportBuilder;
+import pl.lib.automation.analyzer.JsonStructureAnalyzer;
+import pl.lib.automation.analyzer.ReportElement;
+import pl.lib.automation.converter.DataSourceConverter;
 import pl.lib.config.ColumnDefinition;
 import pl.lib.config.GroupDefinition;
 import pl.lib.config.ReportConfig;
@@ -23,6 +26,8 @@ import java.util.*;
 
 public class JsonReportGenerator {
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final DataSourceConverter dataSourceConverter = new DataSourceConverter();
+    private final JsonStructureAnalyzer structureAnalyzer = new JsonStructureAnalyzer();
     private final Map<String, Object> reportParameters = new HashMap<>();
     private boolean printJrxmlToConsole = false;
     private JasperDesign lastGeneratedDesign;
@@ -42,17 +47,17 @@ public class JsonReportGenerator {
      */
     public List<Map<String, Object>> extractTocEntries(String jsonContent) throws IOException {
         JsonNode rootNode = objectMapper.readTree(jsonContent);
-        List<ReportElement> reportElements = flattenJsonForDebugging(rootNode);
+        List<ReportElement> reportElements = structureAnalyzer.flattenJson(rootNode);
 
         List<Map<String, Object>> tocEntries = new ArrayList<>();
-        int currentPage = 1; // Strona głównej treści (po stronie tytułowej i spisie treści)
+        int currentPage = 1;
 
         for (ReportElement element : reportElements) {
-            if ("HEADER".equals(element.type)) {
+            if ("HEADER".equals(element.getType())) {
                 Map<String, Object> entry = new HashMap<>();
-                entry.put("label", element.text);
-                entry.put("level", element.level);
-                entry.put("pageNumber", currentPage + 2); // +2 bo strona tytułowa i spis treści
+                entry.put("label", element.getText());
+                entry.put("level", element.getLevel());
+                entry.put("pageNumber", currentPage + 2);
                 tocEntries.add(entry);
             }
         }
@@ -108,7 +113,7 @@ public class JsonReportGenerator {
 
     public JasperPrint generateReport(String jsonContent, String reportTitle) throws JRException, IOException {
         JsonNode rootNode = objectMapper.readTree(jsonContent);
-        List<ReportElement> reportElements = flattenJsonForDebugging(rootNode);
+        List<ReportElement> reportElements = structureAnalyzer.flattenJson(rootNode);
 
         ReportBuilder builder = new ReportBuilder(reportTitle)
                 .withTheme(ReportTheme.DEFAULT)
@@ -127,9 +132,9 @@ public class JsonReportGenerator {
 
         for (int i = 0; i < reportElements.size(); i++) {
             ReportElement element = reportElements.get(i);
-            if ("TABLE".equals(element.type) && element.rawTableData != null) {
-                JasperReport tableReport = compileTableSubreport(element.rawTableData, design.getColumnWidth());
-                JRDataSource tableData = createTableDataSource(element.rawTableData);
+            if ("TABLE".equals(element.getType()) && element.getRawTableData() != null) {
+                JasperReport tableReport = compileTableSubreport(element.getRawTableData(), design.getColumnWidth());
+                JRDataSource tableData = dataSourceConverter.createTableDataSource(element.getRawTableData());
 
                 String subreportParamName = "TABLE_REPORT_" + i;
                 String dataSourceParamName = "TABLE_DATA_" + i;
@@ -140,7 +145,6 @@ public class JsonReportGenerator {
                 reportParameters.put(subreportParamName, tableReport);
                 reportParameters.put(dataSourceParamName, tableData);
 
-                // Dodaj parametry do designu
                 JRDesignParameter p1 = new JRDesignParameter();
                 p1.setName(subreportParamName);
                 p1.setValueClass(JasperReport.class);
@@ -153,21 +157,8 @@ public class JsonReportGenerator {
             }
         }
 
-        // Krok 2: Przygotuj źródło danych
-        List<Map<String, ?>> dataSourceList = new ArrayList<>();
-        for (int i = 0; i < reportElements.size(); i++) {
-            ReportElement el = reportElements.get(i);
-            Map<String, Object> map = new HashMap<>();
-            map.put("type", el.type);
-            map.put("text", el.text);
-            map.put("value", el.value);
-            map.put("level", el.level);
-            map.put("elementIndex", i);
-            dataSourceList.add(map);
-        }
-        JRDataSource dataSource = new JRMapCollectionDataSource(dataSourceList);
+        JRDataSource dataSource = dataSourceConverter.createMainDataSource(reportElements);
 
-        // Krok 3: Dodaj pola
         JRDesignField fieldType = new JRDesignField();
         fieldType.setName("type");
         fieldType.setValueClass(String.class);
@@ -244,7 +235,7 @@ public class JsonReportGenerator {
         detailBand.addElement(keyValueField);
 
         for (int i = 0; i < reportElements.size(); i++) {
-            if ("TABLE".equals(reportElements.get(i).type)) {
+            if ("TABLE".equals(reportElements.get(i).getType())) {
                 JRDesignSubreport subreport = new JRDesignSubreport(design);
                 subreport.setX(0);
                 subreport.setY(0);
@@ -331,38 +322,16 @@ public class JsonReportGenerator {
         return tableBuilder.build();
     }
 
-    /**
-     * Tworzy źródło danych dla tabeli z JSON.
-     */
-    private JRDataSource createTableDataSource(JsonNode tableData) {
-        List<Map<String, ?>> rows = new ArrayList<>();
-
-        if (tableData.isArray()) {
-            for (JsonNode row : tableData) {
-                if (row.isObject()) {
-                    Map<String, Object> rowMap = new LinkedHashMap<>();
-                    row.fields().forEachRemaining(entry -> {
-                        String key = entry.getKey();
-                        JsonNode value = entry.getValue();
-                        rowMap.put(key, value.isNull() ? "" : value.asText());
-                    });
-                    rows.add(rowMap);
-                }
-            }
-        }
-
-        return new JRMapCollectionDataSource(rows);
-    }
-
-
-    //TODO zrobić strone tytułową, automatyczne generowany spis treści , sekcje z nagłówkami, Plan Działania: Implementacja AutomatedReportFacade
-
     public JasperPrint generateTableReportFromJson(String jsonContent, ReportConfig config) throws JRException, IOException {
         JsonNode arrayNode = objectMapper.readTree(jsonContent);
         if (!arrayNode.isArray()) {
-            throw new IllegalArgumentException("Provided JSON content must be a JSON array for this method.");
+            throw new IllegalArgumentException("JSON content must be an array");
         }
-        return generateReportFromArray(arrayNode, config);
+
+        JasperReport tableReport = compileTableSubreport(arrayNode, 555);
+        JRDataSource tableData = dataSourceConverter.createTableDataSource(arrayNode);
+
+        return JasperFillManager.fillReport(tableReport, new HashMap<>(), tableData);
     }
 
     private void processNode(JRDesignBand band, JasperDesign design, String key, JsonNode node, int level) throws JRException {
@@ -700,43 +669,6 @@ public class JsonReportGenerator {
         return map;
     }
 
-    List<ReportElement> flattenJsonForDebugging(JsonNode rootNode) {
-        List<ReportElement> elements = new ArrayList<>();
-        rootNode.fields().forEachRemaining(entry -> {
-            flattenNodeRecursive(entry.getValue(), elements, 1, entry.getKey());
-        });
-        return elements;
-    }
-
-    private void flattenNodeRecursive(JsonNode node, List<ReportElement> elements, int level, String key) {
-        if (node.isObject()) {
-            ReportElement header = new ReportElement();
-            header.type = "HEADER";
-            header.text = key;
-            header.level = level;
-            elements.add(header);
-
-            node.fields().forEachRemaining(entry -> {
-                flattenNodeRecursive(entry.getValue(), elements, level + 1, entry.getKey());
-            });
-
-        } else if (node.isArray() && node.size() > 0 && node.get(0).isObject()) {
-            ReportElement table = new ReportElement();
-            table.type = "TABLE";
-            table.text = key;
-            table.level = level;
-            table.rawTableData = node;
-            elements.add(table);
-
-        } else if (node.isValueNode()) {
-            ReportElement kv = new ReportElement();
-            kv.type = "KEY_VALUE";
-            kv.text = key;
-            kv.value = node.asText("null");
-            kv.level = level;
-            elements.add(kv);
-        }
-    }
 
     private void addKeys(String currentPath, JsonNode jsonNode, Map<String, Object> map) {
         if (jsonNode.isObject()) {
@@ -840,18 +772,5 @@ public class JsonReportGenerator {
         }
     }
 
-    static class ReportElement {
-        String type;
-        String text;
-        String value;
-        int level;
-        JsonNode rawTableData;
-
-
-        @Override
-        public String toString() {
-            return String.format("Typ: %-15s | Poziom: %d | Tekst: %s", type, level, text != null ? text : "ROOT");
-        }
-    }
 
 }

@@ -510,14 +510,14 @@ public class ReportBuilder {
 
     private void buildColumnHeaderBand() {
         JRDesignBand columnHeaderBand = new JRDesignBand();
-        columnHeaderBand.setHeight(15); // Zmniejszone z 20 na 15
+        columnHeaderBand.setHeight(15);
         int currentX = 0;
         for (Column column : columns) {
             if (column.getWidth() <= 0) continue;
             JRDesignStaticText headerText = new JRDesignStaticText();
             headerText.setX(currentX); headerText.setY(0);
             headerText.setWidth(column.getWidth());
-            headerText.setHeight(15); // Zmniejszone z 20 na 15
+            headerText.setHeight(15);
             headerText.setText(column.getTitle());
             headerText.setStyle(jasperDesign.getStylesMap().get(ReportStyles.HEADER_STYLE));
             columnHeaderBand.addElement(headerText);
@@ -531,14 +531,14 @@ public class ReportBuilder {
 
         if (columns.stream().anyMatch(c -> c.getWidth() > 0)) {
             JRDesignBand dataBand = new JRDesignBand();
-            dataBand.setHeight(12); // Zmniejszone z 20 na 12
+            dataBand.setHeight(12);
             int currentX = 0;
             boolean bookmarkAssigned = false;
             String desiredBookmarkField = (formattingOptions != null) ? formattingOptions.getBookmarkField() : null;
             for (Column column : columns) {
                 if (column.getWidth() <= 0) continue;
                 String jrFieldName = column.getFieldName().replace('.', '_');
-                JRDesignTextField dataField = createTextField("$F{" + jrFieldName + "}", currentX, 0, column.getWidth(), 12, false, 7f); // Zmniejszone z 20 na 12
+                JRDesignTextField dataField = createTextField("$F{" + jrFieldName + "}", currentX, 0, column.getWidth(), 12, false, 7f);
                 dataField.setStyle(jasperDesign.getStylesMap().get(column.getStyleName()));
                 dataField.setTextAdjust(TextAdjustEnum.STRETCH_HEIGHT);
                 dataField.setBlankWhenNull(true);
