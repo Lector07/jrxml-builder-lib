@@ -1,15 +1,10 @@
 package pl.lib.automation;
-
 import net.sf.jasperreports.engine.JasperExportManager;
 import net.sf.jasperreports.engine.JasperPrint;
 import org.junit.jupiter.api.Test;
-
 import java.io.File;
-
 import static org.assertj.core.api.Assertions.assertThat;
-
 class JsonReportGeneratorLargeContentTest {
-
     @Test
     void shouldHandleLargeContentWithTablesAndPagination() throws Exception {
         String json = """
@@ -67,26 +62,19 @@ class JsonReportGeneratorLargeContentTest {
                     }
                 }
                 """;
-
         JsonReportGenerator generator = new JsonReportGenerator();
-
         JasperPrint jasperPrint = generator.generateReport(json, "Raport z Dużą Ilością Tekstu i Tabelą");
-
         assertThat(jasperPrint).isNotNull();
         assertThat(jasperPrint.getPages()).isNotEmpty();
-
         String outputPath = "target/test-output/raport_duzo_tekstu_test.pdf";
         File outputDir = new File("target/test-output");
         if (!outputDir.exists()) {
             outputDir.mkdirs();
         }
-
         JasperExportManager.exportReportToPdfFile(jasperPrint, outputPath);
-
         File pdfFile = new File(outputPath);
         assertThat(pdfFile).exists();
         assertThat(pdfFile.length()).isGreaterThan(0);
-
         System.out.println("✅ PDF z dużą ilością tekstu wygenerowany pomyślnie!");
         System.out.println("📄 Ścieżka: " + pdfFile.getAbsolutePath());
         System.out.println("📊 Rozmiar pliku: " + String.format("%.2f KB", pdfFile.length() / 1024.0));
@@ -100,4 +88,3 @@ class JsonReportGeneratorLargeContentTest {
         System.out.println("   ✓ Prawidłowe formatowanie długich akapitów");
     }
 }
-

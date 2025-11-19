@@ -1,1 +1,0 @@
-packageSearchIndex = [{"l":"All Packages","u":"allpackages-index.html"},{"l":"pl.lib"},{"l":"pl.lib.api"},{"l":"pl.lib.automation"},{"l":"pl.lib.config"},{"l":"pl.lib.model"}];updateSearchResults();

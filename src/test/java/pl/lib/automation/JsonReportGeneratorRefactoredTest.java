@@ -1,15 +1,10 @@
 package pl.lib.automation;
-
 import net.sf.jasperreports.engine.JasperExportManager;
 import net.sf.jasperreports.engine.JasperPrint;
 import org.junit.jupiter.api.Test;
-
 import java.io.File;
-
 import static org.assertj.core.api.Assertions.assertThat;
-
 class JsonReportGeneratorRefactoredTest {
-
     @Test
     void shouldGenerateReportWithRefactoredCode() throws Exception {
         String json = """
@@ -45,29 +40,21 @@ class JsonReportGeneratorRefactoredTest {
                     }
                 }
                 """;
-
         JsonReportGenerator generator = new JsonReportGenerator();
-
         JasperPrint jasperPrint = generator.generateReport(json, "Raport Projektu Budowlanego");
-
         assertThat(jasperPrint).isNotNull();
         assertThat(jasperPrint.getPages()).isNotEmpty();
-
         String outputPath = "target/test-output/raport_refaktoryzacja_test.pdf";
         File outputDir = new File("target/test-output");
         if (!outputDir.exists()) {
             outputDir.mkdirs();
         }
-
         JasperExportManager.exportReportToPdfFile(jasperPrint, outputPath);
-
         File pdfFile = new File(outputPath);
         assertThat(pdfFile).exists();
         assertThat(pdfFile.length()).isGreaterThan(0);
-
         System.out.println("✅ PDF wygenerowany pomyślnie: " + pdfFile.getAbsolutePath());
         System.out.println("📄 Rozmiar pliku: " + pdfFile.length() + " bajtów");
         System.out.println("📊 Liczba stron: " + jasperPrint.getPages().size());
     }
 }
-

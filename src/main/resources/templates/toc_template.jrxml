@@ -6,7 +6,7 @@
     <style name="TOCEntry" fontName="DejaVu Sans" fontSize="10"/>
 
     <field name="label" class="java.lang.String"/>
-    <field name="pageIndex" class="java.lang.Integer"/>
+    <field name="pageIndex" class="java.lang.String"/>
     <field name="level" class="java.lang.Integer"/>
 
     <title>
@@ -29,7 +29,7 @@
                 <textElement verticalAlignment="Middle">
                     <paragraph leftIndent="0"/>
                 </textElement>
-                <textFieldExpression><![CDATA[$F{label}]]></textFieldExpression>
+                <textFieldExpression><![CDATA["   ".repeat(Math.max(0, $F{level} - 1)) + $F{label}]]></textFieldExpression>
             </textField>
             <textField>
                 <reportElement style="TOCEntry" x="0" y="0" width="480" height="18" forecolor="#BDBDBD"/>
@@ -38,7 +38,7 @@
                 </textElement>
                 <textFieldExpression><![CDATA[".................................................................................................................................................................................................................................................................................................."]]></textFieldExpression>
             </textField>
-            <textField isStretchWithOverflow="true" evaluationTime="Page">
+            <textField isStretchWithOverflow="true">
                 <reportElement style="TOCEntry" x="480" y="0" width="75" height="18"/>
                 <textElement textAlignment="Right" verticalAlignment="Middle"/>
                 <textFieldExpression><![CDATA[$F{pageIndex}]]></textFieldExpression>

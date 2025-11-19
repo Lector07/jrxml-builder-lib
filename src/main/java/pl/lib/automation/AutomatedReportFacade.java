@@ -1,5 +1,4 @@
 package pl.lib.automation;
-
 import net.sf.jasperreports.engine.*;
 import net.sf.jasperreports.engine.data.JRMapCollectionDataSource;
 import net.sf.jasperreports.engine.design.*;
@@ -14,149 +13,73 @@ import pl.lib.api.ReportBuilder;
 import pl.lib.config.ReportConfig;
 import pl.lib.config.ReportTheme;
 import pl.lib.model.CompanyInfo;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.*;
-
 public class AutomatedReportFacade {
-
-
     private final JsonReportGenerator jsonReportGenerator;
-
     public AutomatedReportFacade() {
         this.jsonReportGenerator = new JsonReportGenerator();
     }
-
     public AutomatedReportFacade(boolean printJrxml) {
         this.jsonReportGenerator = new JsonReportGenerator().withJrxmlPrinting(printJrxml);
     }
-
     public byte[] generateCompositeReport(String jsonContent, ReportConfig config) throws JRException, IOException {
-        // Najpierw parsuj JSON aby wyciągnąć nagłówki do spisu treści
-        List<Map<String, Object>> tocEntries = jsonReportGenerator.extractTocEntries(jsonContent);
-
-        JasperPrint mainContentPrint = jsonReportGenerator.generateReport(jsonContent, config.getTitle());
-
+        List<Map<String, Object>> tocEntries = jsonReportGenerator.extractTocStructure(jsonContent);
         JasperPrint titlePagePrint = createTitlePage(config.getTitle(), config.getCompanyInfo(), config);
-        JasperPrint tocPagePrint = createTocPageFromData(tocEntries, config);
-
+        JasperPrint mainContentPrint = jsonReportGenerator.generateReport(jsonContent, config.getTitle(), "Chełm", false);
         List<JasperPrint> printList = new ArrayList<>();
         printList.add(titlePagePrint);
-        printList.add(tocPagePrint);
+        if (tocEntries != null && !tocEntries.isEmpty()) {
+            JasperPrint tocPagePrint = createTocPageFromData(tocEntries, config);
+            printList.add(tocPagePrint);
+        }
         printList.add(mainContentPrint);
-
         ByteArrayOutputStream pdfOutputStream = new ByteArrayOutputStream();
         JRPdfExporter exporter = new JRPdfExporter();
         exporter.setExporterInput(SimpleExporterInput.getInstance(printList));
         exporter.setExporterOutput(new SimpleOutputStreamExporterOutput(pdfOutputStream));
-
         SimplePdfExporterConfiguration configuration = new SimplePdfExporterConfiguration();
         configuration.setCreatingBatchModeBookmarks(Boolean.TRUE);
         exporter.setConfiguration(configuration);
-
         exporter.exportReport();
-
         return pdfOutputStream.toByteArray();
     }
-
     private JasperPrint createTitlePage(String reportTitle, CompanyInfo companyInfo, ReportConfig config) throws JRException {
         ReportBuilder builder = new ReportBuilder("Title_Page")
                 .withPageFormat(config.getPageFormat())
                 .withHorizontalLayout("LANDSCAPE".equalsIgnoreCase(config.getOrientation()))
                 .withMargins(20, 20, 20, 20)
                 .withTheme(config.getTheme() != null ? ReportTheme.valueOf(config.getTheme().toUpperCase()) : ReportTheme.DEFAULT)
-                .withColorSettings(config.getColorSettings());
-
+                .withColorSettings(config.getColorSettings())
+                .withTitleBand(false);  
         JasperDesign design = builder.getDesign();
-
-        JRDesignBand titleBand = new JRDesignBand();
-        titleBand.setHeight(design.getPageHeight() - design.getTopMargin() - design.getBottomMargin());
-
+        JRDesignBand detailBand = new JRDesignBand();
+        detailBand.setHeight(500);  
         if (companyInfo != null) {
-            titleBand.addElement(createStaticText(companyInfo.getName(), 0, 150, design.getColumnWidth(), 30, 16, true, HorizontalTextAlignEnum.CENTER));
+            detailBand.addElement(createStaticText(companyInfo.getName(), 0, 50, design.getColumnWidth(), 30, 16, true, HorizontalTextAlignEnum.CENTER));
         }
-        titleBand.addElement(createStaticText(reportTitle, 0, 350, design.getColumnWidth(), 60, 28, true, HorizontalTextAlignEnum.CENTER));
-        titleBand.addElement(createStaticText("Data wygenerowania: " + new SimpleDateFormat("yyyy-MM-dd").format(new Date()), 0, titleBand.getHeight() - 40, design.getColumnWidth(), 20, 10, false, HorizontalTextAlignEnum.RIGHT));
-
-        design.setTitle(titleBand);
-
+        detailBand.addElement(createStaticText(reportTitle, 0, 200, design.getColumnWidth(), 60, 28, true, HorizontalTextAlignEnum.CENTER));
+        detailBand.addElement(createStaticText("Data wygenerowania: " + new SimpleDateFormat("yyyy-MM-dd").format(new Date()), 0, 460, design.getColumnWidth(), 20, 10, false, HorizontalTextAlignEnum.RIGHT));
+        ((JRDesignSection) design.getDetailSection()).addBand(detailBand);
         JasperReport report = builder.build();
         return JasperFillManager.fillReport(report, new HashMap<>(), new JREmptyDataSource());
     }
-
-    private JasperPrint createTocPage(JasperPrint mainContentPrint, ReportConfig config) throws JRException {
-        // Ta metoda jest już nieużywana - używamy createTocPageFromData
-        return null;
-    }
-
     private JasperPrint createTocPageFromData(List<Map<String, Object>> tocEntries, ReportConfig config) throws JRException {
         InputStream tocTemplateStream = getClass().getClassLoader().getResourceAsStream("templates/toc_template.jrxml");
         if (tocTemplateStream == null) {
             throw new JRException("Nie znaleziono szablonu toc_template.jrxml");
         }
-
         JasperDesign design = JRXmlLoader.load(tocTemplateStream);
         JasperReport report = JasperCompileManager.compileReport(design);
-
         Map<String, Object> parameters = new HashMap<>();
         parameters.put("PAGE_FORMAT", config.getPageFormat());
         parameters.put("ORIENTATION", config.getOrientation());
-
         JRMapCollectionDataSource dataSource = new JRMapCollectionDataSource((Collection<Map<String, ?>>) (Collection<?>) tocEntries);
-
         return JasperFillManager.fillReport(report, parameters, dataSource);
     }
-
-
-    private List<net.sf.jasperreports.engine.PrintBookmark> collectAllBookmarks(
-            List<net.sf.jasperreports.engine.PrintBookmark> bookmarks,
-            List<net.sf.jasperreports.engine.PrintBookmark> result) {
-
-        if (bookmarks == null) {
-            return result;
-        }
-
-        for (net.sf.jasperreports.engine.PrintBookmark bookmark : bookmarks) {
-            result.add(bookmark);
-            if (bookmark.getBookmarks() != null && !bookmark.getBookmarks().isEmpty()) {
-                collectAllBookmarks(bookmark.getBookmarks(), result);
-            }
-        }
-
-        return result;
-    }
-
-    private int calculateBookmarkLevel(net.sf.jasperreports.engine.PrintBookmark target,
-                                       List<net.sf.jasperreports.engine.PrintBookmark> rootBookmarks) {
-        return calculateBookmarkLevelRecursive(target, rootBookmarks, 0);
-    }
-
-    private int calculateBookmarkLevelRecursive(net.sf.jasperreports.engine.PrintBookmark target,
-                                                List<net.sf.jasperreports.engine.PrintBookmark> bookmarks,
-                                                int currentLevel) {
-        if (bookmarks == null) {
-            return -1;
-        }
-
-        for (net.sf.jasperreports.engine.PrintBookmark bookmark : bookmarks) {
-            if (bookmark == target) {
-                return currentLevel;
-            }
-
-            if (bookmark.getBookmarks() != null) {
-                int foundLevel = calculateBookmarkLevelRecursive(target, bookmark.getBookmarks(), currentLevel + 2);
-                if (foundLevel >= 0) {
-                    return foundLevel;
-                }
-            }
-        }
-
-        return -1;
-    }
-
     private JRDesignStaticText createStaticText(String text, int x, int y, int w, int h, float fontSize, boolean isBold, HorizontalTextAlignEnum align) {
         JRDesignStaticText staticText = new JRDesignStaticText();
         staticText.setX(x);
@@ -171,7 +94,6 @@ public class AutomatedReportFacade {
         staticText.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
         return staticText;
     }
-
     public void testCompositeReport() throws Exception {
         String jsonContent = """
                 {
@@ -244,27 +166,19 @@ public class AutomatedReportFacade {
                   }
                 }
                 """;
-
         ReportConfig config = new ReportConfig();
         config.setTitle("Sprawozdanie z Wykonania Budżetu Miasta Gliwice za 2024 r.");
         config.setPageFormat("A4");
         config.setOrientation("PORTRAIT");
-
         pl.lib.config.FormattingOptions formattingOptions = new pl.lib.config.FormattingOptions();
         formattingOptions.setGenerateBookmarks(true);
         config.setFormattingOptions(formattingOptions);
-
-
         AutomatedReportFacade facade = new AutomatedReportFacade(true);
-
         byte[] pdfBytes = facade.generateCompositeReport(jsonContent, config);
-
         java.nio.file.Files.write(
                 java.nio.file.Paths.get("raport_budzet_gliwice.pdf"),
                 pdfBytes
         );
-
         System.out.println("Raport wygenerowany pomyślnie: raport_budzet_gliwice.pdf");
     }
-
 }
