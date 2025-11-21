@@ -1,7 +1,10 @@
 package pl.lib.automation.analyzer;
+
 import com.fasterxml.jackson.databind.JsonNode;
+
 import java.util.ArrayList;
 import java.util.List;
+
 public class JsonStructureAnalyzer {
     public List<ReportElement> flattenJson(JsonNode rootNode) {
         List<ReportElement> elements = new ArrayList<>();
@@ -10,6 +13,9 @@ public class JsonStructureAnalyzer {
         );
         return elements;
     }
+
+
+
     private void flattenNodeRecursive(JsonNode node, List<ReportElement> elements, int level, String key) {
         if (node.isObject()) {
             elements.add(ReportElement.createHeader(key, level));

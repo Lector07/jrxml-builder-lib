@@ -1,12 +1,18 @@
 package pl.lib.automation.assembler;
+
 import net.sf.jasperreports.engine.*;
 import net.sf.jasperreports.engine.design.*;
 import net.sf.jasperreports.engine.type.*;
 import pl.lib.automation.analyzer.ReportElement;
+import pl.lib.automation.compiler.ChartCompiler;
 import pl.lib.model.ReportStyles;
+
 import java.util.List;
 import java.util.Map;
+
 public class ReportAssembler {
+    private final ChartCompiler chartCompiler = new ChartCompiler();
+
     public JasperPrint assemble(
             JasperDesign design,
             JRDataSource dataSource,
@@ -20,6 +26,7 @@ public class ReportAssembler {
         jasperPrint.setProperty("net.sf.jasperreports.create.bookmarks", "true");
         return jasperPrint;
     }
+
     private void addFieldsToDesign(JasperDesign design) throws JRException {
         addField(design, "type", String.class);
         addField(design, "text", String.class);
@@ -27,12 +34,14 @@ public class ReportAssembler {
         addField(design, "level", Integer.class);
         addField(design, "elementIndex", Integer.class);
     }
+
     private void addField(JasperDesign design, String name, Class<?> valueClass) throws JRException {
         JRDesignField field = new JRDesignField();
         field.setName(name);
         field.setValueClass(valueClass);
         design.addField(field);
     }
+
     private void buildDetailBand(JasperDesign design, List<ReportElement> elements) throws JRException {
         JRDesignBand detailBand = new JRDesignBand();
         detailBand.setHeight(19);
@@ -42,6 +51,7 @@ public class ReportAssembler {
         addTableSubreports(detailBand, design, elements);
         ((JRDesignSection) design.getDetailSection()).addBand(detailBand);
     }
+
     private JRDesignTextField createHeaderField(JasperDesign design) {
         JRDesignTextField headerField = new JRDesignTextField();
         headerField.setX(0);
@@ -62,6 +72,7 @@ public class ReportAssembler {
         headerField.setBookmarkLevelExpression(new JRDesignExpression("$F{level}"));
         return headerField;
     }
+
     private JRDesignTextField createKeyValueField(JasperDesign design) {
         JRDesignTextField keyValueField = new JRDesignTextField();
         keyValueField.setX(0);
@@ -81,13 +92,26 @@ public class ReportAssembler {
         keyValueField.setPrintWhenExpression(new JRDesignExpression("$F{type}.equals(\"KEY_VALUE\")"));
         return keyValueField;
     }
-    private void addTableSubreports(JRDesignBand detailBand, JasperDesign design, List<ReportElement> elements) {
+
+    private void addTableSubreports(JRDesignBand detailBand, JasperDesign design, List<ReportElement> elements) throws JRException {
         for (int i = 0; i < elements.size(); i++) {
-            if ("TABLE".equals(elements.get(i).getType())) {
+            ReportElement element = elements.get(i);
+
+            if ("TABLE".equals(element.getType())) {
                 detailBand.addElement(createTableSubreport(design, i));
+            }
+            else if ("CHART".equals(element.getType()) && element.getChartConfig() != null) {
+                JRDesignChart chart = chartCompiler.compileChart(
+                    element.getChartConfig(),
+                    element.getRawTableData(),
+                    design.getColumnWidth()
+                );
+                chart.setPositionType(PositionTypeEnum.FLOAT);
+                detailBand.addElement(chart);
             }
         }
     }
+
     private JRDesignSubreport createTableSubreport(JasperDesign design, int index) {
         JRDesignSubreport subreport = new JRDesignSubreport(design);
         subreport.setX(0);
