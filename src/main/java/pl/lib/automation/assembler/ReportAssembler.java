@@ -101,15 +101,25 @@ public class ReportAssembler {
                 detailBand.addElement(createTableSubreport(design, i));
             }
             else if ("CHART".equals(element.getType()) && element.getChartConfig() != null) {
-                JRDesignChart chart = chartCompiler.compileChart(
-                    element.getChartConfig(),
-                    element.getRawTableData(),
-                    design.getColumnWidth()
-                );
-                chart.setPositionType(PositionTypeEnum.FLOAT);
-                detailBand.addElement(chart);
+                detailBand.addElement(createChartSubreport(design, i));
             }
         }
+    }
+
+    private JRDesignSubreport createChartSubreport(JasperDesign design, int index) {
+        JRDesignSubreport subreport = new JRDesignSubreport(design);
+        subreport.setX(0);
+        subreport.setY(0);
+        subreport.setWidth(design.getColumnWidth());
+        subreport.setHeight(1); // Dynamiczna wysokość - subreport dostosuje się do zawartości
+        subreport.setRemoveLineWhenBlank(true);
+        subreport.setPositionType(PositionTypeEnum.FLOAT);
+        subreport.setExpression(new JRDesignExpression("$P{CHART_REPORT_" + index + "}"));
+        subreport.setDataSourceExpression(new JRDesignExpression("$P{CHART_DATA_" + index + "}"));
+        subreport.setPrintWhenExpression(new JRDesignExpression(
+                "$F{type}.equals(\"CHART\") && $F{elementIndex}.equals(" + index + ")"
+        ));
+        return subreport;
     }
 
     private JRDesignSubreport createTableSubreport(JasperDesign design, int index) {

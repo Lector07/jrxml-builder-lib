@@ -27,6 +27,9 @@ public class ChartConfig {
         this.valueField = valueField;
     }
 
+    public void setChartType(String type) {
+    }
+
     // Builder pattern
     public static class Builder {
         private final ChartConfig config = new ChartConfig();

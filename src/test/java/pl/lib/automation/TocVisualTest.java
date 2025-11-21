@@ -33,7 +33,17 @@ class TocVisualTest {
                   {"miesiac": "Styczeń", "przychod": 80000, "koszt": 60000},
                   {"miesiac": "Luty", "przychod": 85000, "koszt": 62000},
                   {"miesiac": "Marzec", "przychod": 90000, "koszt": 63000}
-                ]
+                ],
+                "wykres_przychodow": {
+                  "type": "bar",
+                  "title": "Przychody w kwartałach (tys. PLN)",
+                  "data": {
+                    "Q1": 245.0,
+                    "Q2": 265.0,
+                    "Q3": 280.0,
+                    "Q4": 310.0
+                  }
+                }
               },
               "sekcja_druga": {
                 "tytul": "Zasoby ludzkie",
@@ -45,13 +55,34 @@ class TocVisualTest {
                   {"imie": "Jan Kowalski", "stanowisko": "Manager", "staz": "5 lat"},
                   {"imie": "Anna Nowak", "stanowisko": "Developer", "staz": "3 lata"},
                   {"imie": "Piotr Wiśniewski", "stanowisko": "Tester", "staz": "2 lata"}
-                ]
+                ],
+                "struktura_zespolu": {
+                  "type": "pie",
+                  "title": "Struktura zespołu według działów (%)",
+                  "data": {
+                    "IT": 45.0,
+                    "Zarządzanie": 15.0,
+                    "Marketing": 20.0,
+                    "Administracja": 20.0
+                  }
+                }
               },
               "sekcja_trzecia": {
                 "tytul": "Podsumowanie i wnioski",
                 "wniosek_1": "Firma rozwija się dynamicznie",
                 "wniosek_2": "Należy zwiększyć budżet marketingowy",
-                "wniosek_3": "Planowane zatrudnienie 20 nowych osób"
+                "wniosek_3": "Planowane zatrudnienie 20 nowych osób",
+                "trend_zatrudnienia": {
+                  "type": "line",
+                  "title": "Trend zatrudnienia (liczba pracowników)",
+                  "data": {
+                    "2021": 100.0,
+                    "2022": 120.0,
+                    "2023": 140.0,
+                    "2024": 150.0,
+                    "2025 (plan)": 170.0
+                  }
+                }
               }
             }
             """;

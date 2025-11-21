@@ -108,7 +108,33 @@ public class JsonReportGenerator {
                 p2.setValueClass(JRDataSource.class);
                 design.addParameter(p2);
             }
+            else if ("CHART".equals(element.getType()) && element.getChartConfig() != null && element.getRawTableData() != null) {
+                // Kompiluj wykres jako subreport
+                JasperReport chartReport = compileChartSubreport(element.getChartConfig(), element.getRawTableData(), design.getColumnWidth());
+                JRDataSource chartData = dataSourceConverter.createChartDataSource(element.getRawTableData());
+
+                String subreportParamName = "CHART_REPORT_" + i;
+                String dataSourceParamName = "CHART_DATA_" + i;
+
+                reportParameters.put(subreportParamName, chartReport);
+                reportParameters.put(dataSourceParamName, chartData);
+
+                JRDesignParameter p1 = new JRDesignParameter();
+                p1.setName(subreportParamName);
+                p1.setValueClass(JasperReport.class);
+                design.addParameter(p1);
+
+                JRDesignParameter p2 = new JRDesignParameter();
+                p2.setName(dataSourceParamName);
+                p2.setValueClass(JRDataSource.class);
+                design.addParameter(p2);
+            }
         }
+
+        // Dodaj parametr dla stopki z nazwą organizacji i datą wygenerowania
+        String footerText = city + " | Wygenerowano: " + java.time.LocalDate.now().toString();
+        reportParameters.put("FooterLeftText", footerText);
+
         JRDataSource dataSource = dataSourceConverter.createMainDataSource(reportElements);
         this.lastGeneratedDesign = design;
         JasperPrint jasperPrint = reportAssembler.assemble(design, dataSource, reportParameters, reportElements);
@@ -212,6 +238,51 @@ public class JsonReportGenerator {
         header.setMode(ModeEnum.OPAQUE);
         header.setBackcolor(new Color(235, 235, 235));
         return header;
+    }
+
+    private JasperReport compileChartSubreport(pl.lib.config.ChartConfig chartConfig, JsonNode chartData, int width) throws JRException {
+        // Utworzenie prostego raportu z tylko jednym wykresem
+        ReportBuilder builder = new ReportBuilder("ChartSubreport")
+                .withTheme(ReportTheme.DEFAULT)
+                .withPageFormat("A4")
+                .withMargins(0, 0, 0, 0)
+                .withTitleBand(false)
+                .withPageFooter(false)
+                .withSummaryBand(true)
+                .withColumnWidth(width);
+
+        JasperDesign design = builder.getDesign();
+
+        // Dodaj pola dla danych wykresu
+        JRDesignField categoryField = new JRDesignField();
+        categoryField.setName("category");
+        categoryField.setValueClass(String.class);
+        design.addField(categoryField);
+
+        JRDesignField valueField = new JRDesignField();
+        valueField.setName("value");
+        valueField.setValueClass(Double.class);
+        design.addField(valueField);
+
+        // Dodaj wykres do summary band (wykresy używają REPORT evaluation dla agregacji danych)
+        JRDesignBand summaryBand = new JRDesignBand();
+        int chartHeight = chartConfig.getHeight() > 0 ? chartConfig.getHeight() : 300;
+        summaryBand.setHeight(chartHeight);
+        summaryBand.setSplitType(SplitTypeEnum.STRETCH);
+
+        // Kompiluj wykres używając ChartCompiler
+        pl.lib.automation.compiler.ChartCompiler compiler = new pl.lib.automation.compiler.ChartCompiler();
+        JRDesignChart chart = compiler.compileChart(chartConfig, chartData, width);
+        chart.setX(0);
+        chart.setY(0);
+        chart.setWidth(width);
+        chart.setHeight(chartHeight);
+        chart.setEvaluationTime(EvaluationTimeEnum.REPORT);
+
+        summaryBand.addElement(chart);
+        design.setSummary(summaryBand);
+
+        return JasperCompileManager.compileReport(design);
     }
 
     private JRDesignTextField createKeyValueField(String key, String value, int width, int level) {

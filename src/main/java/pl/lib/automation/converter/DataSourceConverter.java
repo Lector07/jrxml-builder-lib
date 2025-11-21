@@ -36,4 +36,17 @@ public class DataSourceConverter {
         }
         return new JRMapCollectionDataSource(rows);
     }
+
+    public JRDataSource createChartDataSource(JsonNode chartData) {
+        List<Map<String, ?>> dataPoints = new ArrayList<>();
+        if (chartData != null && chartData.isObject()) {
+            chartData.fields().forEachRemaining(entry -> {
+                Map<String, Object> point = new HashMap<>();
+                point.put("category", entry.getKey());
+                point.put("value", entry.getValue().asDouble(0.0));
+                dataPoints.add(point);
+            });
+        }
+        return new JRMapCollectionDataSource(dataPoints);
+    }
 }

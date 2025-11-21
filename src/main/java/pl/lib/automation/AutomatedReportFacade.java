@@ -16,7 +16,6 @@ import pl.lib.model.CompanyInfo;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.text.SimpleDateFormat;
 import java.util.*;
 public class AutomatedReportFacade {
     private final JsonReportGenerator jsonReportGenerator;
@@ -29,7 +28,9 @@ public class AutomatedReportFacade {
     public byte[] generateCompositeReport(String jsonContent, ReportConfig config) throws JRException, IOException {
         List<Map<String, Object>> tocEntries = jsonReportGenerator.extractTocStructure(jsonContent);
         JasperPrint titlePagePrint = createTitlePage(config.getTitle(), config.getCompanyInfo(), config);
-        JasperPrint mainContentPrint = jsonReportGenerator.generateReport(jsonContent, config.getTitle(), "Chełm", false);
+
+        String cityName = config.getCompanyInfo() != null ? config.getCompanyInfo().getName() : "Organizacja";
+        JasperPrint mainContentPrint = jsonReportGenerator.generateReport(jsonContent, config.getTitle(), cityName, false);
         List<JasperPrint> printList = new ArrayList<>();
         printList.add(titlePagePrint);
         if (tocEntries != null && !tocEntries.isEmpty()) {
@@ -54,15 +55,15 @@ public class AutomatedReportFacade {
                 .withMargins(20, 20, 20, 20)
                 .withTheme(config.getTheme() != null ? ReportTheme.valueOf(config.getTheme().toUpperCase()) : ReportTheme.DEFAULT)
                 .withColorSettings(config.getColorSettings())
-                .withTitleBand(false);  
+                .withTitleBand(false);
         JasperDesign design = builder.getDesign();
         JRDesignBand detailBand = new JRDesignBand();
-        detailBand.setHeight(500);  
+        detailBand.setHeight(270); // Y=200 + wysokość=60 + margines=10
         if (companyInfo != null) {
-            detailBand.addElement(createStaticText(companyInfo.getName(), 0, 50, design.getColumnWidth(), 30, 16, true, HorizontalTextAlignEnum.CENTER));
+            detailBand.addElement(createStaticText(companyInfo.getName(), 0, 20, design.getColumnWidth(), 30, 16, true, HorizontalTextAlignEnum.CENTER));
         }
-        detailBand.addElement(createStaticText(reportTitle, 0, 200, design.getColumnWidth(), 60, 28, true, HorizontalTextAlignEnum.CENTER));
-        detailBand.addElement(createStaticText("Data wygenerowania: " + new SimpleDateFormat("yyyy-MM-dd").format(new Date()), 0, 460, design.getColumnWidth(), 20, 10, false, HorizontalTextAlignEnum.RIGHT));
+        detailBand.addElement(createStaticText(reportTitle, 0, 100, design.getColumnWidth(), 60, 28, true, HorizontalTextAlignEnum.CENTER));
+
         ((JRDesignSection) design.getDetailSection()).addBand(detailBand);
         JasperReport report = builder.build();
         return JasperFillManager.fillReport(report, new HashMap<>(), new JREmptyDataSource());
@@ -128,7 +129,28 @@ public class AutomatedReportFacade {
                         "Zmiana r/r": "+4,50 pp"
                       }
                     ],
-                    "Wnioski z analizy": "Wskaźniki wskazują na stabilną i poprawiającą się kondycję finansową miasta."
+                    "Wnioski z analizy": "Wskaźniki wskazują na stabilną i poprawiającą się kondycję finansową miasta.",
+                    "Wykres dochodów": {
+                      "type": "pie",
+                      "data": {
+                        "Dochody własne": 66.99,
+                        "Subwencje": 23.89,
+                        "Dotacje celowe": 7.22,
+                        "Środki z UE": 1.90
+                      },
+                      "title": "Struktura dochodów budżetu miasta"
+                    },
+                    "Wykres wydatków": {
+                      "type": "bar",
+                      "data": {
+                        "Oświata": 35.2,
+                        "Transport": 18.5,
+                        "Kultura": 12.3,
+                        "Administracja": 15.8,
+                        "Gospodarka komunalna": 18.2
+                      },
+                      "title": "Wydatki według działów budżetowych (%)"
+                    }
                   },
                   "3. Omówienie wykonania dochodów": {
                     "Dochody ogółem (wykonanie)": "1.944.885.474,95 zł",
@@ -158,6 +180,17 @@ public class AutomatedReportFacade {
                           "Udział (%)": "1,90"
                         }
                       ]
+                    },
+                    "Wykres trendu": {
+                      "type": "line",
+                      "data": {
+                        "2020": 1650.5,
+                        "2021": 1720.3,
+                        "2022": 1810.2,
+                        "2023": 1890.4,
+                        "2024": 1944.9
+                      },
+                      "title": "Trend dochodów budżetu miasta (mln zł)"
                     }
                   },
                   "4. Podsumowanie": {
@@ -170,6 +203,13 @@ public class AutomatedReportFacade {
         config.setTitle("Sprawozdanie z Wykonania Budżetu Miasta Gliwice za 2024 r.");
         config.setPageFormat("A4");
         config.setOrientation("PORTRAIT");
+
+        CompanyInfo companyInfo = CompanyInfo.builder("Urząd Miasta Gliwice")
+                .address("ul. Zwycięstwa 21")
+                .location("44-100", "Gliwice")
+                .build();
+        config.setCompanyInfo(companyInfo);
+
         pl.lib.config.FormattingOptions formattingOptions = new pl.lib.config.FormattingOptions();
         formattingOptions.setGenerateBookmarks(true);
         config.setFormattingOptions(formattingOptions);

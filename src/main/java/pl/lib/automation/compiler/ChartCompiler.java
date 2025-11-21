@@ -35,13 +35,13 @@ public class ChartCompiler {
         JRDesignChart chart = new JRDesignChart(null, JRChart.CHART_TYPE_BAR);
         configureChartBasics(chart, config, width);
 
-        // Dataset
+        // Dataset - używamy standardowych pól
         JRDesignCategoryDataset dataset = new JRDesignCategoryDataset(null);
         JRDesignCategorySeries series = new JRDesignCategorySeries();
 
         series.setSeriesExpression(createExpression("\"Wartości\""));
-        series.setCategoryExpression(createExpression("$F{" + config.getCategoryField() + "}"));
-        series.setValueExpression(createExpression("$F{" + config.getValueField() + "}"));
+        series.setCategoryExpression(createExpression("$F{category}"));
+        series.setValueExpression(createExpression("$F{value}"));
 
         dataset.addCategorySeries(series);
         chart.setDataset(dataset);
@@ -66,12 +66,12 @@ public class ChartCompiler {
             config.isShow3D() ? JRChart.CHART_TYPE_PIE3D : JRChart.CHART_TYPE_PIE);
         configureChartBasics(chart, config, width);
 
-        // Dataset
+        // Dataset - używamy standardowych pól
         JRDesignPieDataset dataset = new JRDesignPieDataset(null);
         JRDesignPieSeries series = new JRDesignPieSeries();
 
-        series.setKeyExpression(createExpression("$F{" + config.getCategoryField() + "}"));
-        series.setValueExpression(createExpression("$F{" + config.getValueField() + "}"));
+        series.setKeyExpression(createExpression("$F{category}"));
+        series.setValueExpression(createExpression("$F{value}"));
 
         dataset.addPieSeries(series);
         chart.setDataset(dataset);
@@ -83,13 +83,13 @@ public class ChartCompiler {
         JRDesignChart chart = new JRDesignChart(null, JRChart.CHART_TYPE_LINE);
         configureChartBasics(chart, config, width);
 
-        // Dataset
+        // Dataset - używamy standardowych pól
         JRDesignCategoryDataset dataset = new JRDesignCategoryDataset(null);
         JRDesignCategorySeries series = new JRDesignCategorySeries();
 
         series.setSeriesExpression(createExpression("\"Trend\""));
-        series.setCategoryExpression(createExpression("$F{" + config.getCategoryField() + "}"));
-        series.setValueExpression(createExpression("$F{" + config.getValueField() + "}"));
+        series.setCategoryExpression(createExpression("$F{category}"));
+        series.setValueExpression(createExpression("$F{value}"));
 
         dataset.addCategorySeries(series);
         chart.setDataset(dataset);
@@ -113,13 +113,13 @@ public class ChartCompiler {
         JRDesignChart chart = new JRDesignChart(null, JRChart.CHART_TYPE_AREA);
         configureChartBasics(chart, config, width);
 
-        // Dataset
+        // Dataset - używamy standardowych pól
         JRDesignCategoryDataset dataset = new JRDesignCategoryDataset(null);
         JRDesignCategorySeries series = new JRDesignCategorySeries();
 
         series.setSeriesExpression(createExpression("\"Obszar\""));
-        series.setCategoryExpression(createExpression("$F{" + config.getCategoryField() + "}"));
-        series.setValueExpression(createExpression("$F{" + config.getValueField() + "}"));
+        series.setCategoryExpression(createExpression("$F{category}"));
+        series.setValueExpression(createExpression("$F{value}"));
 
         dataset.addCategorySeries(series);
         chart.setDataset(dataset);
@@ -131,13 +131,13 @@ public class ChartCompiler {
         JRDesignChart chart = new JRDesignChart(null, JRChart.CHART_TYPE_STACKEDBAR);
         configureChartBasics(chart, config, width);
 
-        // Dataset
+        // Dataset - używamy standardowych pól
         JRDesignCategoryDataset dataset = new JRDesignCategoryDataset(null);
         JRDesignCategorySeries series = new JRDesignCategorySeries();
 
         series.setSeriesExpression(createExpression("\"Serie\""));
-        series.setCategoryExpression(createExpression("$F{" + config.getCategoryField() + "}"));
-        series.setValueExpression(createExpression("$F{" + config.getValueField() + "}"));
+        series.setCategoryExpression(createExpression("$F{category}"));
+        series.setValueExpression(createExpression("$F{value}"));
 
         dataset.addCategorySeries(series);
         chart.setDataset(dataset);
