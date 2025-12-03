@@ -1,11 +1,15 @@
 package pl.lib.automation.analyzer;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import pl.lib.model.BudgetHierarchyNode;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class JsonStructureAnalyzer {
+
+    private final BudgetStructureAnalyzer budgetAnalyzer = new BudgetStructureAnalyzer();
+
     public List<ReportElement> flattenJson(JsonNode rootNode) {
         List<ReportElement> elements = new ArrayList<>();
         rootNode.fields().forEachRemaining(entry ->
@@ -14,12 +18,12 @@ public class JsonStructureAnalyzer {
         return elements;
     }
 
-
-
     private void flattenNodeRecursive(JsonNode node, List<ReportElement> elements, int level, String key) {
         if (node.isObject()) {
-            // Sprawdź czy to jest wykres (ma pola: type, data, title)
-            if (isChartNode(node)) {
+            if (isBudgetNode(node)) {
+                BudgetHierarchyNode budgetTree = budgetAnalyzer.buildBudgetTree(node);
+                elements.add(ReportElement.createBudgetTable(key, level, budgetTree));
+            } else if (isChartNode(node)) {
                 pl.lib.config.ChartConfig chartConfig = parseChartConfig(node);
                 JsonNode dataNode = node.get("data");
                 elements.add(ReportElement.createChart(key, level, dataNode, chartConfig));
@@ -34,6 +38,10 @@ public class JsonStructureAnalyzer {
         } else if (node.isValueNode()) {
             elements.add(ReportElement.createKeyValue(key, node.asText("null"), level));
         }
+    }
+
+    private boolean isBudgetNode(JsonNode node) {
+        return budgetAnalyzer.isBudgetData(node);
     }
 
     private boolean isChartNode(JsonNode node) {

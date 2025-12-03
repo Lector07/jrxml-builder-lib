@@ -21,14 +21,34 @@ public class DataSourceConverter {
     }
     public JRDataSource createTableDataSource(JsonNode tableData) {
         List<Map<String, ?>> rows = new ArrayList<>();
-        if (tableData.isArray()) {
+        if (tableData.isArray() && !tableData.isEmpty()) {
+            List<String> allColumnNames = new ArrayList<>();
+            JsonNode firstRow = tableData.get(0);
+            if (firstRow.isObject()) {
+                firstRow.fieldNames().forEachRemaining(allColumnNames::add);
+            }
+
             for (JsonNode row : tableData) {
                 if (row.isObject()) {
                     Map<String, Object> rowMap = new LinkedHashMap<>();
+
+                    for (String columnName : allColumnNames) {
+                        rowMap.put(columnName, null);
+                    }
+
                     row.fields().forEachRemaining(entry -> {
                         String key = entry.getKey();
                         JsonNode value = entry.getValue();
-                        rowMap.put(key, value.isNull() ? "" : value.asText());
+
+                        if (value.isNull() || value.isMissingNode()) {
+                            rowMap.put(key, null);
+                        } else if (value.isNumber()) {
+                            rowMap.put(key, value.asDouble());
+                        } else if (value.isBoolean()) {
+                            rowMap.put(key, value.asBoolean());
+                        } else {
+                            rowMap.put(key, value.asText());
+                        }
                     });
                     rows.add(rowMap);
                 }

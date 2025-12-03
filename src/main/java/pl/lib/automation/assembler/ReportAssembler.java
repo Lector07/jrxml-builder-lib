@@ -21,6 +21,7 @@ public class ReportAssembler {
     ) throws JRException {
         addFieldsToDesign(design);
         buildDetailBand(design, elements);
+        buildPageFooter(design);
         JasperReport jasperReport = JasperCompileManager.compileReport(design);
         JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, dataSource);
         jasperPrint.setProperty("net.sf.jasperreports.create.bookmarks", "true");
@@ -33,6 +34,11 @@ public class ReportAssembler {
         addField(design, "value", String.class);
         addField(design, "level", Integer.class);
         addField(design, "elementIndex", Integer.class);
+
+        JRDesignParameter footerParam = new JRDesignParameter();
+        footerParam.setName("FooterLeftText");
+        footerParam.setValueClass(String.class);
+        design.addParameter(footerParam);
     }
 
     private void addField(JasperDesign design, String name, Class<?> valueClass) throws JRException {
@@ -44,7 +50,7 @@ public class ReportAssembler {
 
     private void buildDetailBand(JasperDesign design, List<ReportElement> elements) throws JRException {
         JRDesignBand detailBand = new JRDesignBand();
-        detailBand.setHeight(19);
+        detailBand.setHeight(25);
         detailBand.setSplitType(SplitTypeEnum.STRETCH);
         detailBand.addElement(createHeaderField(design));
         detailBand.addElement(createKeyValueField(design));
@@ -57,16 +63,20 @@ public class ReportAssembler {
         headerField.setX(0);
         headerField.setY(0);
         headerField.setWidth(design.getColumnWidth());
-        headerField.setHeight(11);
+        headerField.setHeight(18);
         headerField.setRemoveLineWhenBlank(true);
         headerField.setTextAdjust(TextAdjustEnum.STRETCH_HEIGHT);
         headerField.setBold(true);
         headerField.setFontName(ReportStyles.FONT_DEJAVU_SANS);
-        headerField.setFontSize(9f);
+        headerField.setFontSize(12f);
         headerField.setPositionType(PositionTypeEnum.FLOAT);
+        headerField.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
+        headerField.setForecolor(new java.awt.Color(52, 73, 94));
+
         headerField.setExpression(new JRDesignExpression(
                 "\"   \".repeat(Math.max(0, $F{level} - 1)) + $F{text}"
         ));
+
         headerField.setPrintWhenExpression(new JRDesignExpression("$F{type}.equals(\"HEADER\")"));
         headerField.setAnchorNameExpression(new JRDesignExpression("\"bookmark_\" + $F{elementIndex}"));
         headerField.setBookmarkLevelExpression(new JRDesignExpression("$F{level}"));
@@ -78,16 +88,17 @@ public class ReportAssembler {
         keyValueField.setX(0);
         keyValueField.setY(0);
         keyValueField.setWidth(design.getColumnWidth());
-        keyValueField.setHeight(18);
+        keyValueField.setHeight(20);
         keyValueField.setRemoveLineWhenBlank(true);
         keyValueField.setTextAdjust(TextAdjustEnum.STRETCH_HEIGHT);
         keyValueField.setFontName(ReportStyles.FONT_DEJAVU_SANS);
         keyValueField.setFontSize(10f);
         keyValueField.setMarkup("html");
         keyValueField.setPositionType(PositionTypeEnum.FLOAT);
-        keyValueField.setHorizontalTextAlign(HorizontalTextAlignEnum.JUSTIFIED);
+        keyValueField.setHorizontalTextAlign(HorizontalTextAlignEnum.LEFT);
+        keyValueField.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
         keyValueField.setExpression(new JRDesignExpression(
-                "\"&nbsp;\".repeat(Math.max(0, $F{level} - 1) * 3 + 3) + \"<b>\" + $F{text} + \":</b> \" + $F{value} + \"<br/>\""
+                "\"&nbsp;\".repeat(Math.max(0, $F{level} - 1) * 4 + 2) + \"<b style='color: #2C3E50;'>\" + $F{text} + \":</b> \" + $F{value}"
         ));
         keyValueField.setPrintWhenExpression(new JRDesignExpression("$F{type}.equals(\"KEY_VALUE\")"));
         return keyValueField;
@@ -136,5 +147,38 @@ public class ReportAssembler {
                 "$F{type}.equals(\"TABLE\") && $F{elementIndex}.equals(" + index + ")"
         ));
         return subreport;
+    }
+
+    private void buildPageFooter(JasperDesign design) throws JRException {
+        JRDesignBand pageFooterBand = new JRDesignBand();
+        pageFooterBand.setHeight(35);
+
+        // Lewa strona - tekst z parametru FooterLeftText
+        JRDesignTextField leftText = new JRDesignTextField();
+        leftText.setX(0);
+        leftText.setY(2);
+        leftText.setWidth(design.getColumnWidth() / 2);
+        leftText.setHeight(30);
+        leftText.setExpression(new JRDesignExpression("$P{FooterLeftText}"));
+        leftText.setVerticalTextAlign(VerticalTextAlignEnum.BOTTOM);
+        leftText.setHorizontalTextAlign(HorizontalTextAlignEnum.LEFT);
+        leftText.setFontName(ReportStyles.FONT_DEJAVU_SANS);
+        leftText.setFontSize(8f);
+        pageFooterBand.addElement(leftText);
+
+        // Prawa strona - numer strony
+        JRDesignTextField pageNumberField = new JRDesignTextField();
+        pageNumberField.setX(0);
+        pageNumberField.setY(12);
+        pageNumberField.setWidth(design.getColumnWidth());
+        pageNumberField.setHeight(20);
+        pageNumberField.setExpression(new JRDesignExpression("\"Strona \" + $V{PAGE_NUMBER}"));
+        pageNumberField.setHorizontalTextAlign(HorizontalTextAlignEnum.RIGHT);
+        pageNumberField.setVerticalTextAlign(VerticalTextAlignEnum.BOTTOM);
+        pageNumberField.setFontName(ReportStyles.FONT_DEJAVU_SANS);
+        pageNumberField.setFontSize(8f);
+        pageFooterBand.addElement(pageNumberField);
+
+        design.setPageFooter(pageFooterBand);
     }
 }

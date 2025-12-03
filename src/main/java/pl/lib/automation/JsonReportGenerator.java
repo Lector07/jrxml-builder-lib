@@ -11,9 +11,11 @@ import pl.lib.api.ReportBuilder;
 import pl.lib.automation.analyzer.JsonStructureAnalyzer;
 import pl.lib.automation.analyzer.ReportElement;
 import pl.lib.automation.assembler.ReportAssembler;
+import pl.lib.automation.compiler.BudgetTableCompiler;
 import pl.lib.automation.compiler.SubreportCompiler;
 import pl.lib.automation.converter.DataSourceConverter;
 import pl.lib.automation.page.TitlePageGenerator;
+import pl.lib.config.BudgetTableConfig;
 import pl.lib.config.ColumnDefinition;
 import pl.lib.config.GroupDefinition;
 import pl.lib.config.ReportConfig;
@@ -31,6 +33,7 @@ public class JsonReportGenerator {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final JsonStructureAnalyzer structureAnalyzer = new JsonStructureAnalyzer();
     private final SubreportCompiler subreportCompiler = new SubreportCompiler();
+    private final BudgetTableCompiler budgetTableCompiler = new BudgetTableCompiler();
     private final DataSourceConverter dataSourceConverter = new DataSourceConverter();
     private final ReportAssembler reportAssembler = new ReportAssembler();
     private final TitlePageGenerator titlePageGenerator = new TitlePageGenerator();
@@ -103,6 +106,29 @@ public class JsonReportGenerator {
                 p1.setName(subreportParamName);
                 p1.setValueClass(JasperReport.class);
                 design.addParameter(p1);
+                JRDesignParameter p2 = new JRDesignParameter();
+                p2.setName(dataSourceParamName);
+                p2.setValueClass(JRDataSource.class);
+                design.addParameter(p2);
+            }
+            else if ("BUDGET_TABLE".equals(element.getType()) && element.getBudgetTree() != null) {
+                BudgetTableConfig budgetConfig = BudgetTableConfig.defaultConfig();
+                JasperReport budgetReport = budgetTableCompiler.compileBudgetTable(element.getBudgetTree(), budgetConfig, design.getColumnWidth());
+
+                List<Map<String, Object>> budgetData = convertBudgetTreeToMapList(element.getBudgetTree(), budgetConfig);
+                JRDataSource budgetDataSource = new JRMapCollectionDataSource((Collection<Map<String, ?>>) (Collection<?>) budgetData);
+
+                String subreportParamName = "BUDGET_REPORT_" + i;
+                String dataSourceParamName = "BUDGET_DATA_" + i;
+
+                reportParameters.put(subreportParamName, budgetReport);
+                reportParameters.put(dataSourceParamName, budgetDataSource);
+
+                JRDesignParameter p1 = new JRDesignParameter();
+                p1.setName(subreportParamName);
+                p1.setValueClass(JasperReport.class);
+                design.addParameter(p1);
+
                 JRDesignParameter p2 = new JRDesignParameter();
                 p2.setName(dataSourceParamName);
                 p2.setValueClass(JRDataSource.class);
@@ -584,5 +610,48 @@ public class JsonReportGenerator {
         public Map<String, ReportStructure> getNestedStructures() {
             return nestedStructures;
         }
+    }
+
+    private List<Map<String, Object>> convertBudgetTreeToMapList(BudgetHierarchyNode root, BudgetTableConfig config) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        pl.lib.automation.analyzer.BudgetStructureAnalyzer analyzer = new pl.lib.automation.analyzer.BudgetStructureAnalyzer();
+        List<BudgetHierarchyNode> flatTree = analyzer.flattenTree(root);
+        pl.lib.automation.util.CurrencyFormatter formatter = pl.lib.automation.util.CurrencyFormatter.forPLN();
+
+        for (BudgetHierarchyNode node : flatTree) {
+            Map<String, Object> row = new HashMap<>();
+            row.put("code", node.getCode() != null ? node.getCode() : "");
+
+            String nameWithIndent = generateIndent(node.getLevel(), config) + node.getName();
+            row.put("name", nameWithIndent);
+            row.put("indent", node.getLevel());
+            row.put("planned", formatter.formatAmountWithoutCurrency(node.getPlannedAmount()));
+            row.put("actual", formatter.formatAmountWithoutCurrency(node.getActualAmount()));
+
+            if (config.isShowPercentages()) {
+                row.put("percent", formatter.formatPercentDirect(node.getExecutionPercent()));
+            }
+            if (config.isShowDifferences()) {
+                row.put("difference", formatter.formatDifferenceWithoutCurrency(node.getDifference()));
+            }
+
+            boolean isBold = node.hasChildren() && config.isBoldSubtotals();
+            row.put("isBold", isBold);
+
+            result.add(row);
+        }
+        return result;
+    }
+
+    private String generateIndent(int level, BudgetTableConfig config) {
+        if (!config.isIndentHierarchy() || level <= 1) {
+            return "";
+        }
+        int spaces = (level - 1) * config.getIndentSize();
+        StringBuilder indent = new StringBuilder();
+        for (int i = 0; i < spaces; i++) {
+            indent.append(" ");
+        }
+        return indent.toString();
     }
 }
