@@ -39,6 +39,11 @@ public class ReportAssembler {
         footerParam.setName("FooterLeftText");
         footerParam.setValueClass(String.class);
         design.addParameter(footerParam);
+
+        JRDesignParameter isTocPageParam = new JRDesignParameter();
+        isTocPageParam.setName("IS_TOC_PAGE");
+        isTocPageParam.setValueClass(Boolean.class);
+        design.addParameter(isTocPageParam);
     }
 
     private void addField(JasperDesign design, String name, Class<?> valueClass) throws JRException {
@@ -50,7 +55,7 @@ public class ReportAssembler {
 
     private void buildDetailBand(JasperDesign design, List<ReportElement> elements) throws JRException {
         JRDesignBand detailBand = new JRDesignBand();
-        detailBand.setHeight(25);
+        detailBand.setHeight(20);
         detailBand.setSplitType(SplitTypeEnum.STRETCH);
         detailBand.addElement(createHeaderField(design));
         detailBand.addElement(createKeyValueField(design));
@@ -152,6 +157,10 @@ public class ReportAssembler {
     private void buildPageFooter(JasperDesign design) throws JRException {
         JRDesignBand pageFooterBand = new JRDesignBand();
         pageFooterBand.setHeight(35);
+
+        JRDesignExpression printWhenExpression = new JRDesignExpression();
+        printWhenExpression.setText("($V{PAGE_NUMBER}.intValue() > 1) || Boolean.FALSE.equals($P{IS_TOC_PAGE})");
+        pageFooterBand.setPrintWhenExpression(printWhenExpression);
 
         // Lewa strona - tekst z parametru FooterLeftText
         JRDesignTextField leftText = new JRDesignTextField();

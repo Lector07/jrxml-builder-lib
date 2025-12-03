@@ -81,7 +81,7 @@ public class JsonReportGenerator {
                 .withTheme(ReportTheme.DEFAULT)
                 .withPageFormat("A4")
                 .withHorizontalLayout(false)
-                .withMargins(20, 20, 20, 20)
+                .withMargins(5, 5, 5, 5)
                 .withTitleBand(false)
                 .withSummaryBand(false);
         JasperDesign design = builder.getDesign();
@@ -110,8 +110,7 @@ public class JsonReportGenerator {
                 p2.setName(dataSourceParamName);
                 p2.setValueClass(JRDataSource.class);
                 design.addParameter(p2);
-            }
-            else if ("BUDGET_TABLE".equals(element.getType()) && element.getBudgetTree() != null) {
+            } else if ("BUDGET_TABLE".equals(element.getType()) && element.getBudgetTree() != null) {
                 BudgetTableConfig budgetConfig = BudgetTableConfig.defaultConfig();
                 JasperReport budgetReport = budgetTableCompiler.compileBudgetTable(element.getBudgetTree(), budgetConfig, design.getColumnWidth());
 
@@ -133,8 +132,7 @@ public class JsonReportGenerator {
                 p2.setName(dataSourceParamName);
                 p2.setValueClass(JRDataSource.class);
                 design.addParameter(p2);
-            }
-            else if ("CHART".equals(element.getType()) && element.getChartConfig() != null && element.getRawTableData() != null) {
+            } else if ("CHART".equals(element.getType()) && element.getChartConfig() != null && element.getRawTableData() != null) {
                 // Kompiluj wykres jako subreport
                 JasperReport chartReport = compileChartSubreport(element.getChartConfig(), element.getRawTableData(), design.getColumnWidth());
                 JRDataSource chartData = dataSourceConverter.createChartDataSource(element.getRawTableData());
@@ -158,8 +156,15 @@ public class JsonReportGenerator {
         }
 
         // Dodaj parametr dla stopki z nazwą organizacji i datą wygenerowania
-        String footerText = city + " | Wygenerowano: " + java.time.LocalDate.now().toString();
+        String footerText = city + " | Wygenerowano: " + java.time.LocalDate.now();
         reportParameters.put("FooterLeftText", footerText);
+
+        JRDesignBand pageFooter = (JRDesignBand) design.getPageFooter();
+        if (pageFooter != null && includeTitlePage) {
+            JRDesignExpression printWhenExpression = new JRDesignExpression();
+            printWhenExpression.setText("$V{PAGE_NUMBER} > 1");
+            pageFooter.setPrintWhenExpression(printWhenExpression);
+        }
 
         JRDataSource dataSource = dataSourceConverter.createMainDataSource(reportElements);
         this.lastGeneratedDesign = design;
@@ -245,7 +250,7 @@ public class JsonReportGenerator {
         header.setX(level * 15);
         header.setY(0);
         header.setWidth(width - (level * 15));
-        header.setHeight(25 - level * 2);
+        header.setHeight(18 - level); // Zmniejszono wysokość nagłówka
         header.setPositionType(PositionTypeEnum.FLOAT);
         JRDesignExpression expression = new JRDesignExpression();
         expression.setText("\"" + text.replace("\"", "\\\"") + "\"");
@@ -290,13 +295,11 @@ public class JsonReportGenerator {
         valueField.setValueClass(Double.class);
         design.addField(valueField);
 
-        // Dodaj wykres do summary band (wykresy używają REPORT evaluation dla agregacji danych)
         JRDesignBand summaryBand = new JRDesignBand();
         int chartHeight = chartConfig.getHeight() > 0 ? chartConfig.getHeight() : 300;
         summaryBand.setHeight(chartHeight);
         summaryBand.setSplitType(SplitTypeEnum.STRETCH);
 
-        // Kompiluj wykres używając ChartCompiler
         pl.lib.automation.compiler.ChartCompiler compiler = new pl.lib.automation.compiler.ChartCompiler();
         JRDesignChart chart = compiler.compileChart(chartConfig, chartData, width);
         chart.setX(0);
@@ -410,7 +413,7 @@ public class JsonReportGenerator {
                     if (subConfig.getMargins() != null && subConfig.getMargins().size() == 4) {
                         subBuilder.withMargins(subConfig.getMargins().get(0), subConfig.getMargins().get(1), subConfig.getMargins().get(2), subConfig.getMargins().get(3));
                     } else {
-                        subBuilder.withMargins(5, 20, 5, 40);
+                        subBuilder.withMargins(5, 10, 5, 10);
                     }
                     subBuilder.withTitleBand(false);
                     subBuilder.withPageFooter(false);
