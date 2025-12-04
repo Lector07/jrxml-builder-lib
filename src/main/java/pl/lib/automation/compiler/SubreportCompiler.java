@@ -1,7 +1,6 @@
 package pl.lib.automation.compiler;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import net.sf.jasperreports.engine.JRException;
 import net.sf.jasperreports.engine.JasperReport;
 import pl.lib.api.ReportBuilder;
@@ -11,7 +10,6 @@ import pl.lib.automation.util.HeaderFormatter;
 import pl.lib.automation.util.JsonDataTypeGuesser;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 public class SubreportCompiler {
@@ -29,20 +27,37 @@ public class SubreportCompiler {
         firstRow.fieldNames().forEachRemaining(columnNames::add);
 
         ReportBuilder tableBuilder = new ReportBuilder("TableSubreport")
-                .withTheme(ReportTheme.DEFAULT)
                 .withTitleBand(false)
                 .withPageFooter(false)
                 .withSummaryBand(false)
                 .withMargins(0, 0, 0, 0)
                 .withColumnWidth(availableWidth);
 
-               Style tableHeaderStyle = new Style(ReportStyles.HEADER_STYLE)
-                .withFont(ReportStyles.FONT_DEJAVU_SANS, 9, true)
-                .withColors("#FFFFFF", "#34495E")
+        Style tableHeaderStyle = new Style(ReportStyles.HEADER_STYLE)
+                .withFont(ReportStyles.FONT_DEJAVU_SANS_CONDENSED, 9, true)
+                .withColors("#1C3A57", "#E8EEF4")
                 .withAlignment("CENTER", "MIDDLE")
-                .withBorders(1f, "#2C3E50")
-                .withPadding(3);
+                .withBorders(0.5f, "#C0D6E8")
+                .withPadding(5);
         tableBuilder.addStyle(tableHeaderStyle);
+
+        // Style dla danych tekstowych
+        Style tableDataStyle = new Style(ReportStyles.DATA_STYLE)
+                .withFont(ReportStyles.FONT_DEJAVU_SANS_CONDENSED, 8, false)
+                .withColors("#2C3E50", "#FFFFFF")
+                .withAlignment("LEFT", "MIDDLE")
+                .withBorders(0.5f, "#E8EEF4")
+                .withPadding(4);
+        tableBuilder.addStyle(tableDataStyle);
+
+        // Style dla liczb
+        Style tableNumericStyle = new Style(ReportStyles.NUMERIC_STYLE)
+                .withFont(ReportStyles.FONT_DEJAVU_SANS_CONDENSED, 8, false)
+                .withColors("#2C3E50", "#FFFFFF")
+                .withAlignment("RIGHT", "MIDDLE")
+                .withBorders(0.5f, "#E8EEF4")
+                .withPadding(4);
+        tableBuilder.addStyle(tableNumericStyle);
 
         for (String columnName : columnNames) {
             String formattedHeader = HeaderFormatter.formatHeaderName(columnName);

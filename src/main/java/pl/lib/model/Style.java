@@ -13,7 +13,7 @@ public final class Style {
     private final String borderColor;
     public Style(String name) {
         this.name = name;
-        this.fontName = "DejaVu Sans";
+        this.fontName = "DejaVu Sans Condensed";
         this.fontSize = 8;
         this.isBold = false;
         this.fontColor = "#000000";

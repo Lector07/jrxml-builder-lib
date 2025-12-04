@@ -3,7 +3,7 @@
               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
               xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
               name="TableOfContents" pageWidth="595" pageHeight="842" whenNoDataType="AllSectionsNoDetail" columnWidth="555" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20">
-    <style name="TOCEntry" fontName="DejaVu Sans" fontSize="10"/>
+    <style name="TOCEntry" fontName="DejaVu Sans Condensed" fontSize="10"/>
 
     <field name="label" class="java.lang.String"/>
     <field name="pageIndex" class="java.lang.String"/>
@@ -14,7 +14,7 @@
             <staticText>
                 <reportElement x="0" y="10" width="555" height="30"/>
                 <textElement textAlignment="Center" verticalAlignment="Middle">
-                    <font fontName="DejaVu Sans" size="22" isBold="true"/>
+                    <font fontName="DejaVu Sans Condensed" size="20" isBold="true"/>
                 </textElement>
                 <text><![CDATA[Spis treści]]></text>
             </staticText>

@@ -88,7 +88,7 @@ public class AutomatedReportFacade {
         staticText.setWidth(w);
         staticText.setHeight(h);
         staticText.setText(text != null ? text : "");
-        staticText.setFontName("DejaVu Sans");
+        staticText.setFontName("DejaVu Sans Condensed");
         staticText.setFontSize(fontSize);
         staticText.setBold(isBold);
         staticText.setHorizontalTextAlign(align);

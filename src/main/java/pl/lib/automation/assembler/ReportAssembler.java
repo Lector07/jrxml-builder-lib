@@ -55,7 +55,7 @@ public class ReportAssembler {
 
     private void buildDetailBand(JasperDesign design, List<ReportElement> elements) throws JRException {
         JRDesignBand detailBand = new JRDesignBand();
-        detailBand.setHeight(20);
+        detailBand.setHeight(25);
         detailBand.setSplitType(SplitTypeEnum.STRETCH);
         detailBand.addElement(createHeaderField(design));
         detailBand.addElement(createKeyValueField(design));
@@ -68,15 +68,15 @@ public class ReportAssembler {
         headerField.setX(0);
         headerField.setY(0);
         headerField.setWidth(design.getColumnWidth());
-        headerField.setHeight(18);
+        headerField.setHeight(20);
         headerField.setRemoveLineWhenBlank(true);
         headerField.setTextAdjust(TextAdjustEnum.STRETCH_HEIGHT);
         headerField.setBold(true);
-        headerField.setFontName(ReportStyles.FONT_DEJAVU_SANS);
-        headerField.setFontSize(12f);
+        headerField.setFontName(ReportStyles.FONT_DEJAVU_SANS_CONDENSED);
+        headerField.setFontSize(13f);
         headerField.setPositionType(PositionTypeEnum.FLOAT);
         headerField.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
-        headerField.setForecolor(new java.awt.Color(52, 73, 94));
+        headerField.setForecolor(new java.awt.Color(28, 58, 87));
 
         headerField.setExpression(new JRDesignExpression(
                 "\"   \".repeat(Math.max(0, $F{level} - 1)) + $F{text}"
@@ -96,7 +96,7 @@ public class ReportAssembler {
         keyValueField.setHeight(20);
         keyValueField.setRemoveLineWhenBlank(true);
         keyValueField.setTextAdjust(TextAdjustEnum.STRETCH_HEIGHT);
-        keyValueField.setFontName(ReportStyles.FONT_DEJAVU_SANS);
+        keyValueField.setFontName(ReportStyles.FONT_DEJAVU_SANS_CONDENSED);
         keyValueField.setFontSize(10f);
         keyValueField.setMarkup("html");
         keyValueField.setPositionType(PositionTypeEnum.FLOAT);
@@ -105,7 +105,7 @@ public class ReportAssembler {
 
 
         String expression =
-            "\"&nbsp;\".repeat(Math.max(0, $F{level} - 1) * 4 + 2) + \"<b style='color: #2C3E50;'>\" + $F{text} + \":</b> \" + " +
+            "\"&nbsp;\".repeat(Math.max(0, $F{level} - 1) * 4 + 2) + \"<b style='color: #1C3A57;'>\" + $F{text} + \":</b> \" + " +
             "($F{value} != null && $F{value}.matches(\"(?s).*[\\\\n\\\\r]\\\\s*[-*\\\\u2022]\\\\s+.*\") ? " +
             "  ($F{value}.replaceAll(\"(?m)^\\\\s*[-*\\\\u2022]\\\\s+(.+)$\", \"&nbsp;&nbsp;&nbsp;&#8226; $1\")) : " +
             "  $F{value})";
@@ -176,7 +176,7 @@ public class ReportAssembler {
         leftText.setExpression(new JRDesignExpression("$P{FooterLeftText}"));
         leftText.setVerticalTextAlign(VerticalTextAlignEnum.BOTTOM);
         leftText.setHorizontalTextAlign(HorizontalTextAlignEnum.LEFT);
-        leftText.setFontName(ReportStyles.FONT_DEJAVU_SANS);
+        leftText.setFontName(ReportStyles.FONT_DEJAVU_SANS_CONDENSED);
         leftText.setFontSize(8f);
         pageFooterBand.addElement(leftText);
 
@@ -188,7 +188,7 @@ public class ReportAssembler {
         pageNumberField.setExpression(new JRDesignExpression("\"Strona \" + $V{PAGE_NUMBER}"));
         pageNumberField.setHorizontalTextAlign(HorizontalTextAlignEnum.RIGHT);
         pageNumberField.setVerticalTextAlign(VerticalTextAlignEnum.BOTTOM);
-        pageNumberField.setFontName(ReportStyles.FONT_DEJAVU_SANS);
+        pageNumberField.setFontName(ReportStyles.FONT_DEJAVU_SANS_CONDENSED);
         pageNumberField.setFontSize(8f);
         pageFooterBand.addElement(pageNumberField);
 

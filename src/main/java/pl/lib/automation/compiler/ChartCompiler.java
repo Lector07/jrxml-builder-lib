@@ -9,9 +9,6 @@ import net.sf.jasperreports.engine.type.EvaluationTimeEnum;
 import pl.lib.config.ChartConfig;
 import pl.lib.model.ChartType;
 
-/**
- * Kompilator wykresów dla raportów JasperReports
- */
 public class ChartCompiler {
 
     public JRDesignChart compileChart(ChartConfig config, JsonNode data, int width) throws JRException {
@@ -35,7 +32,7 @@ public class ChartCompiler {
         JRDesignChart chart = new JRDesignChart(null, JRChart.CHART_TYPE_BAR);
         configureChartBasics(chart, config, width);
 
-        // Dataset - używamy standardowych pól
+
         JRDesignCategoryDataset dataset = new JRDesignCategoryDataset(null);
         JRDesignCategorySeries series = new JRDesignCategorySeries();
 
@@ -46,7 +43,6 @@ public class ChartCompiler {
         dataset.addCategorySeries(series);
         chart.setDataset(dataset);
 
-        // Plot
         JRDesignBarPlot plot = (JRDesignBarPlot) chart.getPlot();
         plot.setShowTickLabels(true);
         plot.setShowTickMarks(true);
@@ -83,7 +79,6 @@ public class ChartCompiler {
         JRDesignChart chart = new JRDesignChart(null, JRChart.CHART_TYPE_LINE);
         configureChartBasics(chart, config, width);
 
-        // Dataset - używamy standardowych pól
         JRDesignCategoryDataset dataset = new JRDesignCategoryDataset(null);
         JRDesignCategorySeries series = new JRDesignCategorySeries();
 
@@ -94,7 +89,7 @@ public class ChartCompiler {
         dataset.addCategorySeries(series);
         chart.setDataset(dataset);
 
-        // Plot
+
         JRDesignLinePlot plot = (JRDesignLinePlot) chart.getPlot();
         plot.setShowLines(true);
         plot.setShowShapes(true);
@@ -113,7 +108,6 @@ public class ChartCompiler {
         JRDesignChart chart = new JRDesignChart(null, JRChart.CHART_TYPE_AREA);
         configureChartBasics(chart, config, width);
 
-        // Dataset - używamy standardowych pól
         JRDesignCategoryDataset dataset = new JRDesignCategoryDataset(null);
         JRDesignCategorySeries series = new JRDesignCategorySeries();
 

@@ -152,24 +152,24 @@ public class BudgetTableCompiler {
         staticText.setWidth(width);
         staticText.setHeight(height);
         staticText.setText(text);
-        staticText.setFontName("DejaVu Sans");
+        staticText.setFontName("DejaVu Sans Condensed");
         staticText.setFontSize(9f);
         staticText.setBold(true);
         staticText.setHorizontalTextAlign(HorizontalTextAlignEnum.CENTER);
         staticText.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
         staticText.setMode(ModeEnum.OPAQUE);
-        staticText.setBackcolor(new Color(52, 73, 94));
-        staticText.setForecolor(Color.WHITE);
+        staticText.setBackcolor(new Color(232, 238, 244));
+        staticText.setForecolor(new Color(28, 58, 87));
 
        // Dodaj ramki
-        staticText.getLineBox().getTopPen().setLineWidth(1f);
-        staticText.getLineBox().getTopPen().setLineColor(new Color(44, 62, 80));
-        staticText.getLineBox().getBottomPen().setLineWidth(1f);
-        staticText.getLineBox().getBottomPen().setLineColor(new Color(44, 62, 80));
-        staticText.getLineBox().getLeftPen().setLineWidth(1f);
-        staticText.getLineBox().getLeftPen().setLineColor(new Color(44, 62, 80));
-        staticText.getLineBox().getRightPen().setLineWidth(1f);
-        staticText.getLineBox().getRightPen().setLineColor(new Color(44, 62, 80));
+        staticText.getLineBox().getTopPen().setLineWidth(0.5f);
+        staticText.getLineBox().getTopPen().setLineColor(new Color(176, 176, 176));
+        staticText.getLineBox().getBottomPen().setLineWidth(0.5f);
+        staticText.getLineBox().getBottomPen().setLineColor(new Color(176, 176, 176));
+        staticText.getLineBox().getLeftPen().setLineWidth(0.5f);
+        staticText.getLineBox().getLeftPen().setLineColor(new Color(176, 176, 176));
+        staticText.getLineBox().getRightPen().setLineWidth(0.5f);
+        staticText.getLineBox().getRightPen().setLineColor(new Color(176, 176, 176));
 
         return staticText;
     }
@@ -239,7 +239,7 @@ public class BudgetTableCompiler {
         expression.setText("$F{" + fieldName + "}");
         textField.setExpression(expression);
 
-        textField.setFontName("DejaVu Sans");
+        textField.setFontName("DejaVu Sans Condensed");
         textField.setFontSize(9f);
 
         // Utwórz styl z warunkiem pogrubienia
