@@ -81,7 +81,7 @@ public class JsonReportGenerator {
                 .withTheme(ReportTheme.DEFAULT)
                 .withPageFormat("A4")
                 .withHorizontalLayout(false)
-                .withMargins(5, 5, 5, 5)
+                .withMargins(20, 20, 20, 20)
                 .withTitleBand(false)
                 .withSummaryBand(false);
         JasperDesign design = builder.getDesign();
@@ -155,7 +155,6 @@ public class JsonReportGenerator {
             }
         }
 
-        // Dodaj parametr dla stopki z nazwą organizacji i datą wygenerowania
         String footerText = city + " | Wygenerowano: " + java.time.LocalDate.now();
         reportParameters.put("FooterLeftText", footerText);
 
@@ -272,7 +271,6 @@ public class JsonReportGenerator {
     }
 
     private JasperReport compileChartSubreport(pl.lib.config.ChartConfig chartConfig, JsonNode chartData, int width) throws JRException {
-        // Utworzenie prostego raportu z tylko jednym wykresem
         ReportBuilder builder = new ReportBuilder("ChartSubreport")
                 .withTheme(ReportTheme.DEFAULT)
                 .withPageFormat("A4")

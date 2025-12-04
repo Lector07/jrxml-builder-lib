@@ -100,11 +100,17 @@ public class ReportAssembler {
         keyValueField.setFontSize(10f);
         keyValueField.setMarkup("html");
         keyValueField.setPositionType(PositionTypeEnum.FLOAT);
-        keyValueField.setHorizontalTextAlign(HorizontalTextAlignEnum.LEFT);
-        keyValueField.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
-        keyValueField.setExpression(new JRDesignExpression(
-                "\"&nbsp;\".repeat(Math.max(0, $F{level} - 1) * 4 + 2) + \"<b style='color: #2C3E50;'>\" + $F{text} + \":</b> \" + $F{value}"
-        ));
+        keyValueField.setHorizontalTextAlign(HorizontalTextAlignEnum.JUSTIFIED);
+        keyValueField.setVerticalTextAlign(VerticalTextAlignEnum.TOP);
+
+
+        String expression =
+            "\"&nbsp;\".repeat(Math.max(0, $F{level} - 1) * 4 + 2) + \"<b style='color: #2C3E50;'>\" + $F{text} + \":</b> \" + " +
+            "($F{value} != null && $F{value}.matches(\"(?s).*[\\\\n\\\\r]\\\\s*[-*\\\\u2022]\\\\s+.*\") ? " +
+            "  ($F{value}.replaceAll(\"(?m)^\\\\s*[-*\\\\u2022]\\\\s+(.+)$\", \"&nbsp;&nbsp;&nbsp;&#8226; $1\")) : " +
+            "  $F{value})";
+
+        keyValueField.setExpression(new JRDesignExpression(expression));
         keyValueField.setPrintWhenExpression(new JRDesignExpression("$F{type}.equals(\"KEY_VALUE\")"));
         return keyValueField;
     }
@@ -127,7 +133,7 @@ public class ReportAssembler {
         subreport.setX(0);
         subreport.setY(0);
         subreport.setWidth(design.getColumnWidth());
-        subreport.setHeight(1); // Dynamiczna wysokość - subreport dostosuje się do zawartości
+        subreport.setHeight(1);
         subreport.setRemoveLineWhenBlank(true);
         subreport.setPositionType(PositionTypeEnum.FLOAT);
         subreport.setExpression(new JRDesignExpression("$P{CHART_REPORT_" + index + "}"));
@@ -162,7 +168,6 @@ public class ReportAssembler {
         printWhenExpression.setText("($V{PAGE_NUMBER}.intValue() > 1) || Boolean.FALSE.equals($P{IS_TOC_PAGE})");
         pageFooterBand.setPrintWhenExpression(printWhenExpression);
 
-        // Lewa strona - tekst z parametru FooterLeftText
         JRDesignTextField leftText = new JRDesignTextField();
         leftText.setX(0);
         leftText.setY(2);
@@ -175,7 +180,6 @@ public class ReportAssembler {
         leftText.setFontSize(8f);
         pageFooterBand.addElement(leftText);
 
-        // Prawa strona - numer strony
         JRDesignTextField pageNumberField = new JRDesignTextField();
         pageNumberField.setX(0);
         pageNumberField.setY(12);

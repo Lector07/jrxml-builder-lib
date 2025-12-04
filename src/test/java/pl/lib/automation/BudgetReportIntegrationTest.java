@@ -117,8 +117,10 @@ class BudgetReportIntegrationTest {
             outputDir.mkdirs();
         }
 
-        File outputFile = new File("target/test-output/raport_budzetowy_test.pdf");
+        File outputFile = new File("target/test-output/raport_prosty_budzet.pdf");
+        outputFile.getParentFile().mkdirs();
         JasperExportManager.exportReportToPdfFile(print, outputFile.getAbsolutePath());
+
 
         assertTrue(outputFile.exists());
         assertTrue(outputFile.length() > 0);
@@ -212,6 +214,7 @@ class BudgetReportIntegrationTest {
         assertNotNull(print);
 
         File outputFile = new File("target/test-output/raport_prosty_budzet.pdf");
+        outputFile.getParentFile().mkdirs();
         JasperExportManager.exportReportToPdfFile(print, outputFile.getAbsolutePath());
 
         assertTrue(outputFile.exists());
