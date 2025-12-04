@@ -76,6 +76,7 @@ public class SubreportCompiler {
         }
 
         tableBuilder.calculateColumnWidths();
+
         return tableBuilder.build();
     }
 }
