@@ -30,7 +30,6 @@ public class ChartConfig {
     public void setChartType(String type) {
     }
 
-    // Builder pattern
     public static class Builder {
         private final ChartConfig config = new ChartConfig();
 
@@ -89,7 +88,6 @@ public class ChartConfig {
         }
     }
 
-    // Getters and Setters
     public ChartType getType() {
         return type;
     }

@@ -167,7 +167,6 @@ public class ThemeFactory {
 
     private static List<Style> createElegantTheme() {
         List<Style> styles = new ArrayList<>();
-        // Ciemny fioletowy tekst na jasnym tle dla premium wyglądu
         styles.add(new Style(ReportStyles.HEADER_STYLE)
                 .withFont(ReportStyles.FONT_DEJAVU_SANS, 9, true)
                 .withColors("#5D4E6D", "#F8F6FA")

@@ -62,7 +62,6 @@ public class ChartCompiler {
             config.isShow3D() ? JRChart.CHART_TYPE_PIE3D : JRChart.CHART_TYPE_PIE);
         configureChartBasics(chart, config, width);
 
-        // Dataset - używamy standardowych pól
         JRDesignPieDataset dataset = new JRDesignPieDataset(null);
         JRDesignPieSeries series = new JRDesignPieSeries();
 

@@ -161,7 +161,6 @@ public class BudgetTableCompiler {
         staticText.setBackcolor(new Color(232, 238, 244));
         staticText.setForecolor(new Color(28, 58, 87));
 
-       // Dodaj ramki
         staticText.getLineBox().getTopPen().setLineWidth(0.5f);
         staticText.getLineBox().getTopPen().setLineColor(new Color(176, 176, 176));
         staticText.getLineBox().getBottomPen().setLineWidth(0.5f);

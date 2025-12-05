@@ -16,7 +16,6 @@ public class TitlePageGenerator {
         titleBand.setHeight(Math.max(pageHeight - 35, 200));
         titleBand.setSplitType(SplitTypeEnum.PREVENT);
 
-        // Dodanie subtelnego paska w górnej części
         JRDesignRectangle headerBar = new JRDesignRectangle();
         headerBar.setX(0);
         headerBar.setY(0);
@@ -42,7 +41,6 @@ public class TitlePageGenerator {
 
         currentY += 130;
 
-        // Tytuł z lepszym spacingiem
         JRDesignTextField titleField = new JRDesignTextField();
         titleField.setX(30);
         titleField.setY(currentY);
@@ -58,10 +56,8 @@ public class TitlePageGenerator {
         titleField.setTextAdjust(TextAdjustEnum.STRETCH_HEIGHT);
         titleBand.addElement(titleField);
 
-        // Elegancka stopka na dole
         int footerY = Math.max(titleBand.getHeight() - 60, currentY + 120);
 
-        // Linia nad stopką
         JRDesignLine separatorLine = new JRDesignLine();
         separatorLine.setX(availableWidth / 4);
         separatorLine.setY(footerY - 10);

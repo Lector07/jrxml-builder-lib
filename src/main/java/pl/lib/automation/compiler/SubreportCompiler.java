@@ -27,6 +27,7 @@ public class SubreportCompiler {
         firstRow.fieldNames().forEachRemaining(columnNames::add);
 
         ReportBuilder tableBuilder = new ReportBuilder("TableSubreport")
+                .withTheme(ReportTheme.DEFAULT)
                 .withTitleBand(false)
                 .withPageFooter(false)
                 .withSummaryBand(false)
@@ -41,7 +42,7 @@ public class SubreportCompiler {
                 .withPadding(5);
         tableBuilder.addStyle(tableHeaderStyle);
 
-        // Style dla danych tekstowych
+
         Style tableDataStyle = new Style(ReportStyles.DATA_STYLE)
                 .withFont(ReportStyles.FONT_DEJAVU_SANS_CONDENSED, 8, false)
                 .withColors("#2C3E50", "#FFFFFF")
@@ -50,7 +51,6 @@ public class SubreportCompiler {
                 .withPadding(4);
         tableBuilder.addStyle(tableDataStyle);
 
-        // Style dla liczb
         Style tableNumericStyle = new Style(ReportStyles.NUMERIC_STYLE)
                 .withFont(ReportStyles.FONT_DEJAVU_SANS_CONDENSED, 8, false)
                 .withColors("#2C3E50", "#FFFFFF")

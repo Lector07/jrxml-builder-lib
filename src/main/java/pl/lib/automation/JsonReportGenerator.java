@@ -249,7 +249,7 @@ public class JsonReportGenerator {
         header.setX(level * 15);
         header.setY(0);
         header.setWidth(width - (level * 15));
-        header.setHeight(18 - level); // Zmniejszono wysokość nagłówka
+        header.setHeight(18 - level);
         header.setPositionType(PositionTypeEnum.FLOAT);
         JRDesignExpression expression = new JRDesignExpression();
         expression.setText("\"" + text.replace("\"", "\\\"") + "\"");
