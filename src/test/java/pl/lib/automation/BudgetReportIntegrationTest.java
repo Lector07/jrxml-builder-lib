@@ -213,6 +213,11 @@ class BudgetReportIntegrationTest {
 
         assertNotNull(print);
 
+        File outputDir = new File("target/test-output");
+        if (!outputDir.exists()) {
+            outputDir.mkdirs();
+        }
+
         File outputFile = new File("target/test-output/raport_prosty_budzet.pdf");
         outputFile.getParentFile().mkdirs();
         JasperExportManager.exportReportToPdfFile(print, outputFile.getAbsolutePath());
