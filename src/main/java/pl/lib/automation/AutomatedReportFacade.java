@@ -55,6 +55,34 @@ public class AutomatedReportFacade {
         return pdfOutputStream.toByteArray();
     }
 
+    /**
+     * Generuje raport tabelowy ze stroną tytułową z logo i informacjami o firmie.
+     * Używa JsonReportGenerator.generateTableReportFromJson() dla zawartości tabeli.
+     */
+    public byte[] generateTableReportWithTitlePage(String jsonContent, ReportConfig config) throws JRException, IOException {
+        // Utwórz stronę tytułową
+        JasperPrint titlePagePrint = createTitlePage(config.getTitle(), config.getCompanyInfo(), config);
+
+        // Wygeneruj raport z tabelą danych
+        JasperPrint tableReportPrint = jsonReportGenerator.generateTableReportFromJson(jsonContent, config);
+
+        // Połącz strony w jednym PDF
+        List<JasperPrint> printList = new ArrayList<>();
+        printList.add(titlePagePrint);
+        printList.add(tableReportPrint);
+
+        ByteArrayOutputStream pdfOutputStream = new ByteArrayOutputStream();
+        JRPdfExporter exporter = new JRPdfExporter();
+        exporter.setExporterInput(SimpleExporterInput.getInstance(printList));
+        exporter.setExporterOutput(new SimpleOutputStreamExporterOutput(pdfOutputStream));
+        SimplePdfExporterConfiguration configuration = new SimplePdfExporterConfiguration();
+        configuration.setCreatingBatchModeBookmarks(Boolean.FALSE);
+        exporter.setConfiguration(configuration);
+        exporter.exportReport();
+
+        return pdfOutputStream.toByteArray();
+    }
+
     private JasperPrint createTitlePage(String reportTitle, CompanyInfo companyInfo, ReportConfig config) throws JRException {
         ReportBuilder builder = new ReportBuilder("Title_Page")
                 .withPageFormat(config.getPageFormat())
@@ -65,7 +93,7 @@ public class AutomatedReportFacade {
                 .withTitleBand(false);
         JasperDesign design = builder.getDesign();
         JRDesignBand detailBand = new JRDesignBand();
-        detailBand.setHeight(270); // Y=200 + wysokość=60 + margines=10
+        detailBand.setHeight(270);
         if (companyInfo != null) {
             detailBand.addElement(createStaticText(companyInfo.getName(), 0, 20, design.getColumnWidth(), 30, 16, true, HorizontalTextAlignEnum.CENTER));
         }

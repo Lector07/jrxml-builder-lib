@@ -179,9 +179,8 @@ public class JsonReportGenerator {
         if (!arrayNode.isArray()) {
             throw new IllegalArgumentException("JSON content must be an array");
         }
-        JasperReport tableReport = subreportCompiler.compileTableSubreport(arrayNode, 555);
-        JRDataSource tableData = dataSourceConverter.createTableDataSource(arrayNode);
-        return JasperFillManager.fillReport(tableReport, new HashMap<>(), tableData);
+        // Użyj generateReportFromArray() zamiast subreportCompiler - obsługuje ReportConfig i marginesy!
+        return generateReportFromArray(arrayNode, config);
     }
 
     private void processNode(JRDesignBand band, JasperDesign design, String key, JsonNode node, int level) throws JRException {
@@ -341,13 +340,15 @@ public class JsonReportGenerator {
         if (config.getMargins() != null && config.getMargins().size() == 4) {
             reportBuilder.withMargins(config.getMargins().get(0), config.getMargins().get(1), config.getMargins().get(2), config.getMargins().get(3));
         } else {
-            reportBuilder.withMargins(20, 20, 20, 20);
+            reportBuilder.withMargins(10, 10, 10, 10);
         }
         int mainReportColumnWidth = reportBuilder.preparePageAndGetColumnWidth();
+
         Map<String, JasperReport> compiledSubreports = compileSubreports(structure, config, "LANDSCAPE".equalsIgnoreCase(config.getOrientation()), mainReportColumnWidth);
         for (Map.Entry<String, JasperReport> entry : compiledSubreports.entrySet()) {
             reportBuilder.getParameters().put("SUBREPORT_" + entry.getKey(), entry.getValue());
         }
+
         JasperReport mainReport = createMainReport(reportBuilder, structure, config, compiledSubreports);
         this.lastGeneratedDesign = reportBuilder.getDesign();
         if (printJrxmlToConsole) {

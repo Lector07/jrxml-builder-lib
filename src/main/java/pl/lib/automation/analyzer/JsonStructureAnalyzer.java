@@ -55,7 +55,7 @@ public class JsonStructureAnalyzer {
         pl.lib.config.ChartConfig config = new pl.lib.config.ChartConfig();
         config.setTitle(title);
 
-        // Mapowanie typu wykresu ze stringa na enum
+
         switch (type.toLowerCase()) {
             case "pie":
                 config.setType(pl.lib.model.ChartType.PIE);

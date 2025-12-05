@@ -30,6 +30,10 @@ public class ReportBuilder {
     private boolean summaryBandEnabled = false;
     private String pageFormat = "A4";
     private ColorSettings colorSettings;
+    private int topMargin = 20;
+    private int rightMargin = 20;
+    private int bottomMargin = 20;
+    private int leftMargin = 20;
     public ReportBuilder() {
         this(UUID.randomUUID().toString());
     }
@@ -84,10 +88,10 @@ public class ReportBuilder {
         return this;
     }
     public ReportBuilder withMargins(int top, int right, int bottom, int left) {
-        this.jasperDesign.setTopMargin(top);
-        this.jasperDesign.setRightMargin(right);
-        this.jasperDesign.setBottomMargin(bottom);
-        this.jasperDesign.setLeftMargin(left);
+        this.topMargin = top;
+        this.rightMargin = right;
+        this.bottomMargin = bottom;
+        this.leftMargin = left;
         return this;
     }
     public ReportBuilder withCompanyInfo(CompanyInfo companyInfo) {
@@ -176,6 +180,23 @@ public class ReportBuilder {
         }
         jasperDesign.setPageWidth(width);
         jasperDesign.setPageHeight(height);
+
+        // DEBUG: Log ustawiania marginesów
+        System.out.println("=== USTAWIANIE MARGINESÓW ===");
+        System.out.println("Top: " + this.topMargin);
+        System.out.println("Right: " + this.rightMargin);
+        System.out.println("Bottom: " + this.bottomMargin);
+        System.out.println("Left: " + this.leftMargin);
+
+        jasperDesign.setTopMargin(this.topMargin);
+        jasperDesign.setRightMargin(this.rightMargin);
+        jasperDesign.setBottomMargin(this.bottomMargin);
+        jasperDesign.setLeftMargin(this.leftMargin);
+
+        System.out.println("JasperDesign Top Margin: " + jasperDesign.getTopMargin());
+        System.out.println("JasperDesign Left Margin: " + jasperDesign.getLeftMargin());
+        System.out.println("=============================");
+
         int columnWidth = jasperDesign.getPageWidth() - jasperDesign.getLeftMargin() - jasperDesign.getRightMargin();
         jasperDesign.setColumnWidth(columnWidth);
     }
